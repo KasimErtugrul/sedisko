@@ -17,7 +17,7 @@ flutter run
 
 > Not: Orijinal repodaki `pubspec.lock`, `pubspec.yaml` kısıtlarıyla tutarsızdı
 > (ör. `mobile_scanner ^7.5.0` yerine `2.1.8` kilitliydi); bu yüzden lock dosyası
-> kaldırıldı. İlk `flutter pub get` komutu güncel ve tutarlı bir lock üretir.
+> silindi ve bu pakete güncel, tutarlı bir lock ile yeniden dahil edildi.
 
 ## Platform ayarları (kamera + internet)
 
@@ -103,7 +103,7 @@ flutter test
    reddedildiğinde kullanıcı açıklamasız siyah ekranda kalıyordu. İzin durumu
    anlatan hata ekranı + "Tekrar dene" eklendi.
 5. **Tutarsız pubspec.lock** — lock, pubspec kısıtlarıyla uyuşmuyordu
-   (`^7.5.0` vs `2.1.8`); kaldırıldı, yeniden üretilmesi için README'ye not eklendi.
+   (`^7.5.0` vs `2.1.8`); silinip aynı SDK ile yeniden üretildi ve pakete dahil edildi.
 6. **Kapalı test dosyası** — `test/widget_test.dart` tamamen yorumsuzdu ve
    var olmayan `MyApp`'e referans veriyordu; 6 gerçek test dosyasıyla değiştirildi.
 7. **Eksik iOS Podfile** — CocoaPods tabanlı derleme için gerekli Podfile
@@ -161,7 +161,18 @@ flutter test
     etiketi, tile'larda `ValueKey`, dokunsal geri bildirim eklendi.
 26. **Dark mode** — `themeMode: ThemeMode.system` açıkça belirtildi.
 
+### Sıcak düzeltme (1.1.1)
+
+27. **Barkod akışında tip çökmesi** — `Get.toNamed<String>(Routes.scanner)`
+    runtime'da `type 'GetPageRoute<dynamic>' is not a subtype of type
+    'Route<String?>?'` hatasıyla çöküyordu: GetX rotaları
+    `GetPageRoute<dynamic>` olarak kurar, Flutter Navigator ise `pushNamed`
+    generic'ine göre rotayı `Route<String?>`'e cast eder. `scanIsbn`
+    (BookFormController) ve `addByScan` (LibraryController) generic'siz
+    çağrıya çevrildi; dönen sonuç `is String` ile savunmacı biçimde
+    ele alınıyor ve boş değer güvenle yok sayılıyor.
+
 ## Sürüm notları
 
-`pubspec.yaml` sürümü `1.1.0+2`'ye yükseltildi. Depolama anahtarı
+`pubspec.yaml` sürümü `1.1.1+3`'e yükseltildi. Depolama anahtarı
 (`books_v1`) değişmedi: mevcut kullanıcılar kitaplıklarını kaybetmez.

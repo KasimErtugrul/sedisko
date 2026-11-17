@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '../../core/errors/app_exceptions.dart';
 import '../../core/utils/text_normalizer.dart';
 import '../../data/models/book_model.dart';
+import '../../data/models/reading_log_entry.dart';
 import '../../domain/repositories/book_repository.dart';
 import '../routes/app_routes.dart';
 import '../routes/route_args.dart';
@@ -107,9 +108,16 @@ class LibraryController extends GetxController {
 
   /// Depolama başarılıysa `true` döner; başarısızsa kullanıcıya
   /// açıklama gösterilir ve bellek güncellenmez.
+  ///
+  /// Okuma günlüğü, eski ve yeni durum arasındaki farktan türetilir:
+  /// tüm yazma yolları (form kaydı, hızlı aksiyonlar, ilerleme diyaloğu)
+  /// buradan geçtiği için kayıtlar tek merkezde birikir.
   Future<bool> saveBook(BookModel book) async {
+    final merged = book.copyWith(
+      readingLog: _mergedReadingLog(byId(book.id), book),
+    );
     try {
-      await _repository.saveBook(book);
+      await _repository.saveBook(merged);
     } on StorageException catch (error) {
       _notify('Kaydedilemedi', error.message);
       return false;
@@ -120,9 +128,9 @@ class LibraryController extends GetxController {
 
     final index = books.indexWhere((b) => b.id == book.id);
     if (index >= 0) {
-      books[index] = book;
+      books[index] = merged;
     } else {
-      books.add(book);
+      books.add(merged);
     }
     _sort();
     return true;
@@ -140,6 +148,47 @@ class LibraryController extends GetxController {
     }
     books.removeWhere((b) => b.id == id);
     return true;
+  }
+
+  /// Okuma günlüğünü [old] ile [incoming] arasındaki farktan üretir.
+  ///
+  /// Kurallar:
+  /// - "Başlanmadı"ya dönüş ilerleme sıfırlamasıdır; günlük temizlenir.
+  /// - Günlük boşsa ilk kayıt referans noktasıdır (o ana kadar okunanlar
+  ///   takip başlamadan olduğundan sayılmaz).
+  /// - Sayfa artışı ilerleme kaydıdır (tarih: şimdi).
+  /// - Bitiş tarihi yeni atandıysa bitiş olayı olarak işaretlenir.
+  /// - Konum 0'a döndüyse ("Yeniden oku") yeni turun başlangıcı eklenir.
+  /// - Sayfa elle geriye çekildiyse (düzeltme) kayıt eklenmez.
+  List<ReadingLogEntry> _mergedReadingLog(BookModel? old, BookModel incoming) {
+    if (incoming.status == ReadingStatus.notStarted) {
+      return const <ReadingLogEntry>[];
+    }
+
+    final log = List<ReadingLogEntry>.of(old?.readingLog ?? const []);
+    final now = DateTime.now();
+
+    if (log.isEmpty) {
+      log.add(ReadingLogEntry(at: now, page: incoming.currentPage));
+      return log;
+    }
+
+    final lastPage = log.last.page;
+    if (incoming.currentPage > lastPage) {
+      log.add(ReadingLogEntry(at: now, page: incoming.currentPage));
+    } else if (incoming.status == ReadingStatus.finished &&
+        old?.status != ReadingStatus.finished) {
+      // Bitmiş durumuna geçiş: sayfa değişmese de olay günlüğe yazılır.
+      log.add(
+        ReadingLogEntry(
+          at: incoming.finishedAt ?? now,
+          page: incoming.currentPage,
+        ),
+      );
+    } else if (incoming.currentPage == 0 && lastPage > 0) {
+      log.add(ReadingLogEntry(at: now, page: 0));
+    }
+    return log;
   }
 
   Future<bool> updateProgress(BookModel book, int page) async {
@@ -194,7 +243,10 @@ class LibraryController extends GetxController {
   // ---------- Barkod akışı ----------
 
   Future<void> addByScan() async {
-    final code = await Get.toNamed<String>(Routes.scanner);
+    // Generic'siz çağrı: GetX rotaları GetPageRoute<dynamic> olduğundan
+    // Get.toNamed<String> runtime'da Route<String?> cast hatası verir.
+    final result = await Get.toNamed(Routes.scanner);
+    final code = result is String ? result.trim() : null;
     if (code == null || code.isEmpty) return;
     await handleIsbn(code);
   }

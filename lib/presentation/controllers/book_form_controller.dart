@@ -104,7 +104,14 @@ class BookFormController extends GetxController {
   }
 
   Future<void> scanIsbn() async {
-    final code = await Get.toNamed<String>(Routes.scanner);
+    // GetX rotaları GetPageRoute<dynamic> olarak kurulur. Burada
+    // Get.toNamed<String> kullanırsak Flutter Navigator rotayı
+    // Route<String?>'e cast etmeye çalışır ve runtime'da
+    // "GetPageRoute<dynamic> is not a subtype of Route<String?>"
+    // hatası fırlatır. Bu yüzden generic vermiyoruz; sonucu tipte
+    // savunmacı şekilde ele alıyoruz.
+    final result = await Get.toNamed(Routes.scanner);
+    final code = result is String ? result.trim() : null;
     if (code == null || code.isEmpty) return;
 
     // Aynı ISBN başka bir kitapta kullanılıyorsa üzerine yazmak yerine uyar.

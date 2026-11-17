@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 /// Kitap kapağı görseli.
@@ -31,16 +32,17 @@ class CoverImage extends StatelessWidget {
         height: height,
         child: (u == null || u.isEmpty)
             ? _placeholder(context)
-            : Image.network(
-                u,
+            : CachedNetworkImage(
+                imageUrl: u,
                 fit: BoxFit.cover,
-                gaplessPlayback: true,
-                filterQuality: FilterQuality.medium,
-                cacheWidth:
+                memCacheWidth:
                     (width * MediaQuery.devicePixelRatioOf(context)).round(),
-                loadingBuilder: (context, child, progress) =>
-                    progress == null ? child : _loading(context),
-                errorBuilder: (_, __, ___) => _placeholder(context),
+                filterQuality: FilterQuality.medium,
+                fadeInDuration: Duration.zero,
+                fadeOutDuration: Duration.zero,
+                progressIndicatorBuilder: (context, url, progress) =>
+                    _loading(context),
+                errorWidget: (context, url, error) => _placeholder(context),
               ),
       ),
     );

@@ -2,6 +2,8 @@ import 'dart:math';
 
 import 'package:equatable/equatable.dart';
 
+import 'reading_log_entry.dart';
+
 enum ReadingStatus {
   notStarted('Başlanmadı'),
   reading('Okunuyor'),
@@ -32,6 +34,7 @@ class BookModel extends Equatable {
     this.finishedAt,
     this.notes,
     this.isManual = false,
+    this.readingLog = const [],
   });
 
   final String id;
@@ -49,6 +52,12 @@ class BookModel extends Equatable {
   final DateTime? finishedAt;
   final String? notes;
   final bool isManual;
+
+  /// Tarihli okuma olayları (başlama, sayfa güncelleme, bitirme, yeniden
+  /// okuma). Eski veride bu alan yoktur; bozuk kayıtlar ayrıştırılırken
+  /// atlanır ve boş liste varsayılan olarak kullanılır.
+  final List<ReadingLogEntry> readingLog;
+
   final DateTime addedAt;
 
   static final Random _random = Random();
@@ -137,6 +146,7 @@ class BookModel extends Equatable {
       finishedAt: _parseDate(json['finishedAt']),
       notes: _asStringOrNull(json['notes']),
       isManual: json['isManual'] is bool ? json['isManual'] as bool : false,
+      readingLog: _parseLog(json['readingLog']),
       addedAt: _parseDate(json['addedAt']) ?? DateTime.now(),
     );
   }
@@ -167,6 +177,8 @@ class BookModel extends Equatable {
         'finishedAt': finishedAt?.toIso8601String(),
         'notes': notes,
         'isManual': isManual,
+        if (readingLog.isNotEmpty)
+          'readingLog': [for (final entry in readingLog) entry.toJson()],
         'addedAt': addedAt.toIso8601String(),
       };
 
@@ -187,6 +199,7 @@ class BookModel extends Equatable {
     Object? finishedAt = _unset,
     String? notes,
     bool? isManual,
+    List<ReadingLogEntry>? readingLog,
   }) {
     return BookModel(
       id: id,
@@ -207,6 +220,7 @@ class BookModel extends Equatable {
           : finishedAt as DateTime?,
       notes: notes ?? this.notes,
       isManual: isManual ?? this.isManual,
+      readingLog: readingLog ?? this.readingLog,
       addedAt: addedAt,
     );
   }
@@ -240,6 +254,17 @@ class BookModel extends Equatable {
   static DateTime? _parseDate(Object? value) =>
       value is String ? DateTime.tryParse(value) : null;
 
+  /// Günlük kayıtlarını kayıt kayıt ayrıştırır; bozuk bir kayıt tüm
+  /// günlüğü değil yalnız kendisini düşürür.
+  static List<ReadingLogEntry> _parseLog(Object? value) {
+    if (value is! List) return const <ReadingLogEntry>[];
+    return value
+        .whereType<Map>()
+        .map((m) => ReadingLogEntry.tryFromJson(Map<String, dynamic>.from(m)))
+        .whereType<ReadingLogEntry>()
+        .toList();
+  }
+
   @override
   List<Object?> get props => [
         id,
@@ -257,6 +282,7 @@ class BookModel extends Equatable {
         finishedAt,
         notes,
         isManual,
+        readingLog,
         addedAt,
       ];
 }

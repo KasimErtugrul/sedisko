@@ -8,6 +8,7 @@ import '../controllers/library_controller.dart';
 import '../routes/app_routes.dart';
 import '../routes/route_args.dart';
 import '../widgets/cover_image.dart';
+import '../widgets/reading_stats_panel.dart';
 
 class BookDetailPage extends GetView<LibraryController> {
   const BookDetailPage({super.key});
@@ -116,6 +117,8 @@ class BookDetailPage extends GetView<LibraryController> {
                 ),
               ),
             ],
+            const SizedBox(height: 8),
+            ReadingStatsPanel(book: book),
           ],
         ),
       );
