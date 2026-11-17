@@ -8,6 +8,8 @@ import '../routes/app_routes.dart';
 import '../routes/route_args.dart';
 import '../widgets/book_tile.dart';
 import '../widgets/cover_image.dart';
+import '../widgets/shelf_picker_sheet.dart';
+import '../widgets/sort_sheet.dart';
 import '../widgets/status_filter_row.dart';
 
 /// Ana sayfa sekmesi: kitap odaklı özet akışı.
@@ -25,7 +27,22 @@ class HomePage extends GetView<LibraryController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Kitaplığım')),
+      appBar: AppBar(
+        title: const Text('Kitaplığım'),
+        actions: [
+          // Tüm kitaplar bölümünü ve arama sonuçlarını sıralar.
+          Obx(
+            () => IconButton(
+              tooltip: 'Sırala',
+              icon: Badge(
+                isLabelVisible: controller.hasCustomSort,
+                child: const Icon(Icons.sort),
+              ),
+              onPressed: () => showBookSortSheet(context),
+            ),
+          ),
+        ],
+      ),
       body: Stack(
         children: [
           Column(
@@ -125,6 +142,8 @@ class HomePage extends GetView<LibraryController> {
                       book: book,
                       onTap: () =>
                           Get.toNamed(Routes.detail, arguments: book.id),
+                      // Uzun bas: kitabı başka rafa taşı.
+                      onLongPress: () => pickShelfAndMove(context, book),
                     );
                   },
                 ),
@@ -134,11 +153,14 @@ class HomePage extends GetView<LibraryController> {
   }
 
   /// Ana akış: özet + bölümler + tüm kitaplar, tek sanallaştırılmış liste.
+  /// "Tüm kitaplar" bölümü aktif sıralamayı izler ([sortedAll]); bölüm
+  /// şeritleri (devam eden / favoriler / notlar) sabit küratörlük sırasıyla
+  /// kalır.
   Widget _homeFeed() {
     final reading = controller.readingBooks;
     final favorites = controller.favoriteBooks;
     final noted = controller.notedBooks;
-    final all = controller.books.toList();
+    final all = controller.sortedAll;
 
     // Bölüm şeritleri yalnız doluysa listeye girer; boş bölümler yer tutmaz.
     final sections = <_Section>[
@@ -171,6 +193,8 @@ class HomePage extends GetView<LibraryController> {
           key: ValueKey('home-${book.id}'),
           book: book,
           onTap: () => Get.toNamed(Routes.detail, arguments: book.id),
+          // Uzun bas: kitabı başka rafa taşı.
+          onLongPress: () => pickShelfAndMove(context, book),
         );
       },
     );

@@ -21,7 +21,11 @@ class AppPages {
       name: Routes.shelf,
       page: () {
         final args = Get.arguments;
-        return ShelfPage(shelf: args is ShelfArgs ? args.shelf : null);
+        final shelfArgs = args is ShelfArgs ? args : const ShelfArgs();
+        return ShelfPage(
+          shelf: shelfArgs.shelf,
+          authorKey: shelfArgs.authorKey,
+        );
       },
     ),
     GetPage(
@@ -43,6 +47,23 @@ class AppPages {
         );
       }),
     ),
-    GetPage(name: Routes.detail, page: () => const BookDetailPage()),
+    GetPage(
+      name: Routes.detail,
+      // Kitap kimliği rota kurulum anında okunup sayfaya sabitlenir:
+      // yığındaki detay sayfaları birbirinin argümanını ezmesin.
+      page: () {
+        final arg = Get.arguments;
+        if (arg is String && arg.isNotEmpty) {
+          return BookDetailPage(bookId: arg);
+        }
+        if (arg is Map) {
+          final id = arg['id'] ?? arg['bookId'];
+          if (id is String && id.isNotEmpty) {
+            return BookDetailPage(bookId: id);
+          }
+        }
+        return const BookDetailPage();
+      },
+    ),
   ];
 }

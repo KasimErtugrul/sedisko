@@ -37,7 +37,14 @@ class ReadingStatsPanel extends StatelessWidget {
                   color: theme.colorScheme.primary,
                 ),
                 const SizedBox(width: 8),
-                Text('Okuma İstatistikleri', style: theme.textTheme.titleMedium),
+                // Expanded: dar ekranlarda başlık taşmadan kırpılır.
+                Expanded(
+                  child: Text(
+                    'Okuma İstatistikleri',
+                    style: theme.textTheme.titleMedium,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 12),

@@ -3,19 +3,29 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '../../core/utils/date_formatter.dart';
+import '../../core/utils/text_normalizer.dart';
 import '../../data/models/book_model.dart';
 import '../controllers/library_controller.dart';
 import '../routes/app_routes.dart';
 import '../routes/route_args.dart';
 import '../widgets/cover_image.dart';
 import '../widgets/reading_stats_panel.dart';
+import '../widgets/shelf_picker_sheet.dart';
 
 class BookDetailPage extends GetView<LibraryController> {
-  const BookDetailPage({super.key});
+  const BookDetailPage({super.key, this.bookId});
+
+  /// Rota kurulurken sabitlenen kitap kimliği. Get.arguments global olduğu
+  /// için yığında iki detay sayfası üst üste açıkken (kopyadan kopyaya
+  /// geçiş) alt sayfanın yeniden kurulumu üsttekinin kitabına dönmesin;
+  /// her rota kendi kimliğini kurulum anında kilitler.
+  final String? bookId;
 
   /// Argümanı savunmacı biçimde okur: hatalı tip/boş argümanda `null`
   /// döner; `Get.arguments as String` cast'ı gibi crash üretmez.
   String? get _bookId {
+    final pinned = bookId;
+    if (pinned != null && pinned.isNotEmpty) return pinned;
     final arg = Get.arguments;
     if (arg is String && arg.isNotEmpty) return arg;
     if (arg is Map) {
@@ -79,7 +89,34 @@ class BookDetailPage extends GetView<LibraryController> {
                       Text(book.title, style: theme.textTheme.titleLarge),
                       if (book.authors.isNotEmpty) ...[
                         const SizedBox(height: 4),
-                        Text(book.authorsText, style: theme.textTheme.bodyLarge),
+                        // Yazar adına dokununca o yazarın tüm kitapları
+                        // açılır (genel filtreleme girişi).
+                        InkWell(
+                          onTap: () => _openAuthorBooks(book),
+                          borderRadius: BorderRadius.circular(4),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 2),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    book.authorsText,
+                                    style: theme.textTheme.bodyLarge?.copyWith(
+                                      color: theme.colorScheme.primary,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Icon(
+                                  Icons.chevron_right,
+                                  size: 18,
+                                  color: theme.colorScheme.primary,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                       ],
                       const SizedBox(height: 8),
                       if (book.publisher != null)
@@ -124,8 +161,10 @@ class BookDetailPage extends GetView<LibraryController> {
               child: ListTile(
                 leading: const Icon(Icons.shelves),
                 title: const Text('Raf'),
-                subtitle:
-                    Text(book.shelf.isEmpty ? 'Belirtilmedi' : book.shelf),
+                subtitle: Text(book.shelf.isEmpty ? 'Rafsız' : book.shelf),
+                trailing: const Icon(Icons.chevron_right),
+                // Dokun → raf seç → kitabı taşı (durum/günlük korunur).
+                onTap: () => pickShelfAndMove(context, book),
               ),
             ),
             const SizedBox(height: 8),
@@ -140,12 +179,96 @@ class BookDetailPage extends GetView<LibraryController> {
                 ),
               ),
             ],
+            _copiesSection(context, book),
             const SizedBox(height: 8),
             ReadingStatsPanel(book: book),
           ],
         ),
       );
     });
+  }
+
+  /// Yazarın kitaplarını yazar filtresiyle açar (çok yazarlı kitaplarda
+  /// ilk yazar esas alınır).
+  void _openAuthorBooks(BookModel book) {
+    if (book.authors.isEmpty) return;
+    final author = book.authors.first.trim();
+    if (author.isEmpty) return;
+    Get.toNamed(
+      Routes.shelf,
+      arguments: ShelfArgs(
+        authorKey: TextNormalizer.searchKey(author),
+      ),
+    );
+  }
+
+  /// Aynı ISBN'in diğer kopyaları; her kopya bağımsız bir kayıttır.
+  Widget _copiesSection(BuildContext context, BookModel book) {
+    final copies = controller.copiesOf(book);
+    if (copies.isEmpty) return const SizedBox.shrink();
+
+    final theme = Theme.of(context);
+    return Column(
+      children: [
+        const SizedBox(height: 8),
+        Card(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 2),
+                child: Row(
+                  children: [
+                    const Icon(Icons.copy_all_outlined, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Bu kitabın ${copies.length} kopyası daha var',
+                        style: theme.textTheme.titleMedium,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+                child: Text(
+                  'Kopyalar birbirinden bağımsızdır: birini okumaya başlamak '
+                  'diğerlerini etkilemez; her kopyanın durumu, sayfası ve '
+                  'günlüğü ayrıdır.',
+                  style: theme.textTheme.bodySmall,
+                ),
+              ),
+              for (final copy in copies)
+                ListTile(
+                  dense: true,
+                  leading: const Icon(Icons.menu_book_outlined),
+                  title: Text(
+                    copy.shelf.isEmpty ? 'Rafsız' : 'Raf: ${copy.shelf}',
+                  ),
+                  subtitle: Text(_copySubtitle(copy)),
+                  trailing: const Icon(Icons.chevron_right, size: 20),
+                  // preventDuplicates: false — detaydan detaya geçiş GetX
+                  // tarafından sessizce engellenmesin (aynı rota adı).
+                  onTap: () => Get.toNamed(
+                    Routes.detail,
+                    arguments: copy.id,
+                    preventDuplicates: false,
+                  ),
+                ),
+              const SizedBox(height: 4),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _copySubtitle(BookModel copy) {
+    final pages = copy.pageCount > 0
+        ? ' • Sayfa ${copy.currentPage}/${copy.pageCount}'
+        : (copy.currentPage > 0 ? ' • Sayfa ${copy.currentPage}' : '');
+    return '${copy.status.label}$pages';
   }
 
   Widget _readingCard(BuildContext context, BookModel book) {
@@ -158,8 +281,14 @@ class BookDetailPage extends GetView<LibraryController> {
           children: [
             Row(
               children: [
-                Text('Okuma durumu', style: theme.textTheme.titleMedium),
-                const Spacer(),
+                // Expanded: dar ekranlarda başlık durum çipini itmesin.
+                Expanded(
+                  child: Text(
+                    'Okuma durumu',
+                    style: theme.textTheme.titleMedium,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
                 Chip(
                   label: Text(book.status.label),
                   visualDensity: VisualDensity.compact,

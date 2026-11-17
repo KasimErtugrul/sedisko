@@ -57,15 +57,17 @@ lib/
 │   └── repositories/BookRepositoryImpl
 ├── domain/
 │   ├── repositories/BookRepository (soyut sözleşme; entity/usecase yok)
-│   └── services/    ReadingStats (okuma istatistiği hesabı)
+│   └── services/    ReadingStats (okuma istatistiği), BookSorter (sıralama)
 └── presentation/
     ├── bindings/    InitialBinding (DI)
     ├── controllers/ Library, BookForm, Scanner, Settings
     ├── pages/       Shell (alt navigasyon), Shelves (raf kartları),
-    │                Shelf (rafın kitapları), Detail, Form, Scanner, Settings
+    │                Shelf (rafın kitapları + yazar filtresi), Detail,
+    │                Form, Scanner, Settings
     ├── routes/      Routes, AppPages, BookFormArgs, ShelfArgs
     ├── utils/       AppHaptics (tercihe duyarlı titreşim)
-    └── widgets/     BookTile, CoverImage, ReadingStatsPanel, StatusFilterRow
+    └── widgets/     BookTile, CoverImage, ReadingStatsPanel, StatusFilterRow,
+                     ShelfPickerSheet (raf seçici/taşıma), SortSheet (sıralama)
 ```
 
 Bilinçli tasarım kararı: model doğrudan `domain` sözleşmesinde kullanılır
@@ -111,9 +113,18 @@ flutter test
 | `test/data/book_local_datasource_test.dart` | upsert/delete, paralel yazma, bozuk kayıt yalıtımı |
 | `test/data/reading_log_entry_test.dart` | okuma günlüğü kaydı: savunmacı JSON, eşitlik |
 | `test/domain/reading_stats_test.dart` | günlük/toplam istatistik hesabı, Türkçe gün sıralaması |
+| `test/domain/book_sorter_test.dart` | 9 alanın artan/azalan sıralaması, eksik değerlerin sonda kalması, Türkçe alfabe, basım yılı ayıklama |
 | `test/presentation/library_controller_test.dart` | yükleme/kayıt/silme hata akışları, ilerleme geçişleri, arama |
+| `test/presentation/library_controller_sort_test.dart` | aktif sıralama state'i, filtre+sıralama birleşimi, sortedAll izolasyonu |
 | `test/presentation/library_controller_reading_log_test.dart` | fark tabanlı okuma günlüğü birleştirme |
 | `test/presentation/library_controller_shelf_filter_test.dart` | raf anahtarları, kitap sayımı, raf/arama/durum filtresi bileşimi |
+| `test/presentation/library_controller_move_test.dart` | raf taşıma (tek/toplu), günlük korunur, kısmi toplu taşınma |
+| `test/presentation/library_controller_author_copies_test.dart` | yazar birleştirme/sıralama, yazar filtresi, kopya bulma |
+| `test/presentation/library_controller_favorite_test.dart` | favori çevrimi, ana sayfa bölüm sorguları |
+| `test/presentation/shelf_page_filter_test.dart` | yazar filtresi sayfası/banner, rafa toplama, uzun basma taşıma |
+| `test/presentation/book_detail_move_test.dart` | raf kartından taşıma, kopyalar kartı, aynı ISBN kopya akışı |
+| `test/presentation/home_page_test.dart` | ana sayfa özeti, bölüm şeritleri, arama görünümü |
+| `test/presentation/sort_sheet_test.dart` | sıralama alt sayfası: yön segmenti, alan seçimi, liste düzeni koordinatla doğrulanır |
 | `test/presentation/reading_stats_panel_test.dart` | istatistik paneli widget testi |
 | `test/presentation/shell_page_test.dart` | alt navigasyon, yatay raf kartları, raf sayfasına geçiş, tema tercihi |
 | `test/presentation/settings_controller_test.dart` | tema/özellik tercihlerinin kalıcılığı |
@@ -271,10 +282,81 @@ flutter test
     - Liste satırlarında ve ana sayfa kapak kartlarında küçük kalp rozeti
       gösterilir.
 
+### Yeni özellikler (1.5.0)
+
+34. **Raf taşıma** — kitap artık rafından rafına taşınabiliyor:
+    - Detay sayfasındaki **Raf kartına** dokununca raf seçici alt sayfası
+      açılır: mevcut raflar + "Rafsız" + "Yeni raf..." (boş ya da mevcut
+      bir rafın aksan/büyük harf ikizi olan ad reddedilir).
+    - Raf sayfası ve ana listede **uzun basma** da aynı seçiciyi açar.
+    - Taşıma okuma durumu, sayfa ve günlüğe dokunmaz (`saveBook`'a
+      `deriveLog: false` ile yazılır; eski verideki boş günlüğe de kayıt
+      eklenmez).
+35. **Yazar filtresi + "Rafa topla" (genel filtreleme)** — raf sayfasının
+    AppBar'ındaki süzgeç ikonu yazar seçim sayfası açar; seçim başlığı ve
+    bir temizleme çipiyle listeyi daraltır. Yazar adları büyük harf/aksan
+    farkları birleştirilerek gruplanır ("orhan pamuk" = "Orhan Pamuk") ve
+    Türkçe alfabeyle sıralanır. Detay sayfasındaki yazar adına dokununca
+    o yazarın kitapları açılır. Yazar filtresi aktifken AppBar'daki
+    **drive_file_move ikonu aynı yazarın kitaplarını tek rafa toplar**;
+    depo hatasında kısmi taşınma bilgi balonunda raporlanır ve raf-spesifik
+    sayfada toplama sonrası kullanıcı raf kartlarına geri alınır.
+36. **Kopya kitaplar (aynı kitabın birden fazla nüshası)** — her kopya
+    **bağımsız bir kayıttır**: birinin okumaya başlaması diğerlerini
+    etkilemez; her kopyanın durumu, sayfası ve günlüğü ayrıdır.
+    - Aynı ISBN tekrar taranırsa diyalog çıkar: "Kitabı gör" ya da
+      "Yeni kopya ekle" (ör. okunacak + rafa konulacak ikinci nüsha).
+    - Formda aynı ISBN çakışması artık "Kopya olarak kaydet" onayı ister
+      (yanlışlıkla çift kayıt yerine bilinçli kopya).
+    - Detay sayfasında "Bu kitabın N kopyası daha var" kartı kopyaları raf
+      ve durum bilgisiyle listeler; satıra dokununca o kopyanın detayı
+      açılır (`preventDuplicates: false` — detay→detay geçişi GetX'in
+      sessiz yoksaymasına takılmaz; kitap kimliği rota kurulumunda
+      sabitlenir, yığındaki alt sayfa üsttekinin kitabına dönüşmez).
+37. **Dar ekran taşmaları** — detay sayfasındaki "Okuma durumu" ve "Okuma
+    İstatistikleri" başlık satırları dar telefonlarda taşma üretiyordu;
+    başlıklar `Expanded` ile kırpılır hale getirildi.
+
+### Yeni özellikler (1.6.0)
+
+38. **Genel sıralama sistemi** — kitap listeleri artık 9 alan üzerinde
+    artan/azalan sıralanabiliyor. Ana sayfa AppBar'ındaki ve raf sayfası
+    AppBar'ındaki **sırala ikonu** aynı alt sayfayı açar: üstte **Artan /
+    Azalan** segmenti, altta alan listesi:
+
+    | Alan | Kaynak | Not |
+    | --- | --- | --- |
+    | Kitap adı | `title` | varsayılan sıralama (artan) |
+    | Yazar | ilk yazar | çok yazarlı kitapta birincil yazar esas |
+    | Yayınevi | `publisher` | |
+    | Raf adı | `shelf` | Türkçe alfabe; rafsız sonda |
+    | Sayfa sayısı | `pageCount` | 0 = bilinmiyor → sonda |
+    | Okunulan sayfa | `currentPage` | 0 gerçek değerdir → sıralamaya girer |
+    | Başlama tarihi | `startedAt` | tarihsizler sonda |
+    | Bitirme tarihi | `finishedAt` | tarihsizler sonda |
+    | Basım tarihi | `publishDate` | serbest metinden 19xx/20xx yılı ayıklanır; aynı yıl metin sırasıyla |
+
+    Kurallar:
+    - **Eksik bilgi her iki yönde de sona gider:** "Bitirme tarihi azalan"
+      seçiminde bitmemiş kitaplar başa fırlamaz; bilinen tarihler
+      sıralanır, tarihsizler sonda bekler.
+    - **Türkçe alfabe:** metin alanları `TextNormalizer.compareTr` ile
+      sıralanır (ç/ğ/ı/ö/ş/ü ASCII sonrasına değil alfabeye göre).
+    - **Tek merkez:** sıralama `filteredBooks` (raf sayfası, arama
+      sonuçları, yazar görünümü) ve `sortedAll` (ana sayfadaki "Tüm
+      kitaplar" bölümü) çıktısına uygulanır; arama + durum + yazar
+      filtreleriyle birleşir. `books` listesinin raf/ada düzeni (raf
+      kartlarının beklediği) korunur.
+    - **Aktif sıralama varsayılanından farklıysa** app bar ikonunda rozet
+      çıkar; alt sayfada yön değişikliği sayfayı kapatmaz, alan seçimi
+      kapatır ve liste anında güncellenir.
+
 ## Sürüm notları
 
-`pubspec.yaml` sürümü `1.4.0+6`'ya yükseltildi. Depolama anahtarları
+`pubspec.yaml` sürümü `1.6.0+8`'e yükseltildi. Depolama anahtarları
 (`books_v1` ve `settings_*`) değişmedi: mevcut kullanıcılar kitaplıklarını
 kaybetmez; okuma günlüğü alanı (`readingLog`) eski kayıtlarda boş gelir ve
 ilk kayıttan itibaren derlenmeye başlar; `isFavorite` eski kayıtlarda
-`false` gelir.
+`false` gelir. Raf taşıma ve favori çevrimi günlük türetmez; yalnız okuma
+durumu/sayfa değişimleri günlüğe yazar. Sıralama tercihi oturum içindedir;
+uygulama her açılışta kitap adı artan varsayılanıyla başlar.

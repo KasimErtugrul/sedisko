@@ -185,11 +185,10 @@ class BookFormController extends GetxController {
 
     final isbn = _nullIfEmpty(isbnCtrl.text);
     if (isbn != null && _library.hasIsbnConflict(isbn, exceptId: _id)) {
-      _toast(
-        'ISBN zaten kitaplıkta',
-        'Bu barkodla kayıtlı başka bir kitap var. ISBN\'i değiştir ya da sil.',
-      );
-      return;
+      // Aynı ISBN başka bir kitapta: yanlışlıkla çift kayıt yerine bilinçli
+      // kopya olarak kaydetmeyi onaylat. Kopyaların okuma durumları bağımsızdır.
+      final saveAsCopy = await _confirmSaveAsCopy();
+      if (!saveAsCopy) return;
     }
 
     final book = BookModel(
@@ -229,6 +228,33 @@ class BookFormController extends GetxController {
   }
 
   // ---------- Yardımcılar ----------
+
+  /// Aynı ISBN kayıtlıyken kaydet tuşuna basıldıysa: "farklı kopya olarak
+  /// kaydet" onayı. `true` → kayda devam; `false` → vazgeç.
+  Future<bool> _confirmSaveAsCopy() async {
+    final result = await Get.dialog<bool>(
+      AlertDialog(
+        title: const Text('Bu ISBN kitaplıkta'),
+        content: const Text(
+          'Aynı ISBN\'e sahip başka bir kitap var. Bu kitabı aynı kitabın '
+          'farklı bir kopyası olarak kaydetmek istiyor musun?\n\n'
+          'Kopyalar birbirinden bağımsızdır: her birinin okuma durumu, '
+          'sayfası ve günlüğü ayrı tutulur.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back<bool>(result: false),
+            child: const Text('Vazgeç'),
+          ),
+          FilledButton(
+            onPressed: () => Get.back<bool>(result: true),
+            child: const Text('Kopya olarak kaydet'),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
+  }
 
   void _fillIfNotEmpty(TextEditingController c, String value) {
     if (value.trim().isNotEmpty) c.text = value;

@@ -6,10 +6,18 @@ import '../utils/app_haptics.dart';
 import 'cover_image.dart';
 
 class BookTile extends StatelessWidget {
-  const BookTile({super.key, required this.book, required this.onTap});
+  const BookTile({
+    super.key,
+    required this.book,
+    required this.onTap,
+    this.onLongPress,
+  });
 
   final BookModel book;
   final VoidCallback onTap;
+
+  /// Uzun basma: raf sayfası ve ana listede "başka rafa taşı" akışı için.
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -22,6 +30,12 @@ class BookTile extends StatelessWidget {
           AppHaptics.selection();
           onTap();
         },
+        onLongPress: onLongPress == null
+            ? null
+            : () {
+                AppHaptics.selection();
+                onLongPress!();
+              },
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Row(

@@ -16,11 +16,15 @@ class BookFormArgs extends Equatable {
 
 /// Raf sayfasına verilen argüman.
 /// [shelf] null ise tüm kitaplar listelenir; 'Rafsız' rafsız kitapları seçer.
+/// [authorKey] verilirse sayfa yalnız o yazarın kitaplarını listeler
+/// (anahtar TextNormalizer.searchKey ile üretilir; shelf ile birlikte de
+/// kullanılabilir).
 class ShelfArgs extends Equatable {
-  const ShelfArgs({this.shelf});
+  const ShelfArgs({this.shelf, this.authorKey});
 
   final String? shelf;
+  final String? authorKey;
 
   @override
-  List<Object?> get props => [shelf];
+  List<Object?> get props => [shelf, authorKey];
 }
