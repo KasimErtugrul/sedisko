@@ -46,3 +46,11 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Swift Package Manager ephemeral files (mobile_scanner/swift integration)
+**/Flutter/ephemeral/
+**/GeneratedPluginRegistrant.*
+**/.swift_pm.lock/
+
+# Build artifacts must not be committed
+*.zip

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '../../core/utils/date_formatter.dart';
@@ -11,14 +12,25 @@ import '../widgets/cover_image.dart';
 class BookDetailPage extends GetView<LibraryController> {
   const BookDetailPage({super.key});
 
-  String get _bookId => Get.arguments as String;
+  /// Argümanı savunmacı biçimde okur: hatalı tip/boş argümanda `null`
+  /// döner; `Get.arguments as String` cast'ı gibi crash üretmez.
+  String? get _bookId {
+    final arg = Get.arguments;
+    if (arg is String && arg.isNotEmpty) return arg;
+    if (arg is Map) {
+      final id = arg['id'] ?? arg['bookId'];
+      if (id is String && id.isNotEmpty) return id;
+    }
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      final book = controller.byId(_bookId);
+      final id = _bookId;
+      final book = id == null ? null : controller.byId(id);
       if (book == null) {
-        return const Scaffold(body: SizedBox.shrink());
+        return _NotFoundScaffold(hasArgs: id != null);
       }
       final theme = Theme.of(context);
 
@@ -88,7 +100,8 @@ class BookDetailPage extends GetView<LibraryController> {
               child: ListTile(
                 leading: const Icon(Icons.shelves),
                 title: const Text('Raf'),
-                subtitle: Text(book.shelf.isEmpty ? 'Belirtilmedi' : book.shelf),
+                subtitle:
+                    Text(book.shelf.isEmpty ? 'Belirtilmedi' : book.shelf),
               ),
             ),
             const SizedBox(height: 8),
@@ -190,13 +203,53 @@ class BookDetailPage extends GetView<LibraryController> {
           TextButton(onPressed: Get.back, child: const Text('Vazgeç')),
           FilledButton(
             onPressed: () async {
-              Get.back(); // dialog
-              Get.back(); // detay sayfası
-              await controller.deleteBook(book.id);
+              Get.back(); // diyalog
+              // Silme başarılıysa detay sayfasından çık; başarısızsa
+              // kal (hata mesajı LibraryController'da gösterilir).
+              final ok = await controller.deleteBook(book.id);
+              if (ok) Get.back();
             },
             child: const Text('Sil'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Kitap bulunamadığında (silinmiş/hatalı argüman) boş bir ekran yerine
+/// kullanıcıyı yönlendiren bilgilendirici sayfa.
+class _NotFoundScaffold extends StatelessWidget {
+  const _NotFoundScaffold({required this.hasArgs});
+
+  final bool hasArgs;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Kitap detayı')),
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.lightbulb_outline,
+              size: 64,
+              color: Theme.of(context).colorScheme.outline,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              hasArgs
+                  ? 'Bu kitap artık kitaplıkta değil.'
+                  : 'Kitap bilgisi alınamadı.',
+            ),
+            const SizedBox(height: 16),
+            FilledButton(
+              onPressed: Get.back,
+              child: const Text('Geri dön'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -215,10 +268,22 @@ class _UpdatePageDialogState extends State<_UpdatePageDialog> {
   late final TextEditingController _controller =
       TextEditingController(text: '${widget.book.currentPage}');
 
+  String? _error;
+
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  String? _validate(String raw) {
+    final page = int.tryParse(raw.trim());
+    if (page == null || page < 0) return 'Geçerli bir sayfa numarası gir';
+    final total = widget.book.pageCount;
+    if (total > 0 && page > total) {
+      return 'Toplam sayfadan büyük olamaz ($total)';
+    }
+    return null;
   }
 
   @override
@@ -229,8 +294,13 @@ class _UpdatePageDialogState extends State<_UpdatePageDialog> {
         controller: _controller,
         autofocus: true,
         keyboardType: TextInputType.number,
+        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+        onChanged: (_) {
+          if (_error != null) setState(() => _error = null);
+        },
         decoration: InputDecoration(
           border: const OutlineInputBorder(),
+          errorText: _error,
           suffixText:
               widget.book.pageCount > 0 ? '/ ${widget.book.pageCount}' : null,
         ),
@@ -239,8 +309,12 @@ class _UpdatePageDialogState extends State<_UpdatePageDialog> {
         TextButton(onPressed: Get.back, child: const Text('Vazgeç')),
         FilledButton(
           onPressed: () {
-            final page = int.tryParse(_controller.text.trim());
-            if (page == null) return;
+            final error = _validate(_controller.text);
+            if (error != null) {
+              setState(() => _error = error);
+              return;
+            }
+            final page = int.tryParse(_controller.text.trim()) ?? 0;
             Get.back();
             Get.find<LibraryController>().updateProgress(widget.book, page);
           },

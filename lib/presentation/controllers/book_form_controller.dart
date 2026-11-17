@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../core/errors/app_exceptions.dart';
+import '../../core/utils/isbn_validator.dart';
 import '../../data/models/book_model.dart';
 import '../../domain/repositories/book_repository.dart';
 import '../routes/app_routes.dart';
@@ -31,6 +32,7 @@ class BookFormController extends GetxController {
   final finishedAt = Rxn<DateTime>();
   final coverUrl = RxnString();
   final isFetching = false.obs;
+  final isSaving = false.obs;
 
   late final bool isEdit;
   late final String _id;
@@ -80,8 +82,10 @@ class BookFormController extends GetxController {
     try {
       final found = await _repository.fetchBookByIsbn(isbn);
       if (found == null) {
-        _toast('Bulunamadı',
-            "Open Library'de kayıt yok. Bilgileri elle girebilirsin.");
+        _toast(
+          'Bulunamadı',
+          "Open Library'de kayıt yok. Bilgileri elle girebilirsin.",
+        );
         return;
       }
       _fillIfNotEmpty(titleCtrl, found.title);
@@ -92,8 +96,8 @@ class BookFormController extends GetxController {
       if (found.coverUrl != null) coverUrl.value = found.coverUrl;
       _isManual = false;
       _toast('Bilgiler getirildi', found.title);
-    } on NetworkException catch (e) {
-      _toast('Bağlantı sorunu', e.message);
+    } on NetworkException catch (error) {
+      _toast('Bağlantı sorunu', error.message);
     } finally {
       isFetching.value = false;
     }
@@ -102,6 +106,16 @@ class BookFormController extends GetxController {
   Future<void> scanIsbn() async {
     final code = await Get.toNamed<String>(Routes.scanner);
     if (code == null || code.isEmpty) return;
+
+    // Aynı ISBN başka bir kitapta kullanılıyorsa üzerine yazmak yerine uyar.
+    if (_library.hasIsbnConflict(code, exceptId: _id)) {
+      _toast(
+        'ISBN zaten kitaplıkta',
+        'Bu barkod farklı bir kitaba kayıtlı; alan değiştirilmedi.',
+      );
+      return;
+    }
+
     isbnCtrl.text = code;
     await fetchFromOpenLibrary();
   }
@@ -131,11 +145,15 @@ class BookFormController extends GetxController {
   }
 
   Future<void> pickDate(BuildContext context, Rxn<DateTime> target) async {
+    final now = DateTime.now();
     final picked = await showDatePicker(
       context: context,
-      initialDate: target.value ?? DateTime.now(),
+      initialDate:
+          target.value?.isAfter(now.add(const Duration(days: 1))) ?? false
+              ? now
+              : (target.value ?? now),
       firstDate: DateTime(1990),
-      lastDate: DateTime.now().add(const Duration(days: 1)),
+      lastDate: now.add(const Duration(days: 1)),
     );
     if (picked != null) target.value = picked;
   }
@@ -143,6 +161,8 @@ class BookFormController extends GetxController {
   // ---------- Kaydet ----------
 
   Future<void> save() async {
+    // Çift tıklama / double-submit koruması.
+    if (isSaving.value) return;
     if (!(formKey.currentState?.validate() ?? false)) return;
 
     final pages = int.tryParse(pagesCtrl.text.trim()) ?? 0;
@@ -150,6 +170,15 @@ class BookFormController extends GetxController {
     final s = status.value;
     if (s == ReadingStatus.notStarted) current = 0;
     if (s == ReadingStatus.finished && pages > 0) current = pages;
+
+    final isbn = _nullIfEmpty(isbnCtrl.text);
+    if (isbn != null && _library.hasIsbnConflict(isbn, exceptId: _id)) {
+      _toast(
+        'ISBN zaten kitaplıkta',
+        'Bu barkodla kayıtlı başka bir kitap var. ISBN\'i değiştir ya da sil.',
+      );
+      return;
+    }
 
     final book = BookModel(
       id: _id,
@@ -159,7 +188,7 @@ class BookFormController extends GetxController {
           .map((e) => e.trim())
           .where((e) => e.isNotEmpty)
           .toList(),
-      isbn: _nullIfEmpty(isbnCtrl.text),
+      isbn: isbn,
       coverUrl: coverUrl.value,
       publisher: _nullIfEmpty(publisherCtrl.text),
       publishDate: _nullIfEmpty(publishDateCtrl.text),
@@ -174,9 +203,16 @@ class BookFormController extends GetxController {
       addedAt: _addedAt,
     );
 
-    await _library.saveBook(book);
-    Get.back();
-    Get.snackbar('Kaydedildi', book.title, snackPosition: SnackPosition.BOTTOM);
+    isSaving.value = true;
+    try {
+      final ok = await _library.saveBook(book);
+      if (!ok) return; // Hata mesajı LibraryController tarafından gösterildi.
+      Get.back();
+      Get.snackbar('Kaydedildi', book.title,
+          snackPosition: SnackPosition.BOTTOM);
+    } finally {
+      isSaving.value = false;
+    }
   }
 
   // ---------- Yardımcılar ----------
@@ -206,5 +242,14 @@ class BookFormController extends GetxController {
     currentPageCtrl.dispose();
     notesCtrl.dispose();
     super.onClose();
+  }
+
+  /// ISBN alanının doğrulaması: boş geçilebilir; doluysa kontrol hanesi
+  /// geçerli olmalı. Barkodla okunan ISBN'ler (EAN-13) zaten geçerlidir.
+  String? validateIsbn(String? value) {
+    final v = (value ?? '').trim();
+    if (v.isEmpty) return null;
+    if (IsbnValidator.isValid(IsbnValidator.clean(v))) return null;
+    return 'Bu geçerli bir ISBN gibi görünmüyor. Hatalıysa alanı temizle.';
   }
 }

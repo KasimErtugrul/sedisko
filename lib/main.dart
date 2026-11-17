@@ -34,6 +34,7 @@ class KitaplikApp extends StatelessWidget {
           brightness: Brightness.dark,
         ),
       ),
+      themeMode: ThemeMode.system,
       locale: const Locale('tr', 'TR'),
       supportedLocales: const [Locale('tr', 'TR'), Locale('en', 'US')],
       localizationsDelegates: const [

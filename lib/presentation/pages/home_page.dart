@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../core/utils/platform_support.dart';
 import '../../data/models/book_model.dart';
 import '../controllers/library_controller.dart';
 import '../routes/app_routes.dart';
@@ -20,15 +21,7 @@ class HomePage extends GetView<LibraryController> {
             children: [
               Padding(
                 padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-                child: TextField(
-                  onChanged: (v) => controller.query.value = v,
-                  decoration: const InputDecoration(
-                    prefixIcon: Icon(Icons.search),
-                    hintText: 'Kitap, yazar veya raf ara',
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                ),
+                child: _buildSearchField(),
               ),
               _buildStatusFilter(),
               Expanded(
@@ -72,6 +65,33 @@ class HomePage extends GetView<LibraryController> {
         onPressed: () => _showAddSheet(context),
         icon: const Icon(Icons.add),
         label: const Text('Kitap ekle'),
+      ),
+    );
+  }
+
+  Widget _buildSearchField() {
+    return TextField(
+      controller: controller.searchCtrl,
+      onChanged: (v) => controller.query.value = v,
+      textInputAction: TextInputAction.search,
+      onSubmitted: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+      decoration: InputDecoration(
+        prefixIcon: const Icon(Icons.search),
+        hintText: 'Kitap, yazar, raf veya ISBN ara',
+        border: const OutlineInputBorder(),
+        isDense: true,
+        suffixIcon: Obx(
+          () => controller.query.value.isEmpty
+              ? const SizedBox.shrink()
+              : IconButton(
+                  tooltip: 'Aramayı temizle',
+                  icon: const Icon(Icons.close),
+                  onPressed: () {
+                    controller.searchCtrl.clear();
+                    controller.query.value = '';
+                  },
+                ),
+        ),
       ),
     );
   }
@@ -134,6 +154,7 @@ class HomePage extends GetView<LibraryController> {
           ),
           for (final book in entry.value)
             BookTile(
+              key: ValueKey(book.id),
               book: book,
               onTap: () => Get.toNamed(Routes.detail, arguments: book.id),
             ),
@@ -148,15 +169,17 @@ class HomePage extends GetView<LibraryController> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(
-              leading: const Icon(Icons.qr_code_scanner),
-              title: const Text('Barkod tara'),
-              subtitle: const Text('ISBN ile Open Library\'den bilgileri getir'),
-              onTap: () {
-                Get.back();
-                controller.addByScan();
-              },
-            ),
+            if (PlatformSupport.supportsBarcodeScan)
+              ListTile(
+                leading: const Icon(Icons.qr_code_scanner),
+                title: const Text('Barkod tara'),
+                subtitle:
+                    const Text('ISBN ile Open Library\'den bilgileri getir'),
+                onTap: () {
+                  Get.back();
+                  controller.addByScan();
+                },
+              ),
             ListTile(
               leading: const Icon(Icons.edit_note),
               title: const Text('Manuel ekle'),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/utils/date_formatter.dart';
 import '../../data/models/book_model.dart';
@@ -17,7 +18,10 @@ class BookTile extends StatelessWidget {
       margin: const EdgeInsets.symmetric(vertical: 4),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: onTap,
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap();
+        },
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Row(
@@ -65,7 +69,11 @@ class BookTile extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (book.pageCount > 0) LinearProgressIndicator(value: book.progress),
+            if (book.pageCount > 0)
+              Semantics(
+                label: 'Okuma ilerlemesi yüzde $percent',
+                child: LinearProgressIndicator(value: book.progress),
+              ),
             const SizedBox(height: 4),
             Text(
               book.pageCount > 0

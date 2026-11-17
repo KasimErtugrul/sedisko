@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:equatable/equatable.dart';
 
 enum ReadingStatus {
@@ -49,7 +51,22 @@ class BookModel extends Equatable {
   final bool isManual;
   final DateTime addedAt;
 
-  static String newId() => DateTime.now().microsecondsSinceEpoch.toString();
+  static final Random _random = Random();
+  static int _sequence = 0;
+
+  /// Çakışmaya dayanıklı kimlik üretir.
+  ///
+  /// Yalnızca `microsecondsSinceEpoch` kullanmak, aynı mikro-saniyede
+  /// oluşturulan iki kaydı (ör. çift tıklama sonrası iki kitap eklenirse)
+  /// aynı kimlikle yazar; bu nedenle sıra sayacı ve rastgele bir ek
+  /// eklenmiştir. Eski verideki yalnız-sayı kimlikler geçerliliğini korur.
+  static String newId() {
+    _sequence++;
+    final ts = DateTime.now().microsecondsSinceEpoch;
+    final seq = _sequence.toRadixString(36);
+    final rand = _random.nextInt(1296).toRadixString(36).padLeft(2, '0');
+    return '$ts-$seq$rand';
+  }
 
   /// Manuel girişte kullanılan boş kitap.
   factory BookModel.blank({String? isbn}) => BookModel(
@@ -62,22 +79,14 @@ class BookModel extends Equatable {
 
   /// Open Library `/api/books?jscmd=data` cevabındaki tek kayıttan üretir.
   factory BookModel.fromOpenLibrary(String isbn, Map<String, dynamic> json) {
-    final authors = (json['authors'] as List?)
-            ?.map((a) => (a is Map ? a['name'] : null)?.toString())
-            .whereType<String>()
-            .toList() ??
-        <String>[];
-
-    final publishers = (json['publishers'] as List?)
-            ?.map((p) => (p is Map ? p['name'] : null)?.toString())
-            .whereType<String>()
-            .toList() ??
-        <String>[];
+    final authors = _names(json['authors']);
+    final publishers = _names(json['publishers']);
 
     final cover = json['cover'];
     String? coverUrl;
     if (cover is Map) {
-      coverUrl = (cover['medium'] ?? cover['large'] ?? cover['small'])?.toString();
+      coverUrl =
+          (cover['medium'] ?? cover['large'] ?? cover['small'])?.toString();
     }
 
     return BookModel(
@@ -85,36 +94,62 @@ class BookModel extends Equatable {
       title: (json['title'] ?? '').toString(),
       authors: authors,
       isbn: isbn,
-      coverUrl: coverUrl,
+      coverUrl: (coverUrl == null || coverUrl.isEmpty) ? null : coverUrl,
       publisher: publishers.isEmpty ? null : publishers.first,
       publishDate: json['publish_date']?.toString(),
-      pageCount: (json['number_of_pages'] as num?)?.toInt() ?? 0,
+      pageCount: _asInt(json['number_of_pages']) ?? 0,
       addedAt: DateTime.now(),
     );
   }
 
-  factory BookModel.fromJson(Map<String, dynamic> json) => BookModel(
-        id: json['id'] as String,
-        title: json['title'] as String? ?? '',
-        authors: (json['authors'] as List?)?.map((e) => e.toString()).toList() ??
-            const [],
-        isbn: json['isbn'] as String?,
-        coverUrl: json['coverUrl'] as String?,
-        publisher: json['publisher'] as String?,
-        publishDate: json['publishDate'] as String?,
-        pageCount: (json['pageCount'] as num?)?.toInt() ?? 0,
-        shelf: json['shelf'] as String? ?? '',
-        status: ReadingStatus.values.firstWhere(
-          (s) => s.name == json['status'],
-          orElse: () => ReadingStatus.notStarted,
-        ),
-        currentPage: (json['currentPage'] as num?)?.toInt() ?? 0,
-        startedAt: _parseDate(json['startedAt']),
-        finishedAt: _parseDate(json['finishedAt']),
-        notes: json['notes'] as String?,
-        isManual: json['isManual'] as bool? ?? false,
-        addedAt: _parseDate(json['addedAt']) ?? DateTime.now(),
-      );
+  /// Depolamadan gelen bozuk bir kaydı sessizce `[]`'e dönüştürmek yerine
+  /// kayıt kayıt ayrıştırır: geçerli kayıtlar korunur, bozuk olanlar
+  /// `null` döner (bkz. [BookLocalDataSource.getBooks]).
+  static BookModel? tryFromJson(Map<String, dynamic> json) {
+    final id = json['id'];
+    if (id is! String || id.isEmpty) return null;
+
+    final title = json['title'];
+    final authors = json['authors'];
+
+    return BookModel(
+      id: id,
+      title: title is String ? title : '',
+      authors: authors is List
+          ? authors
+              .whereType<Object>()
+              .map((e) => e.toString())
+              .where((e) => e.isNotEmpty)
+              .toList()
+          : const <String>[],
+      isbn: _asStringOrNull(json['isbn']),
+      coverUrl: _asStringOrNull(json['coverUrl']),
+      publisher: _asStringOrNull(json['publisher']),
+      publishDate: _asStringOrNull(json['publishDate']),
+      pageCount: _asInt(json['pageCount']) ?? 0,
+      shelf: json['shelf'] is String ? json['shelf'] as String : '',
+      status: ReadingStatus.values.firstWhere(
+        (s) => s.name == json['status'],
+        orElse: () => ReadingStatus.notStarted,
+      ),
+      currentPage: _asInt(json['currentPage']) ?? 0,
+      startedAt: _parseDate(json['startedAt']),
+      finishedAt: _parseDate(json['finishedAt']),
+      notes: _asStringOrNull(json['notes']),
+      isManual: json['isManual'] is bool ? json['isManual'] as bool : false,
+      addedAt: _parseDate(json['addedAt']) ?? DateTime.now(),
+    );
+  }
+
+  /// Geriye dönük uyumluluk için [tryFromJson] sarmalayıcısı.
+  /// Bozuk kayıtlarda `FormatException` fırlatır.
+  factory BookModel.fromJson(Map<String, dynamic> json) {
+    final book = tryFromJson(json);
+    if (book == null) {
+      throw const FormatException('Geçersiz kitap kaydı: id eksik');
+    }
+    return book;
+  }
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -183,7 +218,26 @@ class BookModel extends Equatable {
     return (currentPage / pageCount).clamp(0.0, 1.0).toDouble();
   }
 
-  static DateTime? _parseDate(dynamic value) =>
+  static List<String> _names(Object? field) {
+    if (field is! List) return const <String>[];
+    return field
+        .whereType<Object>()
+        .map((item) => item is Map ? item['name'] : item)
+        .whereType<Object>()
+        .map((e) => e.toString())
+        .where((e) => e.isNotEmpty && e != 'null')
+        .toList();
+  }
+
+  static String? _asStringOrNull(Object? value) {
+    if (value is! String) return null;
+    return value.isEmpty ? null : value;
+  }
+
+  /// `as num?` String girdide TypeError fırlatır; savunmacı dönüşüm gerekli.
+  static int? _asInt(Object? value) => value is num ? value.toInt() : null;
+
+  static DateTime? _parseDate(Object? value) =>
       value is String ? DateTime.tryParse(value) : null;
 
   @override
