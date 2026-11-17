@@ -4,16 +4,21 @@ import 'package:kitaplik/data/models/book_model.dart';
 import 'package:kitaplik/data/models/reading_log_entry.dart';
 import 'package:kitaplik/presentation/widgets/reading_stats_panel.dart';
 
+/// Testler gerçek saate bağlanmaz: panel sabit saat alır. Böylece
+/// "now - 2 saat" kaydının hangi takvim gününe düşmesi, testin
+/// çalıştırıldığı saat dilimine ve saate göre değişip flaky olmaz.
+final fixedNow = DateTime(2026, 6, 15, 14, 30);
+
 Widget host(BookModel book) => MaterialApp(
       home: Scaffold(
         body: SingleChildScrollView(
-          child: ReadingStatsPanel(book: book),
+          child: ReadingStatsPanel(book: book, now: fixedNow),
         ),
       ),
     );
 
 BookModel bookWithLog() {
-  final now = DateTime.now();
+  final now = fixedNow;
   return BookModel(
     id: 'b1',
     title: 'Test Kitabı',
@@ -58,6 +63,38 @@ void main() {
     expect(find.text('Günlük ortalama'), findsOneWidget);
     expect(find.text('Son 7 gün'), findsOneWidget);
     expect(find.text('En verimli gün'), findsOneWidget);
+  });
+
+  testWidgets(
+      'Gece yarısı sınırında günlük ortalama takvim aralığını kullanır',
+      (tester) async {
+    // Sabah 00:30'da çalışan test: son kayıt "2 saat önce" dünün takvim
+    // gününe düşer. Aralık 6-14 Haziran = 9 gün; 95 / 9 = 10.6.
+    // Eski flaky davranış bu saatte "9.5" bekleyip 10.6 üretiyordu.
+    final nightNow = DateTime(2026, 6, 15, 0, 30);
+    final book = BookModel(
+      id: 'b2',
+      title: 'Gece Kitabı',
+      status: ReadingStatus.reading,
+      currentPage: 95,
+      addedAt: nightNow.subtract(const Duration(days: 10)),
+      readingLog: [
+        ReadingLogEntry(at: nightNow.subtract(const Duration(days: 9)), page: 0),
+        ReadingLogEntry(
+            at: nightNow.subtract(const Duration(hours: 2)), page: 95),
+      ],
+    );
+
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: SingleChildScrollView(
+          child: ReadingStatsPanel(book: book, now: nightNow),
+        ),
+      ),
+    ));
+
+    expect(find.text('10.6'), findsOneWidget);
+    expect(find.text('9.5'), findsNothing);
   });
 
   testWidgets('Mini grafik 14 günlük bar üretir', (tester) async {

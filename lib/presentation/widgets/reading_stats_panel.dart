@@ -9,9 +9,14 @@ import '../../domain/services/reading_stats.dart';
 /// günlük ortalama, son 7 gün, en verimli gün, son 14 günün bar grafiği
 /// ve son günlük kayıtları.
 class ReadingStatsPanel extends StatelessWidget {
-  const ReadingStatsPanel({super.key, required this.book});
+  const ReadingStatsPanel({super.key, required this.book, this.now});
 
   final BookModel book;
+
+  /// Saat bağımlılığı enjekte edilebilir: uygulama null bırakır ve gerçek
+  /// saati kullanır; testler sabit saat vererek günün saatine göre değişen
+  /// takvim günü hesaplarını (ör. gece 00:00-02:00 arası) kesinleştirir.
+  final DateTime? now;
 
   static const List<String> _months = [
     'Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz',
@@ -21,7 +26,8 @@ class ReadingStatsPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final stats = ReadingStats.calculate(book.readingLog);
+    final clock = now ?? DateTime.now();
+    final stats = ReadingStats.calculate(book.readingLog, now: clock);
 
     return Card(
       child: Padding(
@@ -57,11 +63,11 @@ class ReadingStatsPanel extends StatelessWidget {
             else ...[
               _StatGrid(stats: stats),
               const SizedBox(height: 16),
-              _DailyBars(daily: stats.daily, now: DateTime.now()),
+              _DailyBars(daily: stats.daily, now: clock),
               const SizedBox(height: 16),
               Text('Son kayıtlar', style: theme.textTheme.titleSmall),
               const SizedBox(height: 4),
-              ..._historyRows(theme, stats),
+              ..._historyRows(theme, stats, clock),
             ],
           ],
         ),
@@ -69,10 +75,9 @@ class ReadingStatsPanel extends StatelessWidget {
     );
   }
 
-  List<Widget> _historyRows(ThemeData theme, ReadingStats stats) {
+  List<Widget> _historyRows(ThemeData theme, ReadingStats stats, DateTime now) {
     final events = stats.events;
     final deltas = stats.eventDeltas;
-    final now = DateTime.now();
     final start = events.length > 4 ? events.length - 4 : 0;
 
     final rows = <Widget>[];

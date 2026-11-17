@@ -351,9 +351,23 @@ flutter test
       çıkar; alt sayfada yön değişikliği sayfayı kapatmaz, alan seçimi
       kapatır ve liste anında güncellenir.
 
+### Sıcak düzeltme (1.6.1)
+
+39. **Flaky test giderildi: "İstatistik kutuları doğru değerleri gösterir"**
+    yalnızca **00:00-02:00 saatleri arasında** çalıştırıldığında beklenmedik
+    şekilde başarısız oluyordu. Neden: test verisi `DateTime.now()`'a göre
+    kuruluyor, son kayıt "2 saat önce" gece yarısını aşınca takvim aralığı
+    10 yerine 9 güne iniyor ve günlük ortalamadan **9.5 yerine 10.6**
+    hesaplanıyordu. Düzeltme:
+    - `ReadingStatsPanel` artık saat bağımlılığını enjekte edilebilir
+      `now` parametresiyle alıyor (uygulamada davranış aynı: gerçek saat).
+    - Panel testleri sabit saatle çalışır; gece yarısı sınırı için ayrı bir
+      regresyon testi eklendi. Test takımı artık günün hangi saatinde ve
+      hangi saat diliminde çalıştırılırsa çalıştırılsın aynı sonucu verir.
+
 ## Sürüm notları
 
-`pubspec.yaml` sürümü `1.6.0+8`'e yükseltildi. Depolama anahtarları
+`pubspec.yaml` sürümü `1.6.1+9`'a yükseltildi. Depolama anahtarları
 (`books_v1` ve `settings_*`) değişmedi: mevcut kullanıcılar kitaplıklarını
 kaybetmez; okuma günlüğü alanı (`readingLog`) eski kayıtlarda boş gelir ve
 ilk kayıttan itibaren derlenmeye başlar; `isFavorite` eski kayıtlarda
