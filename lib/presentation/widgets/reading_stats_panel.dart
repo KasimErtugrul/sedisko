@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../data/models/book_model.dart';
-import '../../domain/repositories/reading_stats.dart';
+import '../../domain/services/reading_stats.dart';
 
 /// Kitap detay sayfasının altında gösterilen okuma istatistikleri kartı.
 ///

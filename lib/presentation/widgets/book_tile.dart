@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../core/utils/date_formatter.dart';
 import '../../data/models/book_model.dart';
+import '../utils/app_haptics.dart';
 import 'cover_image.dart';
 
 class BookTile extends StatelessWidget {
@@ -19,7 +19,7 @@ class BookTile extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () {
-          HapticFeedback.selectionClick();
+          AppHaptics.selection();
           onTap();
         },
         child: Padding(

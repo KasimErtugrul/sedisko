@@ -1,8 +1,9 @@
 import 'dart:async';
 
-import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+
+import '../utils/app_haptics.dart';
 
 class ScannerController extends GetxController {
   /// [onNotify] test edilebilirlik için verilir; verilmezse GetX snackbar
@@ -57,7 +58,7 @@ class ScannerController extends GetxController {
       if (value != null && value.isNotEmpty) {
         _handled = true;
         // Kamera kapanırken kullanıcıya dokunsal geri bildirim ver.
-        unawaited(HapticFeedback.mediumImpact());
+        AppHaptics.mediumImpact();
         unawaited(_returnWith(value));
         return;
       }

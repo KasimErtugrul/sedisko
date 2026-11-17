@@ -14,7 +14,17 @@ class HomePage extends GetView<LibraryController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Kitaplığım')),
+      appBar: AppBar(
+        title: const Text('Kitaplığım'),
+        actions: [
+          // Çok raf/çok kitap kütüphanelerinde doğrudan rafa atlama.
+          IconButton(
+            tooltip: 'Raflar',
+            icon: const Icon(Icons.format_list_bulleted),
+            onPressed: () => _showShelfSheet(context),
+          ),
+        ],
+      ),
       body: Stack(
         children: [
           Column(
@@ -24,6 +34,7 @@ class HomePage extends GetView<LibraryController> {
                 child: _buildSearchField(),
               ),
               _buildStatusFilter(),
+              _buildShelfFilter(),
               Expanded(
                 child: Obx(() {
                   if (controller.isLoading.value) {
@@ -128,38 +139,142 @@ class HomePage extends GetView<LibraryController> {
     );
   }
 
+  /// Raf filtresi: çoka raf kütüphanelerinde doğrudan rafa atlama.
+  /// 'Rafsız' anahtarı raflanmamış kitapları filtreler.
+  Widget _buildShelfFilter() {
+    return Obx(() {
+      if (controller.books.isEmpty) return const SizedBox.shrink();
+      final selected = controller.shelfFilter.value;
+      return SizedBox(
+        height: 48,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: ChoiceChip(
+                label: const Text('Tümü'),
+                selected: selected == null,
+                onSelected: (_) => controller.shelfFilter.value = null,
+              ),
+            ),
+            for (final key in controller.shelfFilterKeys)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: ChoiceChip(
+                  label: Text('$key (${controller.shelfCount(key)})'),
+                  selected: selected == key,
+                  onSelected: (_) => controller.shelfFilter.value = key,
+                ),
+              ),
+          ],
+        ),
+      );
+    });
+  }
+
+  /// Raflara göre gruplanmış, katlanabilir bölümler.
+  ///
+  /// ListView.builder yalnızca görünen öğeleri kurar; katlanmış bölümler
+  /// tek başlık satırıdır. Çok raf (20+) / çok kitap (raf başına 200+)
+  /// kütüphanelerinde tüm listeyi tek seferde kurmak yerine bu, hem
+  /// gezinmeyi hem kaydırma performansını korur.
   Widget _buildShelfList(List<BookModel> items) {
     final groups = <String, List<BookModel>>{};
     for (final b in items) {
-      final key = b.shelf.isEmpty ? 'Rafsız' : b.shelf;
+      final key = b.shelf.trim().isEmpty ? 'Rafsız' : b.shelf.trim();
       groups.putIfAbsent(key, () => []).add(b);
     }
 
-    return ListView(
+    final descriptors = <_HomeItem>[];
+    for (final entry in groups.entries) {
+      final collapsed = controller.collapsedShelves.contains(entry.key);
+      descriptors.add(_HomeItem.header(entry.key, entry.value.length));
+      if (!collapsed) {
+        for (final book in entry.value) {
+          descriptors.add(_HomeItem.bookItem(book));
+        }
+      }
+    }
+
+    return ListView.builder(
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 96),
-      children: [
-        for (final entry in groups.entries) ...[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(4, 16, 4, 4),
-            child: Row(
-              children: [
-                const Icon(Icons.shelves, size: 20),
-                const SizedBox(width: 8),
-                Text(
-                  '${entry.key} (${entry.value.length})',
-                  style: Get.textTheme.titleSmall,
-                ),
-              ],
-            ),
+      itemCount: descriptors.length,
+      itemBuilder: (context, index) {
+        final item = descriptors[index];
+        if (item.shelfKey != null) {
+          return _ShelfHeader(
+            key: ValueKey('shelf-${item.shelfKey}'),
+            shelfKey: item.shelfKey!,
+            count: item.count,
+          );
+        }
+        final book = item.book!;
+        return BookTile(
+          key: ValueKey(book.id),
+          book: book,
+          onTap: () => Get.toNamed(Routes.detail, arguments: book.id),
+        );
+      },
+    );
+  }
+
+  void _showShelfSheet(BuildContext context) {
+    Get.bottomSheet(
+      SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.6,
           ),
-          for (final book in entry.value)
-            BookTile(
-              key: ValueKey(book.id),
-              book: book,
-              onTap: () => Get.toNamed(Routes.detail, arguments: book.id),
-            ),
-        ],
-      ],
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Row(
+                  children: [
+                    const Icon(Icons.shelves, size: 20),
+                    const SizedBox(width: 8),
+                    Text('Raflar', style: Get.textTheme.titleMedium),
+                  ],
+                ),
+              ),
+              Flexible(
+                child: Obx(() {
+                  final keys = controller.shelfFilterKeys;
+                  return ListView(
+                    shrinkWrap: true,
+                    children: [
+                      ListTile(
+                        leading: const Icon(Icons.apps),
+                        title: const Text('Tüm raflar'),
+                        selected: controller.shelfFilter.value == null,
+                        onTap: () {
+                          Get.back();
+                          controller.shelfFilter.value = null;
+                        },
+                      ),
+                      for (final key in keys)
+                        ListTile(
+                          leading: const Icon(Icons.shelves),
+                          title: Text(key),
+                          trailing: Text('${controller.shelfCount(key)} kitap'),
+                          selected: controller.shelfFilter.value == key,
+                          onTap: () {
+                            Get.back();
+                            controller.shelfFilter.value = key;
+                          },
+                        ),
+                    ],
+                  );
+                }),
+              ),
+            ],
+          ),
+        ),
+      ),
+      backgroundColor: Theme.of(context).colorScheme.surface,
     );
   }
 
@@ -197,6 +312,56 @@ class HomePage extends GetView<LibraryController> {
   }
 }
 
+/// Katlanabilir raf başlığı; dokunulduğunda bölüm açılır/kapanır.
+class _ShelfHeader extends GetView<LibraryController> {
+  const _ShelfHeader({
+    super.key,
+    required this.shelfKey,
+    required this.count,
+  });
+
+  final String shelfKey;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final collapsed = controller.collapsedShelves.contains(shelfKey);
+    return InkWell(
+      onTap: () => controller.toggleShelfCollapsed(shelfKey),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(4, 16, 4, 4),
+        child: Row(
+          children: [
+            const Icon(Icons.shelves, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                '$shelfKey ($count)',
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+            ),
+            Icon(
+              collapsed ? Icons.expand_more : Icons.expand_less,
+              size: 20,
+              color: Theme.of(context).colorScheme.outline,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// ListView.builder için hafif öğe tanımı: başlık ya da kitap.
+class _HomeItem {
+  const _HomeItem.header(this.shelfKey, this.count) : book = null;
+  const _HomeItem.bookItem(this.book) : shelfKey = null, count = 0;
+
+  final String? shelfKey;
+  final int count;
+  final BookModel? book;
+}
+
 class _EmptyState extends StatelessWidget {
   const _EmptyState({required this.hasBooks});
 
@@ -222,6 +387,14 @@ class _EmptyState extends StatelessWidget {
                   : 'Kitaplığın boş.\nİlk kitabını barkod tarayarak ekle.',
               textAlign: TextAlign.center,
             ),
+            const SizedBox(height: 12),
+            if (hasBooks)
+              Text(
+                'Raf çipleriyle doğrudan rafa atlayabilir,\n'
+                'başlığa dokunarak bölümü katlayabilirsin.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
           ],
         ),
       ),

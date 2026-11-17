@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kitaplik/data/models/reading_log_entry.dart';
-import 'package:kitaplik/domain/repositories/reading_stats.dart';
+import 'package:kitaplik/domain/services/reading_stats.dart';
 
 /// Akşam saatlerinde rapor edilmiş kayıtlar gibi davranır.
 ReadingLogEntry entry(int day, int hour, int page) => ReadingLogEntry(

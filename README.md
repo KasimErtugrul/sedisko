@@ -47,28 +47,55 @@ hem Debug hem Release profile eklendi.
 ```
 lib/
 ├── core/            sabitler, hata sınıfları, yardımcılar
-│   ├── constants/   API + depolama anahtarları
+│   ├── constants/   API + depolama + ayar anahtarları, sürüm bilgisi
 │   ├── errors/      NetworkException, StorageException
 │   └── utils/       tarih formatlayıcı, ISBN doğrulayıcı,
 │                    Türkçe metin normalizasyonu, platform desteği
 ├── data/
-│   ├── models/      BookModel (Equatable, savunmacı JSON)
+│   ├── models/      BookModel + ReadingLogEntry (Equatable, savunmacı JSON)
 │   ├── datasources/ SharedPreferences (yerel) + Open Library (uzak)
 │   └── repositories/BookRepositoryImpl
 ├── domain/
-│   └── repositories/BookRepository (soyut sözleşme; entity/usecase yok)
+│   ├── repositories/BookRepository (soyut sözleşme; entity/usecase yok)
+│   └── services/    ReadingStats (okuma istatistiği hesabı)
 └── presentation/
     ├── bindings/    InitialBinding (DI)
-    ├── controllers/ LibraryController, BookFormController, ScannerController
-    ├── pages/       Home, Detail, Form, Scanner
-    ├── routes/      Routes, AppPages, BookFormArgs
-    └── widgets/     BookTile, CoverImage
+    ├── controllers/ Library, BookForm, Scanner, Settings
+    ├── pages/       Shell (alt navigasyon), Shelves (raf kartları),
+    │                Shelf (rafın kitapları), Detail, Form, Scanner, Settings
+    ├── routes/      Routes, AppPages, BookFormArgs, ShelfArgs
+    ├── utils/       AppHaptics (tercihe duyarlı titreşim)
+    └── widgets/     BookTile, CoverImage, ReadingStatsPanel, StatusFilterRow
 ```
 
 Bilinçli tasarım kararı: model doğrudan `domain` sözleşmesinde kullanılır
 (ağır bir entity/usecase katmanı yoktur). Domain → data bağımlılığı bu
 ölçekte kabul edilebilir bir kısayoldur; uygulama büyürse entity katmanı
 eklenip model oraya taşınmalıdır.
+
+## Güncelleme (yama uygulama) talimatı
+
+Sürümler arası geçişte **tüm paketi**, kısmi dosya aktarımı değil, kullanın.
+Sürümler birbirine bağlı dosyalar içerir: örneğin `LibraryController` ve
+`ReadingStatsPanel`, `BookModel.readingLog` alanını kullanır. Yalnızca
+controller/panel dosyalarını aktarırken eski bir `book_model.dart` yerinde
+kalırsa derleme şöyle düşer:
+
+```
+Error: No named parameter with the name 'readingLog'.
+Error: The getter 'readingLog' isn't defined for the type 'BookModel'.
+```
+
+Doğru güncelleme:
+
+1. Bu paketteki `lib/` ve `test/` klasörlerini projenizdeki aynı adlı
+   klasörlerle **tamamen değiştirin** (eskilerini silin, yenilerini kopyalayın).
+2. `pubspec.yaml` ve `pubspec.lock`'u da güncelleyin.
+3. `flutter pub get && flutter analyze && flutter test` ile doğrulayın.
+
+Kitap verileriniz cihazda `SharedPreferences` içinde saklandığı için kod
+altının değişmesi kitaplığı etkilemez; depolama anahtarı (`books_v1`)
+değişmedikçe veriler korunur.
 
 ## Testler
 
@@ -82,7 +109,15 @@ flutter test
 | `test/core/text_normalizer_test.dart` | Türkçe İ/ı arama eşleşmesi, alfabetik sıra |
 | `test/data/book_model_test.dart` | JSON gidiş-dönüş, bozuk JSON dayanıklılığı, copyWith |
 | `test/data/book_local_datasource_test.dart` | upsert/delete, paralel yazma, bozuk kayıt yalıtımı |
+| `test/data/reading_log_entry_test.dart` | okuma günlüğü kaydı: savunmacı JSON, eşitlik |
+| `test/domain/reading_stats_test.dart` | günlük/toplam istatistik hesabı, Türkçe gün sıralaması |
 | `test/presentation/library_controller_test.dart` | yükleme/kayıt/silme hata akışları, ilerleme geçişleri, arama |
+| `test/presentation/library_controller_reading_log_test.dart` | fark tabanlı okuma günlüğü birleştirme |
+| `test/presentation/library_controller_shelf_filter_test.dart` | raf anahtarları, kitap sayımı, raf/arama/durum filtresi bileşimi |
+| `test/presentation/reading_stats_panel_test.dart` | istatistik paneli widget testi |
+| `test/presentation/shell_page_test.dart` | alt navigasyon, yatay raf kartları, raf sayfasına geçiş, tema tercihi |
+| `test/presentation/settings_controller_test.dart` | tema/özellik tercihlerinin kalıcılığı |
+| `test/presentation/settings_page_test.dart` | ayarlar ekranı radyo/anahtar davranışı |
 | `test/widget_test.dart` | Ana sayfa/ekleme menüsü/form doğrulama smoke testleri |
 
 ## Düzeltilen sorunlar
@@ -172,7 +207,52 @@ flutter test
     çağrıya çevrildi; dönen sonuç `is String` ile savunmacı biçimde
     ele alınıyor ve boş değer güvenle yok sayılıyor.
 
+### Yeni özellikler (1.2.0)
+
+28. **Okuma istatistikleri** — kitaba başlama/bitiş tarihi ve kalınan sayfa
+    zaten tutuluyordu; artık her kaydetme bu durum farkından otomatik bir okuma
+    günlüğü türetir (`BookModel.readingLog`). Detay sayfasının altında
+    `ReadingStatsPanel` var: toplam sayfa, okuma günü, gün başına ortalama,
+    en verimli gün ve son 14 günün mini grafı. Kayıtlar tek merkezde
+    (`saveBook`) birleştirilir; elle geriye çekilen sayfalar negatif sayılmaz,
+    "Başlanmadı"ya dönüş günlüğü temizler.
+29. **Ana sayfada raf yönetimi (20+ raf / 200+ kitap ölçeği)** — uzun liste
+    üç katmanla çözüldü:
+    - **Katlama:** her raf bölümü başlığa dokunarak açılır/kapanır
+      (`collapsedShelves`); kapalı bölüm yalnız tek başlık satırıdır.
+    - **Raf çipleri + sayılar:** arama alanının altında yatay çip satırı
+      (`"Roman (42)"`) ile tek dokunuşta rafa filtreleme; rafsız kitaplar
+      için "Rafsız" çipi.
+    - **Raflar sayfası:** AppBar'daki liste butonu tüm rafları kitap
+      sayılarıyla listeleyen alt sayfayı açar.
+    - Liste `ListView.builder` ile sanallaştırıldı: yalnız görünür öğeler
+      kurulur, katlanmış bölümler maliyet üretmez.
+
+### Yeni özellikler (1.3.0)
+
+30. **Alt navigasyonlu ana sayfa** — ekranın altında `NavigationBar` var:
+    **Raflar** ve **Ayarlar** sekmeleri. Raflar sekmesinde raflar dikey liste
+    yerine **yatay kart şerididir** (raf adı + kitap sayısı); "Tüm kitaplar"
+    ve varsa "Rafsız" kartı da şeritte. Karta dokununca o rafın kitapları
+    **ayrı bir sayfada** açılır (durum filtresi çipleriyle). Arama yazılınca
+    kart şeridi yerine sonuç listesi gelir. Önceki katlanır bölüm/çip
+    düzeni ve "Raflar" alt sayfası bu seyir modelinin yerini aldı; liste
+    `ListView.builder` ile sanallaştırılmaya devam eder, `IndexedStack`
+    sekme durumunu korur.
+31. **Ayarlar sayfası** — iki bölüm:
+    - **Görünüm:** tema modu seçimi (Sistem varsayılanı / Aydınlık /
+      Karanlık). Seçim `GetMaterialApp.themeMode`'a bağlıdır; değişiklik
+      anında uygulanır ve `settings_theme_mode` anahtarıyla kalıcıdır,
+      uygulama tercih edilen temayla açılır.
+    - **Uygulama içi özellikler:** kapak görselleri (internetten kapak
+      yüklemesini kapatır), barkod tarama düğmeleri (platform desteğiyle
+      birlikte değerlendirilir), titreşimli geri bildirim (tarama ve
+      dokunuşlardaki haptik; `AppHaptics` üzerinden). Tüm tercihler
+      `settings_*` anahtarlarıyla SharedPreferences'ta saklanır.
+
 ## Sürüm notları
 
-`pubspec.yaml` sürümü `1.1.1+3`'e yükseltildi. Depolama anahtarı
-(`books_v1`) değişmedi: mevcut kullanıcılar kitaplıklarını kaybetmez.
+`pubspec.yaml` sürümü `1.3.0+5`'e yükseltildi. Depolama anahtarları
+(`books_v1` ve `settings_*`) değişmedi: mevcut kullanıcılar kitaplıklarını
+kaybetmez; okuma günlüğü alanı (`readingLog`) eski kayıtlarda boş gelir ve
+ilk kayıttan itibaren derlenmeye başlar.

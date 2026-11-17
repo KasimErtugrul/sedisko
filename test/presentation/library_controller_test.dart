@@ -220,10 +220,10 @@ void main() {
       await controller.loadBooks();
 
       controller.query.value = 'istanbul';
-      expect(controller.filteredBooks.length, 1);
+      expect(controller.filteredBooks().length, 1);
 
       controller.query.value = 'İstanbul';
-      expect(controller.filteredBooks.length, 1);
+      expect(controller.filteredBooks().length, 1);
     });
 
     test('ISBN ile arar', () async {
@@ -235,7 +235,7 @@ void main() {
       await controller.loadBooks();
 
       controller.query.value = '316148';
-      expect(controller.filteredBooks.length, 1);
+      expect(controller.filteredBooks().length, 1);
     });
 
     test('durum filtresi uygular', () async {
@@ -248,7 +248,7 @@ void main() {
       await controller.loadBooks();
 
       controller.statusFilter.value = ReadingStatus.reading;
-      expect(controller.filteredBooks.map((b) => b.id), ['1']);
+      expect(controller.filteredBooks().map((b) => b.id), ['1']);
     });
   });
 

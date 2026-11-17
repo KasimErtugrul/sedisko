@@ -3,9 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '../../core/utils/date_formatter.dart';
-import '../../core/utils/platform_support.dart';
 import '../../data/models/book_model.dart';
 import '../controllers/book_form_controller.dart';
+import '../controllers/settings_controller.dart';
 import '../widgets/cover_image.dart';
 
 class BookFormPage extends GetView<BookFormController> {
@@ -255,7 +255,8 @@ class BookFormPage extends GetView<BookFormController> {
                   icon: const Icon(Icons.cloud_download_outlined),
                 ),
         ),
-        if (PlatformSupport.supportsBarcodeScan)
+        // Platform desteği + kullanıcı tercihi (Ayarlar > Barkod tarama).
+        if (SettingsController.scanActionsVisible)
           IconButton.filledTonal(
             tooltip: 'Barkod tara',
             onPressed: c.scanIsbn,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:kitaplik/main.dart';
+import 'package:kitaplik/presentation/controllers/settings_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -20,6 +21,11 @@ void main() {
   Future<void> pumpApp(WidgetTester tester) async {
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
+    // main() üretimde kaydeder; testte KitaplikApp'ten önce kaydedilir.
+    Get.put<SettingsController>(
+      SettingsController(prefs: prefs),
+      permanent: true,
+    );
     await tester.pumpWidget(KitaplikApp(prefs: prefs));
     await tester.pumpAndSettle();
   }

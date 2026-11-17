@@ -13,3 +13,14 @@ class BookFormArgs extends Equatable {
   @override
   List<Object?> get props => [book, isEdit];
 }
+
+/// Raf sayfasına verilen argüman.
+/// [shelf] null ise tüm kitaplar listelenir; 'Rafsız' rafsız kitapları seçer.
+class ShelfArgs extends Equatable {
+  const ShelfArgs({this.shelf});
+
+  final String? shelf;
+
+  @override
+  List<Object?> get props => [shelf];
+}

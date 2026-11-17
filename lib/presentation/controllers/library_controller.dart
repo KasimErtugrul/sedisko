@@ -64,10 +64,20 @@ class LibraryController extends GetxController {
   // ---------- Sorgular ----------
 
   /// Türkçe İ/ı eşleşmesini koruyan arama: kitap adı, yazar, raf ve ISBN.
-  List<BookModel> get filteredBooks {
+  ///
+  /// [shelf] verilirse yalnız o raftaki kitaplar döner ('Rafsız' anahtarı
+  /// rafsız kitapları seçer); verilmezse tüm kitaplık taranır. Arama sonuçları
+  /// (rafsız tüm kitaplık) ve raf sayfası (tek raf) bu tek metodu paylaşır.
+  List<BookModel> filteredBooks({String? shelf}) {
     final q = TextNormalizer.searchKey(query.value.trim());
     final status = statusFilter.value;
     return books.where((b) {
+      if (shelf != null) {
+        final bookShelf = b.shelf.trim();
+        final matches =
+            shelf == 'Rafsız' ? bookShelf.isEmpty : bookShelf == shelf;
+        if (!matches) return false;
+      }
       if (status != null && b.status != status) return false;
       if (q.isEmpty) return true;
       return TextNormalizer.searchKey(b.title).contains(q) ||
@@ -85,6 +95,22 @@ class LibraryController extends GetxController {
         .toList()
       ..sort(TextNormalizer.compareTr);
     return set;
+  }
+
+  /// Raf kartları için anahtarlar: dolu raflar (Türkçe sıralı) ve
+  /// rafsız kitap varsa sonda 'Rafsız'.
+  List<String> get shelfKeys {
+    final keys = [...shelves];
+    if (books.any((b) => b.shelf.trim().isEmpty)) keys.add('Rafsız');
+    return keys;
+  }
+
+  /// [shelfKey] rafındaki kitap sayısı ('Rafsız' anahtarı dahil).
+  int shelfCount(String shelfKey) {
+    if (shelfKey == 'Rafsız') {
+      return books.where((b) => b.shelf.trim().isEmpty).length;
+    }
+    return books.where((b) => b.shelf.trim() == shelfKey).length;
   }
 
   BookModel? byId(String id) => books.firstWhereOrNull((b) => b.id == id);

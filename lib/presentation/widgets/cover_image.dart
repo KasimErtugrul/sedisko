@@ -1,7 +1,9 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
-/// Kitap kapağı görseli.
+import '../controllers/settings_controller.dart';
+
+/// Kitap kapağı görseli; ayarlardaki "Kapak görselleri" tercihine saygı duyar.
 ///
 /// Performans notları:
 /// - [Image.network] varsayılan olarak bellek önbelleği kullanır; ancak
@@ -25,26 +27,34 @@ class CoverImage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final u = url;
+    final Widget content;
+    if (Get.isRegistered<SettingsController>()) {
+      final settings = Get.find<SettingsController>();
+      // Kapak tercihi değişince görsel anında yer tutucuya/gelecek kapağa döner.
+      content = Obx(() {
+        if (!settings.showCovers.value) return _placeholder(context);
+        return _networkCover(context, u);
+      });
+    } else {
+      content = _networkCover(context, u);
+    }
     return ClipRRect(
       borderRadius: BorderRadius.circular(6),
-      child: SizedBox(
-        width: width,
-        height: height,
-        child: (u == null || u.isEmpty)
-            ? _placeholder(context)
-            : CachedNetworkImage(
-                imageUrl: u,
-                fit: BoxFit.cover,
-                memCacheWidth:
-                    (width * MediaQuery.devicePixelRatioOf(context)).round(),
-                filterQuality: FilterQuality.medium,
-                fadeInDuration: Duration.zero,
-                fadeOutDuration: Duration.zero,
-                progressIndicatorBuilder: (context, url, progress) =>
-                    _loading(context),
-                errorWidget: (context, url, error) => _placeholder(context),
-              ),
-      ),
+      child: SizedBox(width: width, height: height, child: content),
+    );
+  }
+
+  Widget _networkCover(BuildContext context, String? u) {
+    if (u == null || u.isEmpty) return _placeholder(context);
+    return Image.network(
+      u,
+      fit: BoxFit.cover,
+      gaplessPlayback: true,
+      filterQuality: FilterQuality.medium,
+      cacheWidth: (width * MediaQuery.devicePixelRatioOf(context)).round(),
+      loadingBuilder: (context, child, progress) =>
+          progress == null ? child : _loading(context),
+      errorBuilder: (_, __, ___) => _placeholder(context),
     );
   }
 
