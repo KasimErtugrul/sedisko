@@ -1,30 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../../core/utils/platform_support.dart';
 import '../../data/models/book_model.dart';
 import '../controllers/library_controller.dart';
+import '../controllers/settings_controller.dart';
 import '../routes/app_routes.dart';
 import '../routes/route_args.dart';
 import '../widgets/book_tile.dart';
+import '../widgets/cover_image.dart';
+import '../widgets/status_filter_row.dart';
 
+/// Ana sayfa sekmesi: kitap odaklı özet akışı.
+///
+/// - Arama boşken: özet satırı (toplam / okunuyor / bitti), "Devam eden
+///   kitaplar", "Favoriler" ve "Not aldıkların" yatay kapak şeritleri,
+///   ardından tüm kitaplık listesi.
+/// - Arama yazılırken: durum filtresi çipleri + eşleşen kitap listesi.
+///
+/// Tüm liste `ListView.builder` ile tek sanallaştırılmış listede kurulur;
+/// 200+ kitapta yalnız görünür öğeler inşa edilir.
 class HomePage extends GetView<LibraryController> {
   const HomePage({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Kitaplığım'),
-        actions: [
-          // Çok raf/çok kitap kütüphanelerinde doğrudan rafa atlama.
-          IconButton(
-            tooltip: 'Raflar',
-            icon: const Icon(Icons.format_list_bulleted),
-            onPressed: () => _showShelfSheet(context),
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Kitaplığım')),
       body: Stack(
         children: [
           Column(
@@ -33,18 +34,16 @@ class HomePage extends GetView<LibraryController> {
                 padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
                 child: _buildSearchField(),
               ),
-              _buildStatusFilter(),
-              _buildShelfFilter(),
               Expanded(
                 child: Obx(() {
                   if (controller.isLoading.value) {
                     return const Center(child: CircularProgressIndicator());
                   }
-                  final items = controller.filteredBooks;
-                  if (items.isEmpty) {
-                    return _EmptyState(hasBooks: controller.books.isNotEmpty);
+                  if (controller.books.isEmpty) {
+                    return const _EmptyState(hasBooks: false);
                   }
-                  return _buildShelfList(items);
+                  final searching = controller.query.value.trim().isNotEmpty;
+                  return searching ? _searchResults() : _homeFeed();
                 }),
               ),
             ],
@@ -107,174 +106,73 @@ class HomePage extends GetView<LibraryController> {
     );
   }
 
-  Widget _buildStatusFilter() {
-    return SizedBox(
-      height: 48,
-      child: Obx(() {
-        final selected = controller.statusFilter.value;
-        return ListView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: ChoiceChip(
-                label: const Text('Hepsi'),
-                selected: selected == null,
-                onSelected: (_) => controller.statusFilter.value = null,
-              ),
-            ),
-            for (final s in ReadingStatus.values)
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: ChoiceChip(
-                  label: Text(s.label),
-                  selected: selected == s,
-                  onSelected: (_) => controller.statusFilter.value = s,
+  /// Arama yazılırken durum filtresi + sonuç listesi gösterilir.
+  Widget _searchResults() {
+    final items = controller.filteredBooks();
+    return Column(
+      children: [
+        const StatusFilterRow(),
+        Expanded(
+          child: items.isEmpty
+              ? const _EmptyState(hasBooks: true)
+              : ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 96),
+                  itemCount: items.length,
+                  itemBuilder: (context, index) {
+                    final book = items[index];
+                    return BookTile(
+                      key: ValueKey('search-${book.id}'),
+                      book: book,
+                      onTap: () =>
+                          Get.toNamed(Routes.detail, arguments: book.id),
+                    );
+                  },
                 ),
-              ),
-          ],
-        );
-      }),
+        ),
+      ],
     );
   }
 
-  /// Raf filtresi: çoka raf kütüphanelerinde doğrudan rafa atlama.
-  /// 'Rafsız' anahtarı raflanmamış kitapları filtreler.
-  Widget _buildShelfFilter() {
-    return Obx(() {
-      if (controller.books.isEmpty) return const SizedBox.shrink();
-      final selected = controller.shelfFilter.value;
-      return SizedBox(
-        height: 48,
-        child: ListView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: ChoiceChip(
-                label: const Text('Tümü'),
-                selected: selected == null,
-                onSelected: (_) => controller.shelfFilter.value = null,
-              ),
-            ),
-            for (final key in controller.shelfFilterKeys)
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: ChoiceChip(
-                  label: Text('$key (${controller.shelfCount(key)})'),
-                  selected: selected == key,
-                  onSelected: (_) => controller.shelfFilter.value = key,
-                ),
-              ),
-          ],
-        ),
-      );
-    });
-  }
+  /// Ana akış: özet + bölümler + tüm kitaplar, tek sanallaştırılmış liste.
+  Widget _homeFeed() {
+    final reading = controller.readingBooks;
+    final favorites = controller.favoriteBooks;
+    final noted = controller.notedBooks;
+    final all = controller.books.toList();
 
-  /// Raflara göre gruplanmış, katlanabilir bölümler.
-  ///
-  /// ListView.builder yalnızca görünen öğeleri kurar; katlanmış bölümler
-  /// tek başlık satırıdır. Çok raf (20+) / çok kitap (raf başına 200+)
-  /// kütüphanelerinde tüm listeyi tek seferde kurmak yerine bu, hem
-  /// gezinmeyi hem kaydırma performansını korur.
-  Widget _buildShelfList(List<BookModel> items) {
-    final groups = <String, List<BookModel>>{};
-    for (final b in items) {
-      final key = b.shelf.trim().isEmpty ? 'Rafsız' : b.shelf.trim();
-      groups.putIfAbsent(key, () => []).add(b);
-    }
+    // Bölüm şeritleri yalnız doluysa listeye girer; boş bölümler yer tutmaz.
+    final sections = <_Section>[
+      if (reading.isNotEmpty) _Section('Devam eden kitaplar', reading),
+      if (favorites.isNotEmpty) _Section('Favoriler', favorites),
+      if (noted.isNotEmpty) _Section('Not aldıkların', noted),
+    ];
 
-    final descriptors = <_HomeItem>[];
-    for (final entry in groups.entries) {
-      final collapsed = controller.collapsedShelves.contains(entry.key);
-      descriptors.add(_HomeItem.header(entry.key, entry.value.length));
-      if (!collapsed) {
-        for (final book in entry.value) {
-          descriptors.add(_HomeItem.bookItem(book));
-        }
-      }
-    }
+    final itemCount =
+        1 + sections.length * 2 + 1 + all.length; // özet + (başlık+şerit) + tümü başlığı + kitaplar
 
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 96),
-      itemCount: descriptors.length,
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
+      itemCount: itemCount,
       itemBuilder: (context, index) {
-        final item = descriptors[index];
-        if (item.shelfKey != null) {
-          return _ShelfHeader(
-            key: ValueKey('shelf-${item.shelfKey}'),
-            shelfKey: item.shelfKey!,
-            count: item.count,
-          );
+        if (index == 0) return _SummaryRow(all: all);
+        var cursor = 1;
+        for (final section in sections) {
+          if (index == cursor) return _SectionHeader(section.title);
+          if (index == cursor + 1) {
+            return _BookStrip(books: section.books);
+          }
+          cursor += 2;
         }
-        final book = item.book!;
+        if (index == cursor) {
+          return _SectionHeader('Tüm kitaplar', subtitle: '${all.length}');
+        }
+        final book = all[index - cursor - 1];
         return BookTile(
-          key: ValueKey(book.id),
+          key: ValueKey('home-${book.id}'),
           book: book,
           onTap: () => Get.toNamed(Routes.detail, arguments: book.id),
         );
       },
-    );
-  }
-
-  void _showShelfSheet(BuildContext context) {
-    Get.bottomSheet(
-      SafeArea(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.6,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                child: Row(
-                  children: [
-                    const Icon(Icons.shelves, size: 20),
-                    const SizedBox(width: 8),
-                    Text('Raflar', style: Get.textTheme.titleMedium),
-                  ],
-                ),
-              ),
-              Flexible(
-                child: Obx(() {
-                  final keys = controller.shelfFilterKeys;
-                  return ListView(
-                    shrinkWrap: true,
-                    children: [
-                      ListTile(
-                        leading: const Icon(Icons.apps),
-                        title: const Text('Tüm raflar'),
-                        selected: controller.shelfFilter.value == null,
-                        onTap: () {
-                          Get.back();
-                          controller.shelfFilter.value = null;
-                        },
-                      ),
-                      for (final key in keys)
-                        ListTile(
-                          leading: const Icon(Icons.shelves),
-                          title: Text(key),
-                          trailing: Text('${controller.shelfCount(key)} kitap'),
-                          selected: controller.shelfFilter.value == key,
-                          onTap: () {
-                            Get.back();
-                            controller.shelfFilter.value = key;
-                          },
-                        ),
-                    ],
-                  );
-                }),
-              ),
-            ],
-          ),
-        ),
-      ),
-      backgroundColor: Theme.of(context).colorScheme.surface,
     );
   }
 
@@ -284,7 +182,8 @@ class HomePage extends GetView<LibraryController> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (PlatformSupport.supportsBarcodeScan)
+            // Platform desteği ve kullanıcı tercihi birlikte ele alınır.
+            if (SettingsController.scanActionsVisible)
               ListTile(
                 leading: const Icon(Icons.qr_code_scanner),
                 title: const Text('Barkod tara'),
@@ -312,38 +211,170 @@ class HomePage extends GetView<LibraryController> {
   }
 }
 
-/// Katlanabilir raf başlığı; dokunulduğunda bölüm açılır/kapanır.
-class _ShelfHeader extends GetView<LibraryController> {
-  const _ShelfHeader({
-    super.key,
-    required this.shelfKey,
-    required this.count,
-  });
+/// Ana akışta yatay şerit olarak gösterilecek bölüm.
+class _Section {
+  const _Section(this.title, this.books);
 
-  final String shelfKey;
-  final int count;
+  final String title;
+  final List<BookModel> books;
+}
+
+/// Özet satırı: toplam / okunuyor / bitti sayıları.
+class _SummaryRow extends GetView<LibraryController> {
+  const _SummaryRow({required this.all});
+
+  final List<BookModel> all;
 
   @override
   Widget build(BuildContext context) {
-    final collapsed = controller.collapsedShelves.contains(shelfKey);
-    return InkWell(
-      onTap: () => controller.toggleShelfCollapsed(shelfKey),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(4, 16, 4, 4),
-        child: Row(
+    final scheme = Theme.of(context).colorScheme;
+    Widget stat(String value, String label, Color color) {
+      return Expanded(
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: color.withAlpha(31),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            children: [
+              Text(
+                value,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: color,
+                    ),
+              ),
+              Text(label, style: Theme.of(context).textTheme.bodySmall),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          stat('${all.length}', 'Toplam', scheme.primary),
+          const SizedBox(width: 8),
+          stat('${controller.readingCount}', 'Okunuyor', Colors.orange),
+          const SizedBox(width: 8),
+          stat('${controller.finishedCount}', 'Bitti', Colors.green),
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader(this.title, {this.subtitle});
+
+  final String title;
+  final String? subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 12, 4, 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
+        children: [
+          Text(
+            title,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+          if (subtitle != null) ...[
+            const SizedBox(width: 6),
+            Text(
+              subtitle!,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Yatay kapak şeridi; kitaba dokununca detay sayfası açılır.
+class _BookStrip extends StatelessWidget {
+  const _BookStrip({required this.books});
+
+  final List<BookModel> books;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 208,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: books.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        itemBuilder: (context, index) {
+          final book = books[index];
+          return _BookCoverCard(
+            key: ValueKey('strip-${book.id}'),
+            book: book,
+            onTap: () => Get.toNamed(Routes.detail, arguments: book.id),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _BookCoverCard extends StatelessWidget {
+  const _BookCoverCard({
+    super.key,
+    required this.book,
+    required this.onTap,
+  });
+
+  final BookModel book;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SizedBox(
+      width: 96,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.shelves, size: 20),
-            const SizedBox(width: 8),
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: SizedBox(
+                    width: 96,
+                    height: 140,
+                    child: CoverImage(url: book.coverUrl, width: 96, height: 140),
+                  ),
+                ),
+                if (book.isFavorite)
+                  const Positioned(
+                    top: 4,
+                    right: 4,
+                    child: _FavoriteBadge(),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 6),
             Expanded(
               child: Text(
-                '$shelfKey ($count)',
-                style: Theme.of(context).textTheme.titleSmall,
+                book.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(fontWeight: FontWeight.w600),
               ),
-            ),
-            Icon(
-              collapsed ? Icons.expand_more : Icons.expand_less,
-              size: 20,
-              color: Theme.of(context).colorScheme.outline,
             ),
           ],
         ),
@@ -352,14 +383,25 @@ class _ShelfHeader extends GetView<LibraryController> {
   }
 }
 
-/// ListView.builder için hafif öğe tanımı: başlık ya da kitap.
-class _HomeItem {
-  const _HomeItem.header(this.shelfKey, this.count) : book = null;
-  const _HomeItem.bookItem(this.book) : shelfKey = null, count = 0;
+/// Kapak köşesindeki küçük favori işareti.
+class _FavoriteBadge extends StatelessWidget {
+  const _FavoriteBadge();
 
-  final String? shelfKey;
-  final int count;
-  final BookModel? book;
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: const BoxDecoration(
+        color: Colors.black45,
+        shape: BoxShape.circle,
+      ),
+      child: const Icon(
+        Icons.favorite,
+        size: 14,
+        color: Colors.redAccent,
+      ),
+    );
+  }
 }
 
 class _EmptyState extends StatelessWidget {
@@ -390,8 +432,7 @@ class _EmptyState extends StatelessWidget {
             const SizedBox(height: 12),
             if (hasBooks)
               Text(
-                'Raf çipleriyle doğrudan rafa atlayabilir,\n'
-                'başlığa dokunarak bölümü katlayabilirsin.',
+                'Durum çipleriyle daraltabilirsin.',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall,
               ),

@@ -34,6 +34,7 @@ class BookModel extends Equatable {
     this.finishedAt,
     this.notes,
     this.isManual = false,
+    this.isFavorite = false,
     this.readingLog = const [],
   });
 
@@ -52,6 +53,10 @@ class BookModel extends Equatable {
   final DateTime? finishedAt;
   final String? notes;
   final bool isManual;
+
+  /// Ana sayfadaki "Favoriler" bölümünde gösterilen işaret. Eski veride
+  /// bu alan yoktur; varsayılan olarak kapalı gelir.
+  final bool isFavorite;
 
   /// Tarihli okuma olayları (başlama, sayfa güncelleme, bitirme, yeniden
   /// okuma). Eski veride bu alan yoktur; bozuk kayıtlar ayrıştırılırken
@@ -146,6 +151,7 @@ class BookModel extends Equatable {
       finishedAt: _parseDate(json['finishedAt']),
       notes: _asStringOrNull(json['notes']),
       isManual: json['isManual'] is bool ? json['isManual'] as bool : false,
+      isFavorite: json['isFavorite'] is bool ? json['isFavorite'] as bool : false,
       readingLog: _parseLog(json['readingLog']),
       addedAt: _parseDate(json['addedAt']) ?? DateTime.now(),
     );
@@ -177,6 +183,7 @@ class BookModel extends Equatable {
         'finishedAt': finishedAt?.toIso8601String(),
         'notes': notes,
         'isManual': isManual,
+        'isFavorite': isFavorite,
         if (readingLog.isNotEmpty)
           'readingLog': [for (final entry in readingLog) entry.toJson()],
         'addedAt': addedAt.toIso8601String(),
@@ -199,6 +206,7 @@ class BookModel extends Equatable {
     Object? finishedAt = _unset,
     String? notes,
     bool? isManual,
+    bool? isFavorite,
     List<ReadingLogEntry>? readingLog,
   }) {
     return BookModel(
@@ -220,6 +228,7 @@ class BookModel extends Equatable {
           : finishedAt as DateTime?,
       notes: notes ?? this.notes,
       isManual: isManual ?? this.isManual,
+      isFavorite: isFavorite ?? this.isFavorite,
       readingLog: readingLog ?? this.readingLog,
       addedAt: addedAt,
     );
@@ -282,6 +291,7 @@ class BookModel extends Equatable {
         finishedAt,
         notes,
         isManual,
+        isFavorite,
         readingLog,
         addedAt,
       ];

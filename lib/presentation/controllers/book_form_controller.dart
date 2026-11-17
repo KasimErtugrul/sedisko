@@ -31,6 +31,7 @@ class BookFormController extends GetxController {
   final startedAt = Rxn<DateTime>();
   final finishedAt = Rxn<DateTime>();
   final coverUrl = RxnString();
+  final isFavorite = false.obs;
   final isFetching = false.obs;
   final isSaving = false.obs;
 
@@ -67,7 +68,11 @@ class BookFormController extends GetxController {
     startedAt.value = book.startedAt;
     finishedAt.value = book.finishedAt;
     coverUrl.value = book.coverUrl;
+    isFavorite.value = book.isFavorite;
   }
+
+  /// Formdaki "Favori" anahtarı; kayıtta [BookModel.isFavorite]'a yazılır.
+  void setFavorite(bool value) => isFavorite.value = value;
 
   // ---------- Open Library / Barkod ----------
 
@@ -207,6 +212,7 @@ class BookFormController extends GetxController {
       finishedAt: s == ReadingStatus.finished ? finishedAt.value : null,
       notes: _nullIfEmpty(notesCtrl.text),
       isManual: _isManual,
+      isFavorite: isFavorite.value,
       addedAt: _addedAt,
     );
 

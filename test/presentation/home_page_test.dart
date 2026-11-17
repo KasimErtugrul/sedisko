@@ -4,7 +4,9 @@ import 'package:get/get.dart';
 import 'package:kitaplik/data/models/book_model.dart';
 import 'package:kitaplik/domain/repositories/book_repository.dart';
 import 'package:kitaplik/presentation/controllers/library_controller.dart';
+import 'package:kitaplik/presentation/controllers/settings_controller.dart';
 import 'package:kitaplik/presentation/pages/home_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Bellek içi sahte repository; kitaplar doğrudan store ile beslenir.
 class FakeBookRepository implements BookRepository {
@@ -33,25 +35,53 @@ class FakeBookRepository implements BookRepository {
   Future<BookModel?> fetchBookByIsbn(String isbn) async => null;
 }
 
-BookModel seed(String id, String title, String shelf) => BookModel(
-      id: id,
-      title: title,
-      shelf: shelf,
-      addedAt: DateTime(2026, 1, 1),
-    );
+BookModel seed({
+  required String id,
+  required String title,
+  bool favorite = false,
+  String notes = '',
+  ReadingStatus status = ReadingStatus.notStarted,
+}) {
+  return BookModel(
+    id: id,
+    title: title,
+    shelf: 'Raf',
+    addedAt: DateTime(2026, 1, 1),
+    isFavorite: favorite,
+    notes: notes.isEmpty ? null : notes,
+    status: status,
+    startedAt: status == ReadingStatus.notStarted ? null : DateTime(2026, 1, 2),
+  );
+}
 
 void main() {
   late FakeBookRepository repository;
+  late SharedPreferences prefs;
 
-  setUp(() {
+  setUp(() async {
     Get.testMode = true;
+    SharedPreferences.setMockInitialValues({});
+    prefs = await SharedPreferences.getInstance();
+    Get.put<SettingsController>(
+      SettingsController(prefs: prefs),
+      permanent: true,
+    );
     repository = FakeBookRepository(initial: [
-      seed('b1', 'Denizler Altında', 'Roman'),
-      seed('b2', 'Kürk Mantolu Madonna', 'Roman'),
-      seed('b3', 'Osmanlı Tarihi', 'Tarih'),
-      seed('b4', 'Not Defteri', ''),
+      seed(id: 'b1', title: 'Simyacı', favorite: true),
+      seed(
+        id: 'b2',
+        title: 'Şeker Portakalı',
+        status: ReadingStatus.reading,
+        notes: 'Bölüm özetleri burada',
+      ),
+      seed(id: 'b3', title: 'Dönüşüm', notes: 'Gregor hikâyesi'),
+      seed(id: 'b4', title: 'Hayvan Çiftliği', status: ReadingStatus.finished),
     ]);
-    Get.put(LibraryController(repository, onNotify: (_, __) {}));
+    final controller = Get.put<LibraryController>(
+      LibraryController(repository, onNotify: (_, __) {}),
+      permanent: true,
+    );
+    await controller.loadBooks();
   });
 
   tearDown(() {
@@ -59,109 +89,79 @@ void main() {
   });
 
   Future<void> pumpHome(WidgetTester tester) async {
-    await tester.pumpWidget(const GetMaterialApp(home: HomePage()));
+    // Uzun akışı tek ekranda kurmak için test yüzeyi yüksek tutulur; böylece
+    // sanallaştırılmış listenin alt bölümleri de ağaçta kurulur.
+    tester.view.physicalSize = const Size(400, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(GetMaterialApp(home: const HomePage()));
     await tester.pumpAndSettle();
   }
 
-  testWidgets('raf başlıkları kitap sayısıyla görünür', (tester) async {
+  testWidgets('özet satırı ve tüm kitaplar listesi görünür', (tester) async {
     await pumpHome(tester);
 
-    // Başlık ve raf çipi aynı etiketi taşır: 2 eşleşme.
-    expect(find.text('Roman (2)'), findsNWidgets(2));
-    expect(find.text('Tarih (1)'), findsNWidgets(2));
-    expect(find.text('Denizler Altında'), findsOneWidget);
-
-    // 'Rafsız' bölümü listenin sonundadır; builder tembel olduğu için
-    // görünmeyen bölüm kurulmaz, önce kaydır.
-    await tester.scrollUntilVisible(
-      find.byKey(const ValueKey('shelf-Rafsız')),
-      200,
-      scrollable: find.byType(Scrollable).last,
-    );
-    expect(find.text('Rafsız (1)'), findsNWidgets(2));
-    expect(find.text('Not Defteri'), findsOneWidget);
+    expect(find.text('Toplam'), findsOneWidget);
+    expect(find.text('Okunuyor'), findsOneWidget);
+    expect(find.text('Bitti'), findsOneWidget);
+    // 'Simyacı' favoriler şeridinde, 'Tüm kitaplar' listesinde de vardır.
+    expect(find.text('Simyacı'), findsWidgets);
+    expect(find.text('Tüm kitaplar'), findsOneWidget);
+    expect(find.text('Hayvan Çiftliği'), findsOneWidget);
   });
 
-  testWidgets('raf başlığına dokununca bölüm katlanır', (tester) async {
+  testWidgets('dolu bölümler başlık ve yatay şerit gösterir', (tester) async {
     await pumpHome(tester);
 
-    await tester.tap(find.byKey(const ValueKey('shelf-Roman')));
-    await tester.pumpAndSettle();
+    expect(find.text('Devam eden kitaplar'), findsOneWidget);
+    expect(find.text('Favoriler'), findsOneWidget);
+    expect(find.text('Not aldıkların'), findsOneWidget);
 
-    // Katlanmış bölümün kitapları listeden kalkar, başlık kalır.
-    expect(find.text('Denizler Altında'), findsNothing);
-    expect(find.text('Kürk Mantolu Madonna'), findsNothing);
-    expect(find.byKey(const ValueKey('shelf-Roman')), findsOneWidget);
-    // Diğer raflar etkilenmez.
-    expect(find.text('Osmanlı Tarihi'), findsOneWidget);
-
-    await tester.tap(find.byKey(const ValueKey('shelf-Roman')));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Denizler Altında'), findsOneWidget);
-    expect(find.text('Kürk Mantolu Madonna'), findsOneWidget);
+    // Favori kapak kartında kalp rozeti vardır.
+    expect(find.byIcon(Icons.favorite), findsWidgets);
   });
 
-  testWidgets('raf çipi yalnız o raftaki kitapları gösterir', (tester) async {
+  testWidgets('dolu olmayan bölümler listeye girmez', (tester) async {
+    // Favori, okunuyor ve notlu kitapları sil; yalnız bitmiş kitap kalsın.
+    await Get.find<LibraryController>().deleteBook('b1');
+    await Get.find<LibraryController>().deleteBook('b2');
+    await Get.find<LibraryController>().deleteBook('b3');
+
     await pumpHome(tester);
 
-    await tester.tap(find.widgetWithText(ChoiceChip, 'Tarih (1)'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Osmanlı Tarihi'), findsOneWidget);
-    expect(find.text('Denizler Altında'), findsNothing);
-    expect(find.text('Not Defteri'), findsNothing);
-    expect(find.byKey(const ValueKey('shelf-Tarih')), findsOneWidget);
-    expect(find.byKey(const ValueKey('shelf-Roman')), findsNothing);
+    expect(find.text('Devam eden kitaplar'), findsNothing);
+    expect(find.text('Favoriler'), findsNothing);
+    expect(find.text('Not aldıkların'), findsNothing);
+    expect(find.text('Tüm kitaplar'), findsOneWidget);
+    expect(find.text('Hayvan Çiftliği'), findsOneWidget);
   });
 
-  testWidgets("'Tümü' çipi raf filtresini temizler", (tester) async {
-    await pumpHome(tester);
-
-    await tester.tap(find.widgetWithText(ChoiceChip, 'Rafsız (1)'));
-    await tester.pumpAndSettle();
-    expect(find.text('Denizler Altında'), findsNothing);
-
-    await tester.tap(find.widgetWithText(ChoiceChip, 'Tümü'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Denizler Altında'), findsOneWidget);
-    // 'Rafsız' bölümü listenin sonunda; ekranda değilse kaydırarak doğrula.
-    await tester.scrollUntilVisible(
-      find.text('Not Defteri'),
-      200,
-      scrollable: find.byType(Scrollable).last,
-    );
-    expect(find.text('Not Defteri'), findsOneWidget);
-  });
-
-  testWidgets("'Raflar' sayfası rafa atlar", (tester) async {
-    await pumpHome(tester);
-
-    await tester.tap(find.byTooltip('Raflar'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Tüm raflar'), findsOneWidget);
-    expect(find.text('Roman'), findsOneWidget);
-    expect(find.text('2 kitap'), findsOneWidget);
-
-    await tester.tap(find.text('Roman'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Osmanlı Tarihi'), findsNothing);
-    expect(find.text('Denizler Altında'), findsOneWidget);
-    expect(find.byKey(const ValueKey('shelf-Roman')), findsOneWidget);
-  });
-
-  testWidgets('arama alanı yazınca raf çipleri de filtrede kalır',
+  testWidgets('arama yazılınca bölümler yerine sonuç listesi çıkar',
       (tester) async {
     await pumpHome(tester);
 
-    await tester.enterText(find.byType(TextField).first, 'madonna');
+    expect(find.text('Favoriler'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField).first, 'simyacı');
     await tester.pumpAndSettle();
 
-    expect(find.text('Kürk Mantolu Madonna'), findsOneWidget);
-    expect(find.text('Denizler Altında'), findsNothing);
-    expect(find.text('Osmanlı Tarihi'), findsNothing);
+    expect(find.text('Favoriler'), findsNothing);
+    expect(find.text('Devam eden kitaplar'), findsNothing);
+    expect(find.text('Simyacı'), findsOneWidget);
+    expect(find.text('Dönüşüm'), findsNothing);
+    expect(find.widgetWithText(ChoiceChip, 'Hepsi'), findsOneWidget);
+  });
+
+  testWidgets('boş kitaplıkta yönlendirici boş durum gösterilir',
+      (tester) async {
+    repository.store.clear();
+    await Get.find<LibraryController>().loadBooks();
+
+    await pumpHome(tester);
+
+    expect(
+      find.text('Kitaplığın boş.\nİlk kitabını barkod tarayarak ekle.'),
+      findsOneWidget,
+    );
   });
 }

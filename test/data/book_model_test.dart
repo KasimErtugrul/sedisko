@@ -37,6 +37,24 @@ void main() {
       expect(book.status, ReadingStatus.notStarted);
       expect(book.pageCount, 0);
       expect(book.isManual, false);
+      expect(book.isFavorite, false); // eski veride alan yoktur
+    });
+
+    test('isFavorite gidiş-dönüşte korunur', () {
+      final book = BookModel(
+        id: 'f1',
+        title: 'Favori kitap',
+        addedAt: DateTime(2026, 2, 1),
+        isFavorite: true,
+      );
+      final restored = BookModel.fromJson(book.toJson());
+      expect(restored.isFavorite, true);
+
+      final plain = BookModel.fromJson({
+        'id': 'f2',
+        'isFavorite': 'bozuk tip',
+      });
+      expect(plain.isFavorite, false);
     });
 
     test('bozuk tip: authors string / pageCount string gelse de patlamaz', () {
@@ -114,6 +132,17 @@ void main() {
 
       final untouched = base.copyWith(status: ReadingStatus.reading);
       expect(untouched.finishedAt, DateTime(2024, 3, 3));
+    });
+
+    test('isFavorite copyWith ile değişir, verilmezse korunur', () {
+      final base = BookModel(
+        id: 'c2',
+        title: 'T',
+        addedAt: DateTime(2024, 3, 1),
+      );
+      expect(base.isFavorite, false);
+      expect(base.copyWith(isFavorite: true).isFavorite, true);
+      expect(base.copyWith(status: ReadingStatus.reading).isFavorite, false);
     });
   });
 

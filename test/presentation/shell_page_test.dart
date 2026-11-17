@@ -82,30 +82,54 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('alt navigasyon Raflar ve Ayarlar sekmelerini gösterir',
+  testWidgets('alt navigasyon Ana Sayfa, Raflar ve Ayarlar sekmelerini gösterir',
       (tester) async {
     await pumpShell(tester);
 
-    // Raflar sekmesi görünür: yatay kartlar 'Tüm kitaplar' ile başlar.
-    expect(find.byKey(const ValueKey('shelf-card-all')), findsOneWidget);
-    expect(find.byKey(const ValueKey('shelf-card-Roman')), findsOneWidget);
-    expect(find.byKey(const ValueKey('shelf-card-Rafsız')), findsOneWidget);
-    expect(find.text('2 kitap'), findsOneWidget); // Roman kartı
+    // Üç sekme etiketi görünür (IndexedStack'te kapalı sayfaların AppBar
+    // başlıkları hit-test edilemez; hitTestable yalnız etiketleri bulur).
+    expect(find.text('Ana Sayfa').hitTestable(), findsOneWidget);
+    expect(find.text('Raflar').hitTestable(), findsOneWidget);
+    expect(find.text('Ayarlar').hitTestable(), findsOneWidget);
+
+    // Ana Sayfa açılışta seçilidir: özet + tüm kitaplar listesi.
+    expect(find.text('Toplam'), findsOneWidget);
+    expect(find.text('Okunuyor'), findsOneWidget);
+    expect(find.text('Bitti'), findsOneWidget);
+    expect(find.text('Tüm kitaplar'), findsWidgets);
 
     // Ayarlar sekmesi kapalıyken içerik görünür değil (IndexedStack offstage).
     expect(find.text('Görünüm').hitTestable(), findsNothing);
 
-    await tester.tap(find.byIcon(Icons.settings_outlined));
+    await tester.tap(find.text('Ayarlar').hitTestable());
     await tester.pumpAndSettle();
 
     expect(find.text('Görünüm').hitTestable(), findsOneWidget);
-    expect(find.text('Uygulama içi özellikler').hitTestable(), findsOneWidget);
+    expect(
+      find.text('Uygulama içi özellikler').hitTestable(),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('Raflar sekmesinde yatay raf kartları vardır', (tester) async {
+    await pumpShell(tester);
+
+    await tester.tap(find.text('Raflar').hitTestable());
+    await tester.pumpAndSettle();
+
+    // Raflar sekmesi: 'Tüm kitaplar' ve raflar, ad + kitap sayısı kartları.
+    expect(find.byKey(const ValueKey('shelf-card-all')), findsOneWidget);
+    expect(find.byKey(const ValueKey('shelf-card-Roman')), findsOneWidget);
+    expect(find.byKey(const ValueKey('shelf-card-Rafsız')), findsOneWidget);
+    expect(find.text('2 kitap'), findsOneWidget); // Roman kartı
   });
 
   testWidgets('raf kartına dokununca rafın kitapları yeni sayfada açılır',
       (tester) async {
     await pumpShell(tester);
 
+    await tester.tap(find.text('Raflar').hitTestable());
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('shelf-card-Roman')));
     await tester.pumpAndSettle();
 
@@ -124,6 +148,8 @@ void main() {
       (tester) async {
     await pumpShell(tester);
 
+    await tester.tap(find.text('Raflar').hitTestable());
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('shelf-card-all')));
     await tester.pumpAndSettle();
 
@@ -146,7 +172,7 @@ void main() {
     expect(find.text('Not Defteri'), findsOneWidget);
   });
 
-  testWidgets('arama yazınca sonuç listesi ve durum çipleri çıkar',
+  testWidgets('ana sayfada arama yazınca sonuç listesi ve durum çipleri çıkar',
       (tester) async {
     await pumpShell(tester);
 
@@ -161,7 +187,7 @@ void main() {
   testWidgets('Karanlık teması seçilince tercih kalıcı yazılır', (tester) async {
     await pumpShell(tester);
 
-    await tester.tap(find.byIcon(Icons.settings_outlined));
+    await tester.tap(find.text('Ayarlar').hitTestable());
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Karanlık'));
@@ -178,7 +204,7 @@ void main() {
   testWidgets('Kapak görselleri anahtarı tercihi değiştirir', (tester) async {
     await pumpShell(tester);
 
-    await tester.tap(find.byIcon(Icons.settings_outlined));
+    await tester.tap(find.text('Ayarlar').hitTestable());
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Kapak görselleri'));

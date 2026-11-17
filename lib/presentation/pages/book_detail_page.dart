@@ -40,6 +40,16 @@ class BookDetailPage extends GetView<LibraryController> {
           title: const Text('Kitap detayı'),
           actions: [
             IconButton(
+              tooltip: book.isFavorite
+                  ? 'Favorilerden çıkar'
+                  : 'Favorilere ekle',
+              icon: Icon(
+                book.isFavorite ? Icons.favorite : Icons.favorite_outline,
+                color: book.isFavorite ? Colors.redAccent : null,
+              ),
+              onPressed: () => controller.toggleFavorite(book),
+            ),
+            IconButton(
               tooltip: 'Düzenle',
               icon: const Icon(Icons.edit),
               onPressed: () => Get.toNamed(
@@ -83,6 +93,19 @@ class BookDetailPage extends GetView<LibraryController> {
                       if (book.isbn != null)
                         Text('ISBN: ${book.isbn}',
                             style: theme.textTheme.bodySmall),
+                      if (book.isFavorite)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 6),
+                          child: Chip(
+                            avatar: Icon(
+                              Icons.favorite,
+                              size: 16,
+                              color: Colors.redAccent,
+                            ),
+                            label: Text('Favori'),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                        ),
                       if (book.isManual)
                         const Padding(
                           padding: EdgeInsets.only(top: 6),

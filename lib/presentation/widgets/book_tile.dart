@@ -27,7 +27,17 @@ class BookTile extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              CoverImage(url: book.coverUrl),
+              Stack(
+                children: [
+                  CoverImage(url: book.coverUrl),
+                  if (book.isFavorite)
+                    const Positioned(
+                      top: 2,
+                      right: 2,
+                      child: _FavoriteBadge(),
+                    ),
+                ],
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -87,5 +97,27 @@ class BookTile extends StatelessWidget {
       case ReadingStatus.finished:
         return Text('Bitti • ${formatDate(book.finishedAt)}', style: small);
     }
+  }
+}
+
+/// Kapak köşesindeki küçük favori işareti; ana sayfada favori listesinde
+/// olmayan kitapların da favori durumunu listede görünür kılar.
+class _FavoriteBadge extends StatelessWidget {
+  const _FavoriteBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: const BoxDecoration(
+        color: Colors.black45,
+        shape: BoxShape.circle,
+      ),
+      child: const Icon(
+        Icons.favorite,
+        size: 14,
+        color: Colors.redAccent,
+      ),
+    );
   }
 }

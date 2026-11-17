@@ -113,6 +113,29 @@ class LibraryController extends GetxController {
     return books.where((b) => b.shelf.trim() == shelfKey).length;
   }
 
+  // ---------- Ana sayfa bölümleri ----------
+
+  /// Favori işaretli kitaplar (ana sayfa "Favoriler" şeridi).
+  List<BookModel> get favoriteBooks =>
+      books.where((b) => b.isFavorite).toList();
+
+  /// Notu olan kitaplar (ana sayfa "Not aldıkların" şeridi).
+  List<BookModel> get notedBooks =>
+      books.where((b) => (b.notes ?? '').trim().isNotEmpty).toList();
+
+  /// Okumada olan kitaplar (ana sayfa "Devam eden kitaplar" şeridi).
+  List<BookModel> get readingBooks =>
+      books.where((b) => b.status == ReadingStatus.reading).toList();
+
+  int get readingCount => readingBooks.length;
+
+  int get finishedCount =>
+      books.where((b) => b.status == ReadingStatus.finished).length;
+
+  /// Favori işaretini tersine çevirir; okuma durumu/günlük dokunulmaz.
+  Future<void> toggleFavorite(BookModel book) =>
+      saveBook(book.copyWith(isFavorite: !book.isFavorite));
+
   BookModel? byId(String id) => books.firstWhereOrNull((b) => b.id == id);
 
   BookModel? findByIsbn(String isbn) {

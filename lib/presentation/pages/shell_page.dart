@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 
+import 'home_page.dart';
 import 'settings_page.dart';
 import 'shelves_page.dart';
 
-/// Alt navigasyonlu ana kabuk: 'Raflar' ve 'Ayarlar' sekmeleri.
+/// Alt navigasyonlu ana kabuk: 'Ana Sayfa', 'Raflar' ve 'Ayarlar' sekmeleri.
 ///
-/// [IndexedStack] her iki sekmenin durumunu korur; sekme değişince kitaplık
+/// [IndexedStack] tüm sekmelerin durumunu korur; sekme değişince kitaplık
 /// yeniden yüklenmez ve arama alanı temizlenmez.
 class ShellPage extends StatefulWidget {
   const ShellPage({super.key});
@@ -22,12 +23,17 @@ class _ShellPageState extends State<ShellPage> {
     return Scaffold(
       body: IndexedStack(
         index: _index,
-        children: const [ShelvesPage(), SettingsPage()],
+        children: const [HomePage(), ShelvesPage(), SettingsPage()],
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: (i) => setState(() => _index = i),
         destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
+            label: 'Ana Sayfa',
+          ),
           NavigationDestination(
             icon: Icon(Icons.shelves),
             selectedIcon: Icon(Icons.shelves),

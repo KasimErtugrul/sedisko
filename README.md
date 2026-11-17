@@ -250,9 +250,31 @@ flutter test
       dokunuşlardaki haptik; `AppHaptics` üzerinden). Tüm tercihler
       `settings_*` anahtarlarıyla SharedPreferences'ta saklanır.
 
+### Yeni özellikler (1.4.0)
+
+32. **Kitap odaklı ana sayfa** — "Ana Sayfa" sekmesi artık yalnız raf
+    kartları değil, kitaplıktan canlı bir özet akışı sunar:
+    - **Özet satırı:** toplam / okunuyor / bitti sayıları tek bakışta.
+    - **Devam eden kitaplar:** okumada olan kitapların yatay kapak şeridi.
+    - **Favoriler:** favori işaretli kitapların yatay kapak şeridi.
+    - **Not aldıkların:** notu olan kitapların yatay kapak şeridi.
+    - **Tüm kitaplar:** kitaplığın tamamı `ListView.builder` ile
+      sanallaştırılmış listede. Kapak kartına ya da tile'a dokununca detay
+      sayfası açılır; boş bölümler yer tutmaz. Arama yazılınca akış yerine
+      durum filtresi çipleriyle sonuç listesi çıkar.
+33. **Favoriler** — `BookModel.isFavorite` alanı eklendi (eski veride alan
+    yoktur, varsayılan kapalı; `books_v1` anahtarı değişmedi):
+    - Detay sayfası AppBar'ındaki kalp butonu tek dokunuşla favoriyi açar/
+      kapatır; okuma durumu, sayfa ve günlük değişmez.
+    - Kitap formunda "Favori" anahtarı ile ekleme/düzenleme sırasında
+      işaretlenebilir.
+    - Liste satırlarında ve ana sayfa kapak kartlarında küçük kalp rozeti
+      gösterilir.
+
 ## Sürüm notları
 
-`pubspec.yaml` sürümü `1.3.0+5`'e yükseltildi. Depolama anahtarları
+`pubspec.yaml` sürümü `1.4.0+6`'ya yükseltildi. Depolama anahtarları
 (`books_v1` ve `settings_*`) değişmedi: mevcut kullanıcılar kitaplıklarını
 kaybetmez; okuma günlüğü alanı (`readingLog`) eski kayıtlarda boş gelir ve
-ilk kayıttan itibaren derlenmeye başlar.
+ilk kayıttan itibaren derlenmeye başlar; `isFavorite` eski kayıtlarda
+`false` gelir.

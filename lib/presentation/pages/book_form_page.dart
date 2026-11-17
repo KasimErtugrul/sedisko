@@ -197,6 +197,24 @@ class BookFormPage extends GetView<BookFormController> {
                 border: _border,
               ),
             ),
+            const SizedBox(height: 12),
+            Obx(
+              () => SwitchListTile(
+                value: c.isFavorite.value,
+                onChanged: c.setFavorite,
+                contentPadding: EdgeInsets.zero,
+                secondary: Icon(
+                  c.isFavorite.value
+                      ? Icons.favorite
+                      : Icons.favorite_outline,
+                  color: c.isFavorite.value ? Colors.redAccent : null,
+                ),
+                title: const Text('Favori'),
+                subtitle: const Text(
+                  'Ana sayfadaki favoriler bölümünde gösterilir',
+                ),
+              ),
+            ),
             const SizedBox(height: 24),
             Obx(
               () => FilledButton.icon(
