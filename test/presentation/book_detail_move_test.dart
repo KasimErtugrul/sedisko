@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:kitaplik/data/models/book_model.dart';
+import 'package:kitaplik/data/services/book_photo_picker.dart';
+import 'package:kitaplik/data/services/cover_photo_store.dart';
 import 'package:kitaplik/domain/repositories/book_repository.dart';
 import 'package:kitaplik/presentation/controllers/book_form_controller.dart';
 import 'package:kitaplik/presentation/controllers/library_controller.dart';
@@ -80,8 +82,12 @@ void main() {
       ),
     ]);
     // Form sayfası binding'i BookRepository'yi Get.find ile çeker;
-    // sahte repository arabirim adıyla da kayıtlı olmalı.
+    // sahte repository arabirim adıyla da kayıtlı olmalı. Form binding
+    // ayrıca foto deposu ve kamera kaynağını ister (bu test fotoğraf
+    // eklemediği için hiçbir platform kanalına dokunulmaz).
     Get.put<BookRepository>(repository, permanent: true);
+    Get.put<CoverPhotoStore>(CoverPhotoStore(), permanent: true);
+    Get.put<BookPhotoPicker>(ImagePickerBookPhotoPicker(), permanent: true);
     controller = Get.put<LibraryController>(
       LibraryController(repository, onNotify: (_, __) {}),
       permanent: true,

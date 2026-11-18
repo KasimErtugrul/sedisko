@@ -27,7 +27,9 @@
         <key>LSRequiresIPhoneOS</key>
         <true/>
         <key>NSCameraUsageDescription</key>
-        <string>Kitap barkodunu taramak için kamera gereklidir.</string>
+        <string>Kitap barkodunu taramak ve kitabın fotoğrafını çekmek için kamera gereklidir.</string>
+        <key>NSPhotoLibraryUsageDescription</key>
+        <string>Kitabının fotoğrafını galeriden seçmek için fotoğraf kitaplığınıza erişim gereklidir.</string>
         <key>UIApplicationSceneManifest</key>
         <dict>
                 <key>UIApplicationSupportsMultipleScenes</key>

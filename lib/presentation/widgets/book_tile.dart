@@ -43,7 +43,7 @@ class BookTile extends StatelessWidget {
             children: [
               Stack(
                 children: [
-                  CoverImage(url: book.coverUrl),
+                  CoverImage(url: book.coverUrl, path: book.coverPath),
                   if (book.isFavorite)
                     const Positioned(
                       top: 2,

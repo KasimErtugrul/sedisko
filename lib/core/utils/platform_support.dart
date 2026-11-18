@@ -25,4 +25,21 @@ class PlatformSupport {
         return false;
     }
   }
+
+  /// Kitap fotoğrafı ekleme (kamera + galeri). image_picker paketi mobil
+  /// platformlarda çalışır; masaüstü ve web'te fotoğraf bölümü gizlenir
+  /// (kapaklar yalnız Open Library URL'sinden gelir).
+  static bool get supportsPhotoAttach {
+    if (kIsWeb) return false;
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android:
+      case TargetPlatform.iOS:
+        return true;
+      case TargetPlatform.macOS:
+      case TargetPlatform.fuchsia:
+      case TargetPlatform.windows:
+      case TargetPlatform.linux:
+        return false;
+    }
+  }
 }

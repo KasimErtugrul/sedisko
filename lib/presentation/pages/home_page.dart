@@ -379,7 +379,12 @@ class _BookCoverCard extends StatelessWidget {
                   child: SizedBox(
                     width: 96,
                     height: 140,
-                    child: CoverImage(url: book.coverUrl, width: 96, height: 140),
+                    child: CoverImage(
+                      url: book.coverUrl,
+                      path: book.coverPath,
+                      width: 96,
+                      height: 140,
+                    ),
                   ),
                 ),
                 if (book.isFavorite)

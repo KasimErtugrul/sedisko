@@ -1,46 +1,82 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../controllers/settings_controller.dart';
 
-/// Kitap kapağı görseli; ayarlardaki "Kapak görselleri" tercihine saygı duyar.
+/// Kitap kapağı görseli.
+///
+/// İki kaynak desteklenir:
+/// - [path]: kullanıcının çektiği kitap fotoğrafı (yerel dosya). Varsa ağ
+///   kapağından önceliklidir ve ayarlardaki "Kapak görselleri (internetten
+///   göster)" tercihinden bağımsızdır; kullanıcı kendi fotoğrafını görmek
+///   ister.
+/// - [url]: Open Library ağ kapağı; ayarlardaki tercihe saygı duyar.
 ///
 /// Performans notları:
-/// - [Image.network] varsayılan olarak bellek önbelleği kullanır; ancak
-///   `cacheWidth` verilmemesi, büyük kapak dosyalarının piksel başına tam
-///   boyutunu çözer ve liste kaydırmada belleği şişirir. Hedef boyut ×
-///   devicePixelRatio ile çözünürlük sınırlanır.
+/// - Ağ kapaklarında `cacheWidth` verilmezse büyük kapak dosyalarının
+///   piksel başına tam boyutu çözülür ve liste kaydırmada bellek şişer.
+///   Hedef boyut × devicePixelRatio ile çözünürlük sınırlanır.
 /// - `gaplessPlayback`, liste sıralaması değişince görsellerin boş kalıp
 ///   yeniden yüklenmesini önler.
 class CoverImage extends StatelessWidget {
   const CoverImage({
     super.key,
     this.url,
+    this.path,
     this.width = 56,
     this.height = 80,
   });
 
   final String? url;
+
+  /// Yerel kitap fotoğrafının kalıcı dosya yolu (`coverPath`).
+  final String? path;
+
   final double width;
   final double height;
 
   @override
   Widget build(BuildContext context) {
     final u = url;
+    final p = path;
+    final hasFile = p != null && p.isNotEmpty;
+
+    Widget resolve(bool coversEnabled) {
+      if (hasFile) return _fileCover(context, p);
+      if (!coversEnabled) return _placeholder(context);
+      return _networkCover(context, u);
+    }
+
     final Widget content;
-    if (Get.isRegistered<SettingsController>()) {
+    if (hasFile) {
+      // Yerel fotoğraf internet kaynağı değildir; "Kapak görselleri
+      // (internetten)" tercihinden bağımsız olarak gösterilir. Rx okunmadığı
+      // için burada bilinçli olarak Obx yok.
+      content = resolve(true);
+    } else if (Get.isRegistered<SettingsController>()) {
       final settings = Get.find<SettingsController>();
-      // Kapak tercihi değişince görsel anında yer tutucuya/gelecek kapağa döner.
-      content = Obx(() {
-        if (!settings.showCovers.value) return _placeholder(context);
-        return _networkCover(context, u);
-      });
+      // Tercih değişince görsel anında yer tutucuya/gelecek kapağa döner.
+      content = Obx(() => resolve(settings.showCovers.value));
     } else {
-      content = _networkCover(context, u);
+      content = resolve(true);
     }
     return ClipRRect(
       borderRadius: BorderRadius.circular(6),
       child: SizedBox(width: width, height: height, child: content),
+    );
+  }
+
+  Widget _fileCover(BuildContext context, String p) {
+    return Image.file(
+      File(p),
+      fit: BoxFit.cover,
+      gaplessPlayback: true,
+      filterQuality: FilterQuality.medium,
+      cacheWidth: (width * MediaQuery.devicePixelRatioOf(context)).round(),
+      // Dosya yolda kaybolmuşsa (temizlenmiş, taşınmış) ağ kapağına düş.
+      errorBuilder: (_, __, ___) => _networkCover(context, url),
     );
   }
 

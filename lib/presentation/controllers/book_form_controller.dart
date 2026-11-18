@@ -1,19 +1,33 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../core/errors/app_exceptions.dart';
 import '../../core/utils/isbn_validator.dart';
 import '../../data/models/book_model.dart';
+import '../../data/services/book_photo_picker.dart';
+import '../../data/services/cover_photo_store.dart';
 import '../../domain/repositories/book_repository.dart';
 import '../routes/app_routes.dart';
 import '../routes/route_args.dart';
 import 'library_controller.dart';
 
 class BookFormController extends GetxController {
-  BookFormController(this._repository, this._library);
+  /// [photoStore]/[photoPicker] test edilebilirlik için verilir;
+  /// verilmezse gerçek gerçekleştirmeler kullanılır.
+  BookFormController(
+    this._repository,
+    this._library, {
+    CoverPhotoStore? photoStore,
+    BookPhotoPicker? photoPicker,
+  })  : _photoStore = photoStore ?? CoverPhotoStore(),
+        _photoPicker = photoPicker ?? ImagePickerBookPhotoPicker();
 
   final BookRepository _repository;
   final LibraryController _library;
+  final CoverPhotoStore _photoStore;
+  final BookPhotoPicker _photoPicker;
 
   final formKey = GlobalKey<FormState>();
 
@@ -31,6 +45,14 @@ class BookFormController extends GetxController {
   final startedAt = Rxn<DateTime>();
   final finishedAt = Rxn<DateTime>();
   final coverUrl = RxnString();
+
+  /// Çekilen/seçilen kitap fotoğrafının kalıcı yolu; kayıtta
+  /// [BookModel.coverPath]'e yazılır.
+  final coverPath = Rxn<String>();
+
+  /// Fotoğraf kopyalanırken kısa bir bekleme göstergesi için.
+  final isPhotoBusy = false.obs;
+
   final isFavorite = false.obs;
   final isFetching = false.obs;
   final isSaving = false.obs;
@@ -39,6 +61,10 @@ class BookFormController extends GetxController {
   late final String _id;
   late final DateTime _addedAt;
   late bool _isManual;
+
+  /// Form açıldığında kitabın kayıtlı fotoğrafı. Kaydetme başarılı olursa
+  /// artık referans edilmeyen eski dosya diskten silinir.
+  late final String? _originalCoverPath;
 
   List<String> get shelves => _library.shelves;
 
@@ -68,11 +94,52 @@ class BookFormController extends GetxController {
     startedAt.value = book.startedAt;
     finishedAt.value = book.finishedAt;
     coverUrl.value = book.coverUrl;
+    coverPath.value = book.coverPath;
+    _originalCoverPath = book.coverPath;
     isFavorite.value = book.isFavorite;
   }
 
   /// Formdaki "Favori" anahtarı; kayıtta [BookModel.isFavorite]'a yazılır.
   void setFavorite(bool value) => isFavorite.value = value;
+
+  // ---------- Kapak fotoğrafı ----------
+
+  /// Kamerayla kitabın fotoğrafını çeker ve kalıcı kopyayı forma ekler.
+  Future<void> takePhoto() => _attachPhoto(_photoPicker.takePhoto);
+
+  /// Galeriden kitap fotoğrafı seçer ve kalıcı kopyayı forma ekler.
+  Future<void> pickFromGallery() =>
+      _attachPhoto(_photoPicker.pickFromGallery);
+
+  Future<void> _attachPhoto(Future<String?> Function() source) async {
+    if (isPhotoBusy.value) return;
+    isPhotoBusy.value = true;
+    try {
+      final tempPath = await source();
+      if (tempPath == null) return; // Kullanıcı vazgeçti.
+      final saved = await _photoStore.saveFromTemp(tempPath);
+      final previous = coverPath.value;
+      coverPath.value = saved;
+      // Aynı oturumda önceki seçimin dosyası artık referanssız; hemen
+      // temizle. Formun açılışındaki orijinal fotoğrafa ise ancak kaydetme
+      // BAŞARILI olduktan sonra dokunulur: kullanıcı vazgeçerse eski
+      // fotoğraf kayıtta yerinde kalır.
+      if (previous != null && previous != _originalCoverPath) {
+        unawaited(_photoStore.delete(previous));
+      }
+    } catch (_) {
+      _toast(
+        'Fotoğraf eklenemedi',
+        'Kamera ya da galeri şu an kullanılamıyor.',
+      );
+    } finally {
+      isPhotoBusy.value = false;
+    }
+  }
+
+  /// Formdan fotoğrafı kaldırır; diskteki dosya kaydetme onayından sonra
+  /// silinir (bkz. [save]).
+  void removePhoto() => coverPath.value = null;
 
   // ---------- Open Library / Barkod ----------
 
@@ -201,6 +268,7 @@ class BookFormController extends GetxController {
           .toList(),
       isbn: isbn,
       coverUrl: coverUrl.value,
+      coverPath: coverPath.value,
       publisher: _nullIfEmpty(publisherCtrl.text),
       publishDate: _nullIfEmpty(publishDateCtrl.text),
       pageCount: pages,
@@ -219,6 +287,13 @@ class BookFormController extends GetxController {
     try {
       final ok = await _library.saveBook(book);
       if (!ok) return; // Hata mesajı LibraryController tarafından gösterildi.
+      // Kayıt başarılı: eski fotoğraf artık hiçbir kayıtta kullanılmıyorsa
+      // diskten silinir. Kullanıcı fotoğrafı değiştirdi/kaldırdıysa eski
+      // dosya sahipsiz kalmıştır.
+      final oldPath = _originalCoverPath;
+      if (oldPath != null && oldPath != book.coverPath) {
+        unawaited(_photoStore.delete(oldPath));
+      }
       Get.back();
       Get.snackbar('Kaydedildi', book.title,
           snackPosition: SnackPosition.BOTTOM);

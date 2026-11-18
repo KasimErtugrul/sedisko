@@ -365,12 +365,61 @@ flutter test
       regresyon testi eklendi. Test takımı artık günün hangi saatinde ve
       hangi saat diliminde çalıştırılırsa çalıştırılsın aynı sonucu verir.
 
+### Yeni özellikler (1.7.0)
+
+40. **Manuel girişte kitap fotoğrafı** — kitabı elle giren kullanıcı artık
+    kitabın fotoğrafını çekip kayda ekleyebiliyor. Formun üstündeki kapak
+    bölümünde **"Kitabın fotoğrafını çek"** (kamera) ve **"Galeriden seç"**
+    düğmeleri var; fotoğraf eklendikten sonra önizleme gösterilir ve
+    **"Kaldır"** ile çıkarılabilir.
+
+    Nasıl çalışır:
+    - Yeni paketler: `image_picker` (kamera/galeri) ve `path_provider`
+      (kalıcı klasör). Çekilen fotoğraf geçici klasörden uygulamanın
+      belgeler dizini altındaki `covers/` klasörüne **kopyalanır**; kitap
+      kaydında yalnız bu kalıcı yol saklanır (`coverPath` alanı, eski
+      kayıtlarda boş gelir).
+    - **Yerel fotoğraf önceliklidir:** fotoğraflı kitapta Open Library ağ
+      kapağı yerine kullanıcının fotoğrafı gösterilir (liste, ana sayfa,
+      detay ve form önizlemesi dahil). Fotoğraf internetten gelmediği için
+      ayarlardaki "Kapak görselleri (internetten göster)" tercihinden
+      bağımsızdır.
+    - **Dosya temizliği:** fotoğraf değiştirilirse ara dosya, kayıt
+      başarılıysa eski fotoğraf, kitap silinirse fotoğraf dosyası diskten
+      silinir. Silme yalnız `covers/` klasörünün içindeki dosyalara
+      dokunur.
+    - **Platform:** kamera/galeri düğmeleri Android ve iOS'ta görünür
+      (mobil odaklı özellik); Windows/Linux/macOS/web'de form yalnız ağ
+      kapak önizlemesini gösterir. iOS için fotoğraf kitaplığı izni
+      (`NSPhotoLibraryUsageDescription`) Info.plist'e eklendi; kamera izni
+      açıklaması güncellendi. Android tarafında ek izin gerekmez.
+    - Fotoğraf 1200 px genişlik / %80 kalite ile kaydedilir; liste ve
+      detay gösterimi için yeterli, depolamada şişkinlik yapmaz.
+
+### Sıcak düzeltme (1.7.1)
+
+41. **Test düzeltmesi: "masaüstünde fotoğraf aksiyonları gizlenir" testi,
+    eski Flutter SDK'arda "The value of a foundation debug variable was
+    changed by the test" hatasıyla düşüyordu.** Test, masaüstü davranışını
+    doğrulamak için `debugDefaultTargetPlatformOverride` değişkenini geçici
+    olarak değiştiriyor; sıfırlama `addTearDown` ile yapılıyordu. Eski
+    Flutter SDK'lar foundation değişken denetimini test gövdesi biter
+    bitmez, `addTearDown` geri çağrıları çalışmadan önce yapar; bu
+    sıralamada sıfırlama "geç" kalıyor ve gövde başarılı olsa bile invariant
+    denetimi hata fırlatıyor. (Flutter 3.50'de denetim `postTest` aşamasına
+    taşındı ve `addTearDown` ile sıfırlama destekleniyor.) Düzeltme:
+    sıfırlama test gövdesi içinde `try/finally` ile yapılır — eski ve yeni
+    SDK'larda aynı şekilde güvenlidir. Uygulama kodunda değişiklik yoktur.
+
 ## Sürüm notları
 
-`pubspec.yaml` sürümü `1.6.1+9`'a yükseltildi. Depolama anahtarları
+`pubspec.yaml` sürümü `1.7.1+11`'e yükseltildi; 1.7.1 yalnızca yukarıdaki
+41 numaralı test düzeltmesini içerir, uygulama davranışı 1.7.0 ile aynıdır.
+Depolama anahtarları
 (`books_v1` ve `settings_*`) değişmedi: mevcut kullanıcılar kitaplıklarını
 kaybetmez; okuma günlüğü alanı (`readingLog`) eski kayıtlarda boş gelir ve
 ilk kayıttan itibaren derlenmeye başlar; `isFavorite` eski kayıtlarda
-`false` gelir. Raf taşıma ve favori çevrimi günlük türetmez; yalnız okuma
-durumu/sayfa değişimleri günlüğe yazar. Sıralama tercihi oturum içindedir;
-uygulama her açılışta kitap adı artan varsayılanıyla başlar.
+`false` gelir; `coverPath` eski kayıtlarda boş gelir. Raf taşıma ve favori
+çevrimi günlük türetmez; yalnız okuma durumu/sayfa değişimleri günlüğe
+yazar. Sıralama tercihi oturum içindedir; uygulama her açılışta kitap adı
+artan varsayılanıyla başlar.

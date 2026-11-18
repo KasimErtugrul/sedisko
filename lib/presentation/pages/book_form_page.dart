@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '../../core/utils/date_formatter.dart';
+import '../../core/utils/platform_support.dart';
 import '../../data/models/book_model.dart';
 import '../controllers/book_form_controller.dart';
 import '../controllers/settings_controller.dart';
@@ -24,15 +25,7 @@ class BookFormPage extends GetView<BookFormController> {
           padding: const EdgeInsets.all(16),
           children: [
             _isbnRow(c),
-            Obx(() {
-              final url = c.coverUrl.value;
-              if (url == null || url.isEmpty) return const SizedBox(height: 16);
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                child:
-                    Center(child: CoverImage(url: url, width: 90, height: 130)),
-              );
-            }),
+            _coverSection(c),
             TextFormField(
               controller: c.titleCtrl,
               textCapitalization: TextCapitalization.sentences,
@@ -232,6 +225,68 @@ class BookFormPage extends GetView<BookFormController> {
             const SizedBox(height: 24),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Kapak bölümü: çekilen fotoğraf (yerel dosya) varsa öncelikli gösterilir,
+  /// yoksa Open Library kapak URL'si. Fotoğraf aksiyonları yalnız
+  /// mobil platformlarda (PlatformSupport.supportsPhotoAttach) görünür;
+  /// masaüstü/web'te bölüm yalnız ağ kapağı önizlemesidir.
+  Widget _coverSection(BookFormController c) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Obx(
+        () {
+          final path = c.coverPath.value;
+          final url = c.coverUrl.value;
+          final hasVisual = path != null || (url != null && url.isNotEmpty);
+          return Column(
+            children: [
+              if (hasVisual) ...[
+                Center(
+                  child: CoverImage(path: path, url: url, width: 110, height: 160),
+                ),
+                const SizedBox(height: 8),
+              ],
+              if (PlatformSupport.supportsPhotoAttach)
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  alignment: WrapAlignment.center,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: c.isPhotoBusy.value ? null : c.takePhoto,
+                      icon: c.isPhotoBusy.value
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.photo_camera_outlined),
+                      label: Text(
+                        path == null
+                            ? 'Kitabın fotoğrafını çek'
+                            : 'Fotoğraf çek',
+                      ),
+                    ),
+                    TextButton.icon(
+                      onPressed: c.isPhotoBusy.value ? null : c.pickFromGallery,
+                      icon: const Icon(Icons.photo_outlined),
+                      label: const Text('Galeriden seç'),
+                    ),
+                    if (path != null)
+                      TextButton.icon(
+                        onPressed: c.removePhoto,
+                        icon: const Icon(Icons.delete_outline),
+                        label: const Text('Kaldır'),
+                      ),
+                  ],
+                ),
+            ],
+          );
+        },
       ),
     );
   }

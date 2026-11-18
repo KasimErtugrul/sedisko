@@ -80,7 +80,12 @@ class BookDetailPage extends GetView<LibraryController> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                CoverImage(url: book.coverUrl, width: 100, height: 150),
+                CoverImage(
+                  url: book.coverUrl,
+                  path: book.coverPath,
+                  width: 100,
+                  height: 150,
+                ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(

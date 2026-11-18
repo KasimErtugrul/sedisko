@@ -24,6 +24,7 @@ class BookModel extends Equatable {
     this.authors = const [],
     this.isbn,
     this.coverUrl,
+    this.coverPath,
     this.publisher,
     this.publishDate,
     this.pageCount = 0,
@@ -43,6 +44,12 @@ class BookModel extends Equatable {
   final List<String> authors;
   final String? isbn;
   final String? coverUrl;
+
+  /// Kullanıcının çektiği kitap fotoğrafının kalıcı dosya yolu
+  /// (belgeler/covers/ altında). Eski veride bu alan yoktur; `null` gelir.
+  /// Varsa ağ kapağından ([coverUrl]) önceliklidir.
+  final String? coverPath;
+
   final String? publisher;
   final String? publishDate;
   final int pageCount;
@@ -138,6 +145,7 @@ class BookModel extends Equatable {
           : const <String>[],
       isbn: _asStringOrNull(json['isbn']),
       coverUrl: _asStringOrNull(json['coverUrl']),
+      coverPath: _asStringOrNull(json['coverPath']),
       publisher: _asStringOrNull(json['publisher']),
       publishDate: _asStringOrNull(json['publishDate']),
       pageCount: _asInt(json['pageCount']) ?? 0,
@@ -173,6 +181,7 @@ class BookModel extends Equatable {
         'authors': authors,
         'isbn': isbn,
         'coverUrl': coverUrl,
+        'coverPath': coverPath,
         'publisher': publisher,
         'publishDate': publishDate,
         'pageCount': pageCount,
@@ -196,6 +205,7 @@ class BookModel extends Equatable {
     List<String>? authors,
     String? isbn,
     String? coverUrl,
+    Object? coverPath = _unset,
     String? publisher,
     String? publishDate,
     int? pageCount,
@@ -215,6 +225,8 @@ class BookModel extends Equatable {
       authors: authors ?? this.authors,
       isbn: isbn ?? this.isbn,
       coverUrl: coverUrl ?? this.coverUrl,
+      coverPath:
+          identical(coverPath, _unset) ? this.coverPath : coverPath as String?,
       publisher: publisher ?? this.publisher,
       publishDate: publishDate ?? this.publishDate,
       pageCount: pageCount ?? this.pageCount,
@@ -281,6 +293,7 @@ class BookModel extends Equatable {
         authors,
         isbn,
         coverUrl,
+        coverPath,
         publisher,
         publishDate,
         pageCount,

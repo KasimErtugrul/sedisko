@@ -1,5 +1,7 @@
 import 'package:get/get.dart';
 
+import '../../data/services/book_photo_picker.dart';
+import '../../data/services/cover_photo_store.dart';
 import '../../domain/repositories/book_repository.dart';
 import '../controllers/book_form_controller.dart';
 import '../controllers/library_controller.dart';
@@ -43,6 +45,8 @@ class AppPages {
           () => BookFormController(
             Get.find<BookRepository>(),
             Get.find<LibraryController>(),
+            photoStore: Get.find<CoverPhotoStore>(),
+            photoPicker: Get.find<BookPhotoPicker>(),
           ),
         );
       }),

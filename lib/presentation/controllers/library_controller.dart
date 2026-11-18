@@ -5,6 +5,7 @@ import '../../core/errors/app_exceptions.dart';
 import '../../core/utils/text_normalizer.dart';
 import '../../data/models/book_model.dart';
 import '../../data/models/reading_log_entry.dart';
+import '../../data/services/cover_photo_store.dart';
 import '../../domain/repositories/book_repository.dart';
 import '../../domain/services/book_sort.dart';
 import '../routes/app_routes.dart';
@@ -12,13 +13,17 @@ import '../routes/route_args.dart';
 
 class LibraryController extends GetxController {
   /// [onNotify] test edilebilirlik için verilir; verilmezse GetX snackbar
-  /// gösterilir.
+  /// gösterilir. [coverStore] verilirse kitap silindiğinde fotoğraf
+  /// dosyası da diskten temizlenir.
   LibraryController(
     this._repository, {
     void Function(String title, String message)? onNotify,
-  }) : _notify = onNotify ?? _defaultNotify;
+    CoverPhotoStore? coverStore,
+  })  : _notify = onNotify ?? _defaultNotify,
+        _coverStore = coverStore;
 
   final BookRepository _repository;
+  final CoverPhotoStore? _coverStore;
 
   final void Function(String title, String message) _notify;
 
@@ -313,6 +318,7 @@ class LibraryController extends GetxController {
   }
 
   Future<bool> deleteBook(String id) async {
+    final book = byId(id);
     try {
       await _repository.deleteBook(id);
     } on StorageException catch (error) {
@@ -323,6 +329,10 @@ class LibraryController extends GetxController {
       return false;
     }
     books.removeWhere((b) => b.id == id);
+    // Fotoğraf dosyası artık hiçbir kayıtta kullanılmıyor; diskten de
+    // temizlenir. Depo içindeki silme kendi hatalarını yutar: temizlik
+    // sorunu silme işleminin sonucunu etkilemez.
+    await _coverStore?.delete(book?.coverPath);
     return true;
   }
 

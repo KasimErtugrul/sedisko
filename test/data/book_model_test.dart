@@ -146,6 +146,39 @@ void main() {
     });
   });
 
+  group('BookModel.coverPath', () {
+    test('gidiş-dönüşte korunur', () {
+      final book = BookModel(
+        id: 'cp1',
+        title: 'Fotoğraflı kitap',
+        addedAt: DateTime(2026, 3, 1),
+        coverPath: '/documents/covers/cover_123.jpg',
+      );
+
+      final restored = BookModel.fromJson(book.toJson());
+
+      expect(restored, book); // Equatable eşitliği
+      expect(restored.coverPath, '/documents/covers/cover_123.jpg');
+    });
+
+    test('eski veride alan yoksa null gelir', () {
+      final book = BookModel.fromJson({'id': 'cp2', 'title': 'Eski kayıt'});
+      expect(book.coverPath, isNull);
+    });
+
+    test('copyWith null ile temizler, verilmezse korur', () {
+      final base = BookModel(
+        id: 'cp3',
+        title: 'T',
+        addedAt: DateTime(2026, 3, 1),
+        coverPath: '/covers/x.jpg',
+      );
+
+      expect(base.copyWith(coverPath: null).coverPath, isNull);
+      expect(base.copyWith(title: 'Y').coverPath, '/covers/x.jpg');
+    });
+  });
+
   group('BookModel.progress', () {
     test('pageCount 0 ise progress 0 döner', () {
       final book = BookModel(

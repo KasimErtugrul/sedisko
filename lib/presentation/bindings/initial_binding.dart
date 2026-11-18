@@ -5,6 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/datasources/book_local_datasource.dart';
 import '../../data/datasources/open_library_remote_datasource.dart';
 import '../../data/repositories/book_repository_impl.dart';
+import '../../data/services/book_photo_picker.dart';
+import '../../data/services/cover_photo_store.dart';
 import '../../domain/repositories/book_repository.dart';
 import '../controllers/library_controller.dart';
 
@@ -27,8 +29,18 @@ class InitialBinding extends Bindings {
       ),
       permanent: true,
     );
+    // Kitap fotoğraflarının kalıcı deposu; silme temizliğinde de kullanılır.
+    Get.put<CoverPhotoStore>(CoverPhotoStore(), permanent: true);
+    // Kamera/galeri kaynağı; form fotoğraf bölümünde kullanılır.
+    Get.put<BookPhotoPicker>(
+      ImagePickerBookPhotoPicker(),
+      permanent: true,
+    );
     Get.put<LibraryController>(
-      LibraryController(Get.find<BookRepository>()),
+      LibraryController(
+        Get.find<BookRepository>(),
+        coverStore: Get.find<CoverPhotoStore>(),
+      ),
       permanent: true,
     );
   }
