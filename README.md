@@ -563,18 +563,50 @@ flutter test
     çizgili alan) oluşuyordu. Kart oranı 0.9 → 0.8, avatar yarıçapı
     26 → 22 yapıldı; 400 dp test yüzeyinde doğrulandı.
 
+### Ana sayfada boş bölümler asla gizlenmez (1.11.0)
+
+50. **Boş bölüm gizlenmez, "Henüz ..." metniyle yer tutar** — kullanıcı
+    isteği: "ana sayfada farklı kategoriler belirledik ya; o kategoride
+    veri olmasa bile asla gizli kalmasın, yine gösterilsin kategori ama
+    içinde 'henüz ........' diye bir metin yazabilir". 1.10.0'da yürürlükte
+    olan "veri yoksa bölümler listeye girmez" kuralı tersine çevrildi:
+    ana sayfanın dokuz bölümü de artık her koşulda görünür. Veri olmayan
+    bölümün şerit yerine, konusuna uyan ikonla kısa bir ipucu kartı durur:
+    - **Devam eden kitaplar:** "Henüz okumaya başladığın kitap yok."
+    - **Favoriler:** "Henüz favori kitabın yok."
+    - **Bitirme hedefleri:** "Henüz bitirme hedefi koyduğun kitap yok."
+    - **En çok sayfalı kitaplar:** "Henüz sayfa sayısı girilmiş kitap yok."
+    - **En çok kitaba sahip yazarlar:** "Henüz yazar bilgisi girilmiş
+      kitap yok."
+    - **Rafların:** "Henüz raf oluşturmadın."
+    - **Bu ay bitirdiklerin:** "Bu ay henüz bitirdiğin kitap yok."
+    - **Not aldıkların:** "Henüz not aldığın kitap yok."
+
+    Her kartın ikinci satırı ne yapılacağını söyler (ör. "Kitap
+    detayındaki kalp ikonuyla favorilerine ekleyebilirsin."). Böylece
+    sayfa düzeni kitaplık durumuna göre oynamaz; kullanıcı bölüm
+    yerini ezberler. "Son eklenenler" yalnız kitaplık tümüyle boşken
+    zaten sayfa boş durumuyla karşılandığı için ipucu metni yine de
+    tanımlıdır. `HomeSectionEmptyHint` bölüm bazlı ikon parametresi
+    aldı; bölüm başlıkları ve ipucu kartları tek sanallaştırılmış
+    listede yer tutmaya devam eder.
+
 ## Sürüm notları
 
-`pubspec.yaml` sürümü `1.10.0+14`'e yükseltildi. Depolama anahtarları
+`pubspec.yaml` sürümü `1.11.0+15`'e yükseltildi. Depolama anahtarları
 (`books_v1` ve `settings_*`) değişmedi: mevcut kullanıcılar kitaplıklarını
-kaybetmez; okuma günlüğü alanı (`readingLog`) eski kayıtlarda boş gelir ve
-ilk kayıttan itibaren derlenmeye başlar; `isFavorite` eski kayıtlarda
-`false` gelir; `coverPath` ve bitirme hedefi (`targetFinishDate`) eski
-kayıtlarda boş gelir. Bu sürümde veri modeli değişmedi: ana sayfa
-bölümleri mevcut alanlardan (`addedAt`, `targetFinishDate`, `authors`,
-`shelf`, `finishedAt`) hesaplanır. Raf taşıma, favori çevrimi ve yazar adı
-birleştirmesi günlük türetmez; yalnız okuma durumu/sayfa değişimleri
-günlüğe yazar. Sıralama tercihi oturum içindedir; uygulama her açılışta
-kitap adı artan varsayılanıyla başlar. "Bu ay bitirdiklerin" bölümü bitiş
-tarihi bilinen kayıtları sayar; bitiş tarihi girilmemiş eski kayıtlar bu
-bölümde görünmez (yanlış ayda göstermek yerine).
+kaybetmez. Bu sürümde veri modeli değişmedi; değişiklik yalnız ana sayfa
+sunumundadır: ana sayfa bölümleri veri yokken de gizlenmez, boş bölümün
+yerinde kısa bir "Henüz ..." ipucu kartı gösterilir (ör. "Henüz favori
+kitabın yok."); sayfa düzeni kitaplık durumuna göre oynamaz. Okuma
+günlüğü alanı (`readingLog`) eski kayıtlarda boş gelir ve ilk kayıttan
+itibaren derlenmeye başlar; `isFavorite` eski kayıtlarda `false` gelir;
+`coverPath` ve bitirme hedefi (`targetFinishDate`) eski kayıtlarda boş
+gelir. Ana sayfa bölümleri mevcut alanlardan (`addedAt`,
+`targetFinishDate`, `authors`, `shelf`, `finishedAt`) hesaplanır; raf
+taşıma, favori çevrimi ve yazar adı birleştirmesi günlük türetmez; yalnız
+okuma durumu/sayfa değişimleri günlüğe yazar. Sıralama tercihi oturum
+içindedir; uygulama her açılışta kitap adı artan varsayılanıyla başlar.
+"Bu ay bitirdiklerin" bölümü bitiş tarihi bilinen kayıtları sayar; bitiş
+tarihi girilmemiş eski kayıtlar bu bölümde yanlış ayda gösterilmek yerine
+bölüm ipucu kartıyla karşılanır.

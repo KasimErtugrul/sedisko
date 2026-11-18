@@ -96,29 +96,37 @@ void main() {
     Get.reset();
   });
 
-  Future<void> pumpHome(WidgetTester tester) async {
+  Future<void> pumpHome(WidgetTester tester, {double height = 2000}) {
     // Uzun akışı tek ekranda kurmak için test yüzeyi yüksek tutulur; böylece
-    // sanallaştırılmış listenin alt bölümleri de ağaçta kurulur.
-    tester.view.physicalSize = const Size(400, 2000);
+    // sanallaştırılmış listenin alt bölümleri de ağaçta kurulur. Tüm bölüm
+    // başlıklarını birden doğrulayan testler daha yüksek yüzey ister.
+    tester.view.physicalSize = Size(400, height);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
-    await tester.pumpWidget(GetMaterialApp(home: const HomePage()));
-    await tester.pumpAndSettle();
+    return tester.pumpWidget(GetMaterialApp(home: const HomePage()))
+        .then((_) => tester.pumpAndSettle());
   }
 
   testWidgets('özet satırı ve bölüm şeritleri görünür', (tester) async {
-    await pumpHome(tester);
+    await pumpHome(tester, height: 4000);
 
     expect(find.text('Toplam'), findsOneWidget);
     expect(find.text('Okunuyor'), findsOneWidget);
     expect(find.text('Bitti'), findsOneWidget);
+    // Dokuz bölüm de her koşulda görünür; boş olanlar ipucu kartı koyar.
     expect(find.text('Devam eden kitaplar'), findsOneWidget);
     expect(find.text('Favoriler'), findsOneWidget);
+    expect(find.text('Bitirme hedefleri'), findsOneWidget);
+    expect(find.text('Son eklenenler'), findsOneWidget);
+    expect(find.text('En çok sayfalı kitaplar'), findsOneWidget);
+    expect(find.text('En çok kitaba sahip yazarlar'), findsOneWidget);
+    expect(find.text('Rafların'), findsOneWidget);
+    expect(find.text('Bu ay bitirdiklerin'), findsOneWidget);
     expect(find.text('Not aldıkların'), findsOneWidget);
   });
 
   testWidgets("'Tüm kitaplar' bölümü ana sayfada artık yok", (tester) async {
-    await pumpHome(tester);
+    await pumpHome(tester, height: 4000);
 
     // Bölüm başlığı kaldırıldı; tam kitaplık Raflar > Tüm kitaplar
     // kartından açılır. 'Hayvan Çiftliği' artık "Son eklenenler" şeridinde
@@ -190,9 +198,12 @@ void main() {
     expect(find.text('En çok sayfalı kitaplar'), findsOneWidget);
     // Şerit kartlarında ilerleme görünür; b2 dört şeritte birden vardır
     // (Devam eden + Son eklenenler + En çok sayfalı + Not aldıkların).
-    // "Son eklenenler" şeridinde b2 Türkçe ad sırasıyla 4. karttır ve yatay
-    // şerit yalnız görünür kartları kurduğu için o kopya ağaçta değildir:
-    // ekranda kurulan 3 kopya sayılır.
+    // Dikey akış 4000 piksel yüzeyde tamamen kurulur; ama yatay şeritler
+    // tembeldir: "Son eklenenler" şeridinde b2 Türkçe ad sırasıyla 4.
+    // karttır (Dönüşüm, Hayvan Çiftliği, Simyacı, Şeker Portakalı) ve
+    // kart genişliği 116 pikselde 4. kartın başlangıcı görünür alanın
+    // hemen dışına düşer, kart ağaçta kurulmaz. Dolayısıyla kurulan
+    // 3 kopya sayılır: Devam eden + En çok sayfalı + Not aldıkların.
     expect(find.text('Sayfa 50/200'), findsNWidgets(3));
   });
 
@@ -233,7 +244,7 @@ Future<void> controllerSetupPages(WidgetTester tester) async {
     controller.byId('b1')!.copyWith(pageCount: 480),
     deriveLog: false,
   );
-  tester.view.physicalSize = const Size(400, 2000);
+  tester.view.physicalSize = const Size(400, 4000);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(GetMaterialApp(home: const HomePage()));

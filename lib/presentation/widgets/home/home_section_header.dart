@@ -51,11 +51,21 @@ class HomeSectionHeader extends StatelessWidget {
   }
 }
 
-/// Boş bölümün yönlendirme ipucu kartı (ör. favori yokken Favoriler).
+/// Boş bölümün ipucu kartı: bölüm veri içermese de bölüm gizlenmez,
+/// yerinde kısa bir "Henüz ..." metni gösterilir (ör. favori yokken
+/// Favoriler). [icon], bölümün konusuna uyan bir sembol seçilir.
 class HomeSectionEmptyHint extends StatelessWidget {
-  const HomeSectionEmptyHint({super.key, required this.message});
+  const HomeSectionEmptyHint({
+    super.key,
+    required this.message,
+    this.icon = Icons.favorite_outline,
+  });
 
   final String message;
+
+  /// Kart başındaki sembol; bölüm konusuna göre değişir
+  /// (okuma için kitap, hedef için bayrak vb.).
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
@@ -65,12 +75,14 @@ class HomeSectionEmptyHint extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(
           children: [
-            Icon(
-              Icons.favorite_outline,
-              size: 22,
-              color: scheme.outline,
-            ),
-            const SizedBox(width: 10),
+            if (icon != null) ...[
+              Icon(
+                icon,
+                size: 22,
+                color: scheme.outline,
+              ),
+              const SizedBox(width: 10),
+            ],
             Expanded(
               child: Text(
                 message,

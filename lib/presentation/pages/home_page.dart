@@ -27,7 +27,7 @@ import '../widgets/status_filter_row.dart';
 /// Arama boşken akış sırası:
 /// 1. Özet satırı (toplam / okunuyor / bitti / favori)
 /// 2. "Devam eden kitaplar" — yatay şerit
-/// 3. "Favoriler" — daima görünür; boşken yönlendirme ipucu kartı
+/// 3. "Favoriler" — yatay şerit
 /// 4. "Bitirme hedefleri" — geri sayımlı yatay şerit
 /// 5. "Son eklenenler" — eklenme tarihi azalan yatay şerit
 /// 6. "En çok sayfalı kitaplar" — yatay şerit
@@ -37,6 +37,11 @@ import '../widgets/status_filter_row.dart';
 ///    sekmesine geçirir
 /// 9. "Bu ay bitirdiklerin" — bu ay bitirilenler şeridi
 /// 10. "Not aldıkların" — notlu kitaplar şeridi
+///
+/// Hiçbir bölüm veri yokken gizlenmez: her bölüm başlığı her koşulda
+/// görünür; veri olmayan bölümün yerinde kısa bir "Henüz ..." ipucu
+/// kartı durur (ör. "Henüz favori kitabın yok."). Böylece sayfa düzeni
+/// kitaplık durumuna göre oynamaz, kullanıcı bölüm yerini ezberler.
 ///
 /// "Tüm kitaplar" listesi ana sayfada yoktur: tam kitaplık Raflar
 /// sekmesindeki "Tüm kitaplar" kartından açılır.
@@ -183,64 +188,92 @@ class HomePage extends GetView<LibraryController> {
 
   /// Ana akış: özet + bölüm şeritleri, tek sanallaştırılmış liste.
   ///
-  /// "Favoriler" bölümü kitaplıkta favori olmasa bile görünür; boşken
-  /// kullanıcıya favorileştirmeyi öğreten ipucu kartı gösterilir.
-  /// Diğer bölümler yalnız doluysa listeye girer, yer tutmaz.
+  /// Her bölüm her koşulda listeye girer; veri yokken şerit yerine
+  /// [HomeSectionEmptyHint] ipucu kartı kurulur ("Henüz ..." metni).
+  /// Bölüm gizlenmez, düzen kitaplık durumuna göre oynamaz.
   Widget _homeFeed() {
     final books = controller.books;
     final topAuthors = HomeFeed.topAuthors(books);
     final finishedThisMonth = HomeFeed.finishedThisMonth(books, DateTime.now());
+    final shelfSummaries = _shelfSummaries();
 
     final sections = <_FeedSection>[
-      if (controller.readingBooks.isNotEmpty)
-        _FeedSection(
-          'Devam eden kitaplar',
-          BookStrip(books: controller.readingBooks),
-        ),
+      _FeedSection(
+        'Devam eden kitaplar',
+        BookStrip(books: controller.readingBooks),
+        isEmpty: controller.readingBooks.isEmpty,
+        emptyMessage: 'Henüz okumaya başladığın kitap yok.\n'
+            'Bir kitabı "Okuyorum" olarak işaretlediğinde burada görünür.',
+        emptyIcon: Icons.menu_book_outlined,
+      ),
       _FeedSection(
         'Favoriler',
         BookStrip(books: controller.favoriteBooks),
         isEmpty: controller.favoriteBooks.isEmpty,
         emptyMessage: 'Henüz favori kitabın yok.\n'
             'Kitap detayındaki kalp ikonuyla favorilerine ekleyebilirsin.',
+        emptyIcon: Icons.favorite_outline,
       ),
-      if (controller.goalBooks.isNotEmpty)
-        _FeedSection(
-          'Bitirme hedefleri',
-          BookStrip(books: controller.goalBooks, emphasizeGoal: true),
-        ),
+      _FeedSection(
+        'Bitirme hedefleri',
+        BookStrip(books: controller.goalBooks, emphasizeGoal: true),
+        isEmpty: controller.goalBooks.isEmpty,
+        emptyMessage: 'Henüz bitirme hedefi koyduğun kitap yok.\n'
+            'Kitap detayından "Bitirme hedefi" tarihi seçebilirsin.',
+        emptyIcon: Icons.flag_outlined,
+      ),
       _FeedSection(
         'Son eklenenler',
         BookStrip(books: HomeFeed.recentlyAdded(books)),
+        isEmpty: books.isEmpty,
+        emptyMessage: 'Henüz kitap eklemedin.\n'
+            'Sağ alttaki "Kitap ekle" düğmesiyle başlayabilirsin.',
+        emptyIcon: Icons.schedule_outlined,
       ),
-      if (controller.longestBooks.isNotEmpty)
-        _FeedSection(
-          'En çok sayfalı kitaplar',
-          BookStrip(books: controller.longestBooks),
-        ),
-      if (topAuthors.isNotEmpty)
-        _FeedSection(
-          'En çok kitaba sahip yazarlar',
-          AuthorStrip(authors: topAuthors),
-          onSeeAll: onOpenAuthors,
-          actionKey: const ValueKey('see-all-authors'),
-        ),
+      _FeedSection(
+        'En çok sayfalı kitaplar',
+        BookStrip(books: controller.longestBooks),
+        isEmpty: controller.longestBooks.isEmpty,
+        emptyMessage: 'Henüz sayfa sayısı girilmiş kitap yok.\n'
+            'Kitap detayından sayfa sayısını girebilirsin.',
+        emptyIcon: Icons.format_list_numbered_outlined,
+      ),
+      _FeedSection(
+        'En çok kitaba sahip yazarlar',
+        AuthorStrip(authors: topAuthors),
+        isEmpty: topAuthors.isEmpty,
+        emptyMessage: 'Henüz yazar bilgisi girilmiş kitap yok.\n'
+            'Kitap detayından yazar ekleyebilirsin.',
+        emptyIcon: Icons.person_outline,
+        onSeeAll: onOpenAuthors,
+        actionKey: const ValueKey('see-all-authors'),
+      ),
       _FeedSection(
         'Rafların',
-        ShelfSummaryGrid(shelves: _shelfSummaries(), onOpen: _openShelf),
+        ShelfSummaryGrid(shelves: shelfSummaries, onOpen: _openShelf),
+        isEmpty: shelfSummaries.isEmpty,
+        emptyMessage: 'Henüz raf oluşturmadın.\n'
+            'Raflar sekmesinden raf ekleyebilirsin.',
+        emptyIcon: Icons.bookmark_outline,
         onSeeAll: onOpenShelves,
         actionKey: const ValueKey('see-all-shelves'),
       ),
-      if (finishedThisMonth.isNotEmpty)
-        _FeedSection(
-          'Bu ay bitirdiklerin',
-          BookStrip(books: finishedThisMonth),
-        ),
-      if (controller.notedBooks.isNotEmpty)
-        _FeedSection(
-          'Not aldıkların',
-          BookStrip(books: controller.notedBooks),
-        ),
+      _FeedSection(
+        'Bu ay bitirdiklerin',
+        BookStrip(books: finishedThisMonth),
+        isEmpty: finishedThisMonth.isEmpty,
+        emptyMessage: 'Bu ay henüz bitirdiğin kitap yok.\n'
+            'Bitirdiğin kitaplar ay değiştikçe burada toplanır.',
+        emptyIcon: Icons.celebration_outlined,
+      ),
+      _FeedSection(
+        'Not aldıkların',
+        BookStrip(books: controller.notedBooks),
+        isEmpty: controller.notedBooks.isEmpty,
+        emptyMessage: 'Henüz not aldığın kitap yok.\n'
+            'Kitap detayından not ekleyebilirsin.',
+        emptyIcon: Icons.notes_outlined,
+      ),
     ];
 
     final itemCount = 1 + sections.length * 2; // özet + her bölüm (başlık+şerit)
@@ -254,8 +287,11 @@ class HomePage extends GetView<LibraryController> {
         for (final section in sections) {
           if (index == cursor) return _sectionHeader(section);
           if (index == cursor + 1) {
-            if (section.isEmpty && section.emptyMessage != null) {
-              return HomeSectionEmptyHint(message: section.emptyMessage!);
+            if (section.isEmpty) {
+              return HomeSectionEmptyHint(
+                message: section.emptyMessage,
+                icon: section.emptyIcon,
+              );
             }
             return section.body;
           }
@@ -336,8 +372,9 @@ class _FeedSection {
   const _FeedSection(
     this.title,
     this.body, {
-    this.isEmpty = false,
-    this.emptyMessage,
+    required this.isEmpty,
+    required this.emptyMessage,
+    this.emptyIcon,
     this.onSeeAll,
     this.actionKey,
   });
@@ -345,10 +382,16 @@ class _FeedSection {
   final String title;
   final Widget body;
 
-  /// Bölüm boşsa ve [emptyMessage] verilmişse şerit yerine ipucu kartı
-  /// gösterilir (yalnız Favoriler bu yolu kullanır).
+  /// Bölüm verisinin boşluğu; boşsa şerit yerine ipucu kartı kurulur.
+  /// Veri listesi `_homeFeed` içinde hesaplanır, karar buraya taşınır.
   final bool isEmpty;
-  final String? emptyMessage;
+
+  /// Boşken gösterilen "Henüz ..." ipucu metni; her bölümde bulunur
+  /// (bölüm asla gizlenmez).
+  final String emptyMessage;
+
+  /// İpucu kartının sembolü (bölüm konusuna uyan ikon).
+  final IconData? emptyIcon;
 
   /// Başlığın sağındaki "Tümü" aksiyonu (null ise aksiyon gizlenir).
   final VoidCallback? onSeeAll;

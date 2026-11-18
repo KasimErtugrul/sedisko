@@ -113,8 +113,10 @@ void main() {
   });
 
   Future<void> pumpShell(WidgetTester tester) async {
-    // Tüm bölümler tek ekranda kurulabilsin diye test yüzeyi yüksek tutulur.
-    tester.view.physicalSize = const Size(400, 2000);
+    // Bölümler artık daima görünür: boş bölümler de ipucu kartıyla yer
+    // tuttuğu için akış uzundur; tüm bölüm başlıklarının ağaçta kurulması
+    // için test yüzeyi yüksek tutulur.
+    tester.view.physicalSize = const Size(400, 4000);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(
@@ -126,17 +128,39 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('yeni bölüm başlıkları görünür, boş bölümler yer tutmaz',
+  testWidgets('bölümler veri yokken de görünür: ipucu kartı yer tutar',
       (tester) async {
     await pumpShell(tester);
 
+    // Her bölüm başlığı her koşulda görünür; bölüm gizlenmez.
+    expect(find.text('Devam eden kitaplar'), findsOneWidget);
+    expect(find.text('Favoriler'), findsOneWidget);
+    expect(find.text('Bitirme hedefleri'), findsOneWidget);
     expect(find.text('Son eklenenler'), findsOneWidget);
+    expect(find.text('En çok sayfalı kitaplar'), findsOneWidget);
     expect(find.text('En çok kitaba sahip yazarlar'), findsOneWidget);
     expect(find.text('Rafların'), findsOneWidget);
     expect(find.text('Bu ay bitirdiklerin'), findsOneWidget);
-    expect(find.text('Favoriler'), findsOneWidget);
-    // Okumada olan kitap yok: bölüm listeye girmez, yer tutmaz.
-    expect(find.text('Devam eden kitaplar'), findsNothing);
+    expect(find.text('Not aldıkların'), findsOneWidget);
+
+    // Verisi olmayan bölümlerde "Henüz ..." ipucu kartı vardır.
+    expect(
+      find.textContaining('Henüz okumaya başladığın kitap yok'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Henüz favori kitabın yok'), findsOneWidget);
+    expect(
+      find.textContaining('Henüz bitirme hedefi koyduğun kitap yok'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Henüz sayfa sayısı girilmiş kitap yok'),
+      findsOneWidget,
+    );
+    // Yazar bilgisi bu senaryoda var: yazar bölümü şerittir, ipucu değil.
+    expect(find.textContaining('Henüz yazar bilgisi girilmiş kitap yok'),
+        findsNothing);
+    expect(find.textContaining('Henüz not aldığın kitap yok'), findsOneWidget);
   });
 
   testWidgets('son eklenenler şeridi en yeni kitabı başta tutar',
@@ -305,7 +329,12 @@ void main() {
 
     await pumpShell(tester);
 
-    expect(find.text('Bu ay bitirdiklerin'), findsNothing);
+    // Bölüm gizlenmez: başlık kalır, yerinde ipucu kartı gösterilir.
+    expect(find.text('Bu ay bitirdiklerin'), findsOneWidget);
+    expect(
+      find.textContaining('Bu ay henüz bitirdiğin kitap yok'),
+      findsOneWidget,
+    );
     // Yalnız "Son eklenenler" şeridinde.
     expect(find.text('Deneme Kitap E'), findsOneWidget);
     expect(find.text('Deneme Kitap F'), findsOneWidget);
