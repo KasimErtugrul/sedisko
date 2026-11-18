@@ -3,11 +3,17 @@ import 'package:get/get.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../controllers/settings_controller.dart';
+import '../widgets/appearance/palette_picker.dart';
+import '../widgets/appearance/text_scale_picker.dart';
+import '../widgets/responsive/responsive_center.dart';
 
-/// Ayarlar sekmesi: tema modu ve uygulama içi özellik anahtarları.
+/// Ayarlar sekmesi: tema modu, renk paleti, yazı boyutu ve uygulama içi
+/// özellik anahtarları.
 ///
 /// Her tercih değişikliği [SettingsController] üzerinden anında uygulanır ve
 /// SharedPreferences'a yazılır; uygulama bir sonraki açılışta tercihi okur.
+/// Palet ve yazı boyutu dosyada tutulmaz: küçük widget'lar
+/// `widgets/appearance/` altında yaşar (tanrı dosyası olmamak için).
 class SettingsPage extends GetView<SettingsController> {
   const SettingsPage({super.key});
 
@@ -15,8 +21,10 @@ class SettingsPage extends GetView<SettingsController> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Ayarlar')),
-      body: ListView(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+      body: ResponsiveCenter(
+        maxWidth: 720,
+        child: ListView(
+          padding: const EdgeInsets.symmetric(vertical: 8),
         children: [
           const _SectionHeader('Görünüm'),
           Obx(
@@ -49,6 +57,22 @@ class SettingsPage extends GetView<SettingsController> {
               },
               title: const Text('Karanlık'),
             ),
+          ),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 8, 16, 4),
+            child: Text('Renk paleti'),
+          ),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 0, 16, 4),
+            child: PalettePicker(),
+          ),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
+            child: Text('Yazı boyutu'),
+          ),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: TextScalePicker(),
           ),
           const Divider(height: 24),
           const _SectionHeader('Uygulama içi özellikler'),
@@ -85,6 +109,7 @@ class SettingsPage extends GetView<SettingsController> {
             ),
           ),
         ],
+        ),
       ),
     );
   }

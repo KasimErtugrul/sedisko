@@ -22,6 +22,11 @@ void main() {
   });
 
   Future<void> pumpSettings(WidgetTester tester) async {
+    // Palet ve yazı boyutu bölümleriyle ayarlar listesi uzadı: tüm
+    // bölümlerin ağaçta kurulması için test yüzeyi yüksek tutulur.
+    tester.view.physicalSize = const Size(800, 4000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
     await tester.pumpWidget(const GetMaterialApp(home: SettingsPage()));
     await tester.pumpAndSettle();
   }

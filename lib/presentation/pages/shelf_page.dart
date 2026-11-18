@@ -7,6 +7,7 @@ import '../routes/app_routes.dart';
 import '../utils/app_navigation.dart';
 import '../widgets/author_rename_dialog.dart';
 import '../widgets/book_tile.dart';
+import '../widgets/responsive/responsive_center.dart';
 import '../widgets/shelf_picker_sheet.dart';
 import '../widgets/sort_sheet.dart';
 import '../widgets/status_filter_row.dart';
@@ -121,19 +122,24 @@ class _ShelfPageState extends State<ShelfPage> {
             Expanded(
               child: items.isEmpty
                   ? _EmptyListMessage(shelfEmpty: _shelfGenuinelyEmpty)
-                  : ListView.builder(
-                      padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
-                      itemCount: items.length,
-                      itemBuilder: (context, index) {
-                        final book = items[index];
-                        return BookTile(
-                          key: ValueKey(book.id),
-                          book: book,
-                          onTap: () =>
-                              Get.toNamed(Routes.detail, arguments: book.id),
-                          onLongPress: () => pickShelfAndMove(context, book),
-                        );
-                      },
+                  : // Geniş ekranda satırlar iki uca dağılmasın: tavan genişlik.
+                  ResponsiveCenter(
+                      maxWidth: 720,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
+                        itemCount: items.length,
+                        itemBuilder: (context, index) {
+                          final book = items[index];
+                          return BookTile(
+                            key: ValueKey(book.id),
+                            book: book,
+                            onTap: () =>
+                                Get.toNamed(Routes.detail, arguments: book.id),
+                            onLongPress: () =>
+                                pickShelfAndMove(context, book),
+                          );
+                        },
+                      ),
                     ),
             ),
           ],

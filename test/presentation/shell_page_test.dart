@@ -76,6 +76,12 @@ void main() {
   });
 
   Future<void> pumpShell(WidgetTester tester) async {
+    // Ayarlar sayfası palet + yazı boyutu bölümleriyle uzadı: test yüzeyi
+    // yüksek tutulur. Genişlik 800 → geniş ekran eşiğinin üstünde, yani
+    // rail düzeni de bu testlerde gerçekten devrede olur.
+    tester.view.physicalSize = const Size(800, 4000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
     await tester.pumpWidget(
       GetMaterialApp(
         initialRoute: Routes.home,

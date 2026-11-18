@@ -12,6 +12,7 @@ import '../routes/route_args.dart';
 import '../utils/app_navigation.dart';
 import '../widgets/cover_image.dart';
 import '../widgets/reading_stats_panel.dart';
+import '../widgets/responsive/responsive_center.dart';
 import '../widgets/shelf_picker_sheet.dart';
 
 class BookDetailPage extends GetView<LibraryController> {
@@ -76,7 +77,8 @@ class BookDetailPage extends GetView<LibraryController> {
             ),
           ],
         ),
-        body: ListView(
+        // Geniş ekranda içerik iki uca dağılmasın: tavan genişlikle ortalanır.
+        body: ResponsiveCenter(child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
             Row(
@@ -190,7 +192,7 @@ class BookDetailPage extends GetView<LibraryController> {
             const SizedBox(height: 8),
             ReadingStatsPanel(book: book),
           ],
-        ),
+        )),
       );
     });
   }

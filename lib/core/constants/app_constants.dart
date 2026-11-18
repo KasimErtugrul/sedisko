@@ -30,4 +30,13 @@ class SettingsKeys {
   static const String showCovers = 'settings_show_covers';
   static const String haptics = 'settings_haptics';
   static const String scanActions = 'settings_scan_actions';
+
+  /// Seçili renk paleti kimliği ('varsayilan', 'orman', …, 'custom').
+  static const String paletteId = 'settings_palette_id';
+
+  /// Kullanıcının kendi seçtiği tohum rengi (ARGB, işaretli int).
+  static const String customSeed = 'settings_custom_seed';
+
+  /// Yazı boyutu çarpanı (0.85 / 1.0 / 1.15 / 1.3).
+  static const String textScale = 'settings_text_scale';
 }

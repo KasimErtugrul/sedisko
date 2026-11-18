@@ -133,6 +133,11 @@ flutter test
 | `test/presentation/shell_page_test.dart` | alt navigasyon, yatay raf kartları, raf sayfasına geçiş, tema tercihi |
 | `test/presentation/settings_controller_test.dart` | tema/özellik tercihlerinin kalıcılığı |
 | `test/presentation/settings_page_test.dart` | ayarlar ekranı radyo/anahtar davranışı |
+| `test/core/app_palette_test.dart` | palet tanımları, özel renk çözümlemesi, ölçek kademeleri |
+| `test/presentation/settings_appearance_test.dart` | palet/özel renk/yazı boyutu seçimi, temaya sirayet, kalıcılık |
+| `test/presentation/responsive_shell_test.dart` | dar↔geniş kabuk: NavigationBar ↔ NavigationRail, durum korunumu |
+| `test/presentation/tablet_layout_test.dart` | tablet düzeni: tavan genişlik, adaptif grid, dar ekran davranışı |
+| `test/presentation/overflow_guard_test.dart` | taşma savunması: 3 yüzey × 2 yazı boyutu × 4 sekme |
 | `test/widget_test.dart` | Ana sayfa/ekleme menüsü/form doğrulama smoke testleri |
 
 ## Düzeltilen sorunlar
@@ -591,22 +596,80 @@ flutter test
     aldı; bölüm başlıkları ve ipucu kartları tek sanallaştırılmış
     listede yer tutmaya devam eder.
 
+### Responsive + görünüm tercihleri (1.12.0)
+
+51. **Tablet/yatay responsive düzen** — kullanıcı isteği: "uygulamanın
+    tamamına hem tablette çalışacak responsive tasarıma geçelim…
+    yatay döndürmeler için ayrıca… tablet için dikey ve yatayda da
+    gerekli responsive ve layout tasarımından taviz vermeyelim".
+    - **Kırılım disiplini:** tek eşik `AppBreakpoints.wide` (600 dp,
+      `widgets/responsive/app_breakpoints.dart`). Dar ekran = telefon
+      (alt bar), geniş ekran = tablet / yatay / masaüstü penceresi.
+    - **Kabuk dönüşümü:** geniş ekranda alt [NavigationBar] yerini sol
+      [NavigationRail]'e bırakır (`shell_page.dart`); iki gösterim aynı
+      sekme listesini ve aynı [IndexedStack]'i kullanır — sekme arasında
+      durum (arama alanı vb.) korunur.
+    - **Tavan genişlik:** geniş ekranda raf kitap listesi (720), kitap
+      detayı ve kitap formu (840) ve ayarlar (720) [ResponsiveCenter]
+      ile ortalanır; satırlar iki uç arasında dağılıp okunamaz hale
+      gelmez. Dar ekranda sarmalayıcı hiçbir etkisi yoktur.
+    - **Adaptif grid:** ana sayfa "Rafların" grid'i ve Yazarlar grid'i
+      zaten `maxCrossAxisExtent` ile kolon sayısını genişliğe göre
+      büyütüyordu; tablette 4+ kolona açılır.
+    - **Yönelim kapısı** (`orientation_gate.dart`): telefon (en kısa
+      kenar < 600 dp) dikeye kilitli kalır; tablette dört yön serbest.
+      Karar saf fonksiyondur (`orientationsFor(shortestSide)`) ve yalnız
+      karar değiştiğinde platform kanalına yazılır.
+52. **Ayarlar: renk paletleri + yazı boyutu** — kullanıcı isteği:
+    "ayarlar kısmına kullanıcının seçeceği ve hazır olan renk paletleri
+    olsun… yazı tipi boyutunu da ayarlayabilsin… koşulsuz şartsız tüm
+    uygulamaya sirayet etsin".
+    - **6 hazır palet** (`core/theme/app_palette.dart`): Varsayılan
+      (mavi), Orman (yeşil), Gün Batımı (turuncu), Lavanta (mor), Deniz
+      (camgöbeği), Gül (pembe).
+    - **Özel renk:** yeni paket yok — hue + açıklık kaydırıcısı ve ton
+      kareleriyle küçük bir seçici diyaloğu
+      (`widgets/appearance/hue_color_picker.dart`); seçilen tohum rengi
+      ARGB int olarak saklanır, geçersiz değerler savunmacı olarak
+      varsayılan palete düşer.
+    - **Yazı boyutu (4 kademe):** Küçük 0.85× / Normal 1.0× / Büyük
+      1.15× / Çok büyük 1.3×; canlı önizleme kartıyla.
+    - **Koşulsuz sirayet:** `GetMaterialApp` tohumu `ColorScheme.fromSeed`
+      ile hem açık hem koyu şemaya işler; yazı boyutu `builder` içinde
+      `MediaQuery.textScaler` olarak konur — hiçbir ekran kendi ölçeğini
+      görmezden gelemez. Palet yalnız tohumu seçer; karanlık/aydınlık
+      tercihi bağımsız kalır.
+    - **Kalıcılık:** üç yeni `settings_*` anahtarı
+      (`settings_palette_id`, `settings_custom_seed`,
+      `settings_text_scale`); `books_v1` dokunulmaz.
+53. **Taşma savunması** — kullanıcı kuralı: "overflow olma durumlarına
+    karşı gerekli tedbirler alınsın". Kart metinleri zaten satır sınırı +
+    üç nokta ile kırpılıyordu; üzerine bir savunma testi eklendi
+    (`overflow_guard_test.dart`): 360/768/1280 dp genişlik × 0.85/1.3
+    yazı boyutu × dört sekmenin tümünde, uzun başlık/yazar/yayınevi/
+    hedef metinleriyle kurulurken tek taşma bile istisna düşmez.
+    Ayarlar, palet ve ölçek seçici widget'ları `Wrap`/`ChoiceChip` ile
+    dar ekranda alt alta sarılır; hiçbir satır sabit genişlik varsaymaz.
+
 ## Sürüm notları
 
-`pubspec.yaml` sürümü `1.11.0+15`'e yükseltildi. Depolama anahtarları
-(`books_v1` ve `settings_*`) değişmedi: mevcut kullanıcılar kitaplıklarını
-kaybetmez. Bu sürümde veri modeli değişmedi; değişiklik yalnız ana sayfa
-sunumundadır: ana sayfa bölümleri veri yokken de gizlenmez, boş bölümün
-yerinde kısa bir "Henüz ..." ipucu kartı gösterilir (ör. "Henüz favori
-kitabın yok."); sayfa düzeni kitaplık durumuna göre oynamaz. Okuma
-günlüğü alanı (`readingLog`) eski kayıtlarda boş gelir ve ilk kayıttan
-itibaren derlenmeye başlar; `isFavorite` eski kayıtlarda `false` gelir;
-`coverPath` ve bitirme hedefi (`targetFinishDate`) eski kayıtlarda boş
-gelir. Ana sayfa bölümleri mevcut alanlardan (`addedAt`,
-`targetFinishDate`, `authors`, `shelf`, `finishedAt`) hesaplanır; raf
-taşıma, favori çevrimi ve yazar adı birleştirmesi günlük türetmez; yalnız
-okuma durumu/sayfa değişimleri günlüğe yazar. Sıralama tercihi oturum
-içindedir; uygulama her açılışta kitap adı artan varsayılanıyla başlar.
-"Bu ay bitirdiklerin" bölümü bitiş tarihi bilinen kayıtları sayar; bitiş
-tarihi girilmemiş eski kayıtlar bu bölümde yanlış ayda gösterilmek yerine
-bölüm ipucu kartıyla karşılanır.
+`pubspec.yaml` sürümü `1.12.0+16`'ya yükseltildi. Kitaplık verisi
+(`books_v1`) değişmedi: mevcut kullanıcılar kitaplıklarını kaybetmez.
+Üç yeni ayar anahtarı eklendi (`settings_palette_id`,
+`settings_custom_seed`, `settings_text_scale`); bilinmeyen palet
+kimliği, aralık dışı ARGB ve geçersiz ölçek kademeleri açılışta
+savunmacı biçimde varsayılana düşer.
+
+Dikkat: varsayılan palet, eski kahverengi tohumun yerine **mavi**
+tohumu kullanır — ilk açılışta renk değişikliği görülür; eski görünüm
+isteyen kullanıcı Ayarlar > Renk paleti > Özel yolundan kahverengi bir
+ton seçebilir. Yönelim kuralı: telefon en kısa kenarı 600 dp'nin altında
+olan cihazlarda dikeye kilitlenir, tabletlerde dört yön serbesttir.
+Yazı boyutu tercihi `TextScaler` ile tüm ekranlara koşulsuz sirayet
+eder; palet tercihi açık ve koyu temada ayrı ayrı türetilir. Okuma
+günlüğü (`readingLog`) eski kayıtlarda boş gelir ve ilk kayıttan
+itibaren derlenmeye başlar; ana sayfa bölümleri mevcut alanlardan
+(`addedAt`, `targetFinishDate`, `authors`, `shelf`, `finishedAt`)
+hesaplanır. "Bu ay bitirdiklerin" bölümü bitiş tarihi bilinen kayıtları
+sayar; bitiş tarihi girilmemiş eski kayıtlar bölüm ipucu kartıyla
+karşılanır.

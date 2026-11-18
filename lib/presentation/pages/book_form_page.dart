@@ -8,6 +8,7 @@ import '../../data/models/book_model.dart';
 import '../controllers/book_form_controller.dart';
 import '../controllers/settings_controller.dart';
 import '../widgets/cover_image.dart';
+import '../widgets/responsive/responsive_center.dart';
 
 class BookFormPage extends GetView<BookFormController> {
   const BookFormPage({super.key});
@@ -21,7 +22,8 @@ class BookFormPage extends GetView<BookFormController> {
       appBar: AppBar(title: Text(c.isEdit ? 'Kitabı düzenle' : 'Yeni kitap')),
       body: Form(
         key: c.formKey,
-        child: ListView(
+        // Geniş ekranda form alanları iki uca dağılmasın: tavan genişlik.
+        child: ResponsiveCenter(child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
             _isbnRow(c),
@@ -226,7 +228,7 @@ class BookFormPage extends GetView<BookFormController> {
             ),
             const SizedBox(height: 24),
           ],
-        ),
+        )),
       ),
     );
   }

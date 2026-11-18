@@ -7,6 +7,7 @@ import 'presentation/bindings/initial_binding.dart';
 import 'presentation/controllers/settings_controller.dart';
 import 'presentation/routes/app_pages.dart';
 import 'presentation/routes/app_routes.dart';
+import 'presentation/widgets/responsive/orientation_gate.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,32 +30,48 @@ class KitaplikApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final settings = Get.find<SettingsController>();
     return Obx(
-      () => GetMaterialApp(
-        title: 'Kitaplığım',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          useMaterial3: true,
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.brown),
-        ),
-        darkTheme: ThemeData(
-          useMaterial3: true,
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.brown,
-            brightness: Brightness.dark,
+      () {
+        // Palet yalnız tohum (seed) rengini seçer; karanlık/aydınlık ayrımı
+        // mevcut tema anahtarından gelir. Tohum ve ölçek Rx okumaları bu
+        // Obx içinde yapıldığı için her değişiklik BÜTÜN uygulamaya anında
+        // ve koşulsuz sirayet eder.
+        final seed = settings.seedColor;
+        final scale = settings.textScaler;
+        return GetMaterialApp(
+          title: 'Kitaplığım',
+          debugShowCheckedModeBanner: false,
+          theme: ThemeData(
+            useMaterial3: true,
+            colorScheme: ColorScheme.fromSeed(seedColor: seed),
           ),
-        ),
-        themeMode: settings.themeMode.value,
-        locale: const Locale('tr', 'TR'),
-        supportedLocales: const [Locale('tr', 'TR'), Locale('en', 'US')],
-        localizationsDelegates: const [
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-          GlobalCupertinoLocalizations.delegate,
-        ],
-        initialBinding: InitialBinding(prefs),
-        initialRoute: Routes.home,
-        getPages: AppPages.pages,
-      ),
+          darkTheme: ThemeData(
+            useMaterial3: true,
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: seed,
+              brightness: Brightness.dark,
+            ),
+          ),
+          themeMode: settings.themeMode.value,
+          // Yazı boyutu: TextScaler tüm metinlere uygulanır; hiçbir ekran
+          // kendi ölçeğini görmezden gelemez.
+          builder: (context, child) {
+            return MediaQuery(
+              data: MediaQuery.of(context).copyWith(textScaler: scale),
+              child: OrientationGate(child: child!),
+            );
+          },
+          locale: const Locale('tr', 'TR'),
+          supportedLocales: const [Locale('tr', 'TR'), Locale('en', 'US')],
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          initialBinding: InitialBinding(prefs),
+          initialRoute: Routes.home,
+          getPages: AppPages.pages,
+        );
+      },
     );
   }
 }
