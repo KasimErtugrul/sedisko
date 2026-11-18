@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
+import 'authors_page.dart';
 import 'home_page.dart';
 import 'settings_page.dart';
 import 'shelves_page.dart';
 
-/// Alt navigasyonlu ana kabuk: 'Ana Sayfa', 'Raflar' ve 'Ayarlar' sekmeleri.
+/// Alt navigasyonlu ana kabuk: 'Ana Sayfa', 'Raflar', 'Yazarlar' ve
+/// 'Ayarlar' sekmeleri.
 ///
 /// [IndexedStack] tüm sekmelerin durumunu korur; sekme değişince kitaplık
 /// yeniden yüklenmez ve arama alanı temizlenmez.
@@ -23,7 +25,17 @@ class _ShellPageState extends State<ShellPage> {
     return Scaffold(
       body: IndexedStack(
         index: _index,
-        children: const [HomePage(), ShelvesPage(), SettingsPage()],
+        children: [
+          // Ana sayfadaki "Rafların" ve "En çok kitaba sahip yazarlar"
+          // bölümlerinin "Tümü" aksiyonları ilgili sekmeye geçirir.
+          HomePage(
+            onOpenShelves: () => setState(() => _index = 1),
+            onOpenAuthors: () => setState(() => _index = 2),
+          ),
+          const ShelvesPage(),
+          const AuthorsPage(),
+          const SettingsPage(),
+        ],
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
@@ -38,6 +50,11 @@ class _ShellPageState extends State<ShellPage> {
             icon: Icon(Icons.shelves),
             selectedIcon: Icon(Icons.shelves),
             label: 'Raflar',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.people_outline),
+            selectedIcon: Icon(Icons.people),
+            label: 'Yazarlar',
           ),
           NavigationDestination(
             icon: Icon(Icons.settings_outlined),

@@ -120,6 +120,10 @@ flutter test
 | `test/presentation/library_controller_shelf_filter_test.dart` | raf anahtarları, kitap sayımı, raf/arama/durum filtresi bileşimi |
 | `test/presentation/library_controller_move_test.dart` | raf taşıma (tek/toplu), günlük korunur, kısmi toplu taşınma |
 | `test/presentation/library_controller_author_copies_test.dart` | yazar birleştirme/sıralama, yazar filtresi, kopya bulma |
+| `test/presentation/library_controller_author_rename_test.dart` | yazar adı değiştirme/birleştirme: varyant yazımlar, yan yazar korunumu, depo hatasında kısmi güncelleme |
+| `test/presentation/authors_page_test.dart` | Yazarlar sekmesi: grid, kitap sayısı, yazarın kitaplarına geçiş, uzun basma ile birleştirme |
+| `test/presentation/shelf_page_author_rename_test.dart` | yazar görünümünde adlandırma aksiyonu, filtre anahtarı güncellenmesi, boş ad doğrulaması |
+| `test/presentation/app_navigation_test.dart` | AppNav.pop: GetX 4.x snackbar hijack regresyonu, bildirim açıkken ekleme akışı |
 | `test/presentation/library_controller_favorite_test.dart` | favori çevrimi, ana sayfa bölüm sorguları |
 | `test/presentation/shelf_page_filter_test.dart` | yazar filtresi sayfası/banner, rafa toplama, uzun basma taşıma |
 | `test/presentation/book_detail_move_test.dart` | raf kartından taşıma, kopyalar kartı, aynı ISBN kopya akışı |
@@ -459,14 +463,118 @@ flutter test
     - **"En çok sayfalı kitaplar" şeridi:** sayfa sayısı bilinen en kalın
       10 kitap azalan sıralı (eşitlikte kitap adı, kararlı sıra).
 
+### Navigasyon düzeltmesi + yeni özellikler (1.9.0)
+
+45. **"Kaydet deyince bazen ana sayfaya atıyor" hatası giderildi** —
+    GetX 4.x'in belgelenmemiş davranışı: `Get.back()`, **açık bir snackbar
+    varsa onu kapatıp rota pop'u yapmadan döner** (get 4.7
+    `extension_navigation.dart` içindeki uyumluluk kodu). Kullanıcı
+    senaryosu: "Barkod tara → Open Library'de bulunamadı" bildirimi hâlâ
+    ekrandayken (ilk ~3 saniye) hızlıca ana sayfaya dönüp **"Manuel ekle"ye**
+    basılırsa, alt sheet'i kapatması gereken `Get.back()` bildirimi kapatır
+    ve **sheet açık kalır**; form bu sheet'in üstüne biner. Kaydet
+    deyince form kapanır ama altındaki sheet ana sayfada açık kalır:
+    kullanıcı "okey tikine basınca ana sayfaya atıyor" algılar. Her
+    seferinde değil, yalnız bildirim ekrandayken olur — tam olarak
+    raporlanan "bazen" davranışı.
+
+    Düzeltme: tüm sayfa/sheet/diyalog pop'ları için `AppNav.pop`
+    yardımcısı eklendi (navigator doğrudan pop'lar; snackbar'lar root
+    overlay girişleri olduğundan navigator pop'u onlardan etkilenmez).
+    Ekleme menüsünün iki aksiyonu, form kaydı, tarayıcı dönüşü, ISBN
+    çakışma/kopya diyaloğu, silme ve sayfa güncelleme diyaloğu, rafa
+    toplama — hepsi bu yardımcıya geçirildi. Regresyon testleri ekredi:
+    bildirim açıkken `Get.back()` gerçekten pop etmiyor, `AppNav.pop`
+    ise pop ediyor; bildirim açıkken "Manuel ekle" akışında sheet kapalı
+    ve form üstte oluyor.
+
+46. **Yazarlar sekmesi: grid + yazım birleştirme** — kullanıcı isteğiyle
+    "yazarlar diye bir buton" alt navigasyona eklendi:
+    - **Yazarlar sekmesi (grid):** kitaplıktaki yazarlar baş harf
+      avatarı + ad + kitap sayısıyla grid görünümünde listelenir;
+      Türkçe alfabe sırasıyla. Karta dokununca yazarın kitapları
+      açılır (kitap detayındaki yazar dokunuşuyla aynı sayfa; durum
+      filtreleri ve sıralama çalışır).
+    - **Yazım birleştirme (Kasim → Kasım):** Open Library verisi Türkçe
+      karakterleri sadeleştirebildiği için aynı yazar "Kasım" ve
+      "Kasim" yazımlarıyla kayıtlı olabilir; iki yazım da aynı arama
+      anahtarına katlandığı için grid'de zaten tek kart görünür. Kart
+      üzerinde **basılı tutunca** (ya da yazarın kitapları sayfasındaki
+      "Yazarı yeniden adlandır" ikonuyla) açılan diyalog, arkadaki tüm
+      yazımları listeler ve seçilen isimle **tüm kitaplarda** tek yazıma
+      sabitler; aynı kitapta iki varyant varsa tek isimde birleşir, yan
+      yazarlar ve okuma günlüğü korunur. Depo hatasında kalan kitaplar
+      dokunulmaz (kısmi güncelleme bilgi balonunda raporlanır).
+
+    Depolama anahtarı değişmedi (`books_v1`); yazar birleştirme yalnız
+    kitapların `authors` alanını günceller.
+
+### Ana sayfa yenilemesi + dosya hijyeni (1.10.0)
+
+47. **Ana sayfa farklı gösterimlerle zenginleştirildi** — kullanıcı
+    isteği: "ana sayfada farklı gösterimler sunalım... yatayda kayan
+    listview'ler gridview'lerle coşturalım". Mevcut bölümlerin yanına
+    yenileri eklendi; akış sırası:
+    - **Özet satırı:** artık 4 sayaç — Toplam / Okunuyor / Bitti /
+      **Favori** (yeni).
+    - **Devam eden kitaplar** (mevcut, yatay şerit).
+    - **Favoriler** (mevcut; boşken ipucu kartı, bölüm yer tutar).
+    - **Bitirme hedefleri** (mevcut; geri sayımlı şerit, en yakın hedef
+      önce, gecikmişler hata rengiyle).
+    - **Son eklenenler (yeni):** kitaplar eklenme tarihi azalan, en
+      fazla 10 kart; eşitlikte Türkçe kitap adı sırası.
+    - **En çok sayfalı kitaplar** (mevcut).
+    - **En çok kitaba sahip yazarlar (yeni):** yatay yazar kartları
+      (baş harf avatarı + ad + kitap sayısı). Yazım katlaması korunur:
+      "Kasım" ve "Kasim" tek kartta toplanır. Karta dokununca yazarın
+      kitapları açılır; başlıktaki **"Tümü"** aksiyonu Yazarlar
+      sekmesine geçirir.
+    - **Rafların (yeni, gridview):** iki kolonlu raf kartları — raf adı,
+      toplam kitap ve "N okunuyor • N bitti" özeti. Karta dokununca
+      rafın kitap listesi açılır; **"Tümü"** Raflar sekmesine geçirir.
+    - **Bu ay bitirdiklerin (yeni):** bu ay bitirilen kitaplar, en yeni
+      bitiş önce. Ay sınırı takvim bazlıdır (yıl taşıması güvenli);
+      bitiş tarihi girilmemiş eski "bitti" kayıtları yanlış ayda
+      gösterilmez.
+    - **Not aldıkların** (mevcut).
+
+    Tüm bölümler kitap yoksa listeye girmez (yer tutmaz); Favoriler bu
+    kuralın bilinçli istisnasıdır. Sekme geçişleri kabuğa (ShellPage)
+    yeni eklenen geri çağrılarlarla yapılır; ana sayfa GetX dışında
+    sekme durumu bilmez.
+
+48. **Tanrı dosyası parçalandı** — kullanıcı isteği: "900 satırlı devasa
+    dart dosyalarını istemiyoruz". 591 satırlık `home_page.dart` yalnız
+    kompozisyon yapan küçük bir dosyaya indirildi; görsel parçalar
+    `lib/presentation/widgets/home/` altında bölündü:
+    `book_cover_card.dart` (tüm bilgileri gösteren kapak kartı),
+    `book_strip.dart` (yatay kitap şeridi), `author_strip.dart` (yazar
+    kartları), `shelf_summary_grid.dart` (raf grid'i),
+    `home_section_header.dart` (başlık + "Tümü" + boş ipucu),
+    `home_summary_row.dart` (özet), `home_empty_state.dart` (boş durum).
+    Bölüm verileri yeni saf servis `lib/domain/services/home_feed.dart`
+    içinde toplanır (`topAuthors`, `recentlyAdded`, `finishedThisMonth`);
+    GetX bağımsız olduğu için arayüz olmadan test edilir.
+    `LibraryController`'a yeni sorgu eklenmedi; mevcut sorgular korundu.
+
+49. **Yazarlar sekmesi kartları dar ekranda taşıyordu** — 360–400 dp
+    genişlikte yazar kartının içeriği (baş harf + iki satır ad + kitap
+    sayısı) kart yüksekliğine sığmıyor, 13 px alt taşma (sarı-siyah
+    çizgili alan) oluşuyordu. Kart oranı 0.9 → 0.8, avatar yarıçapı
+    26 → 22 yapıldı; 400 dp test yüzeyinde doğrulandı.
+
 ## Sürüm notları
 
-`pubspec.yaml` sürümü `1.8.0+12`'ye yükseltildi. Depolama anahtarları
+`pubspec.yaml` sürümü `1.10.0+14`'e yükseltildi. Depolama anahtarları
 (`books_v1` ve `settings_*`) değişmedi: mevcut kullanıcılar kitaplıklarını
 kaybetmez; okuma günlüğü alanı (`readingLog`) eski kayıtlarda boş gelir ve
 ilk kayıttan itibaren derlenmeye başlar; `isFavorite` eski kayıtlarda
 `false` gelir; `coverPath` ve bitirme hedefi (`targetFinishDate`) eski
-kayıtlarda boş gelir. Raf taşıma ve favori
-çevrimi günlük türetmez; yalnız okuma durumu/sayfa değişimleri günlüğe
-yazar. Sıralama tercihi oturum içindedir; uygulama her açılışta kitap adı
-artan varsayılanıyla başlar.
+kayıtlarda boş gelir. Bu sürümde veri modeli değişmedi: ana sayfa
+bölümleri mevcut alanlardan (`addedAt`, `targetFinishDate`, `authors`,
+`shelf`, `finishedAt`) hesaplanır. Raf taşıma, favori çevrimi ve yazar adı
+birleştirmesi günlük türetmez; yalnız okuma durumu/sayfa değişimleri
+günlüğe yazar. Sıralama tercihi oturum içindedir; uygulama her açılışta
+kitap adı artan varsayılanıyla başlar. "Bu ay bitirdiklerin" bölümü bitiş
+tarihi bilinen kayıtları sayar; bitiş tarihi girilmemiş eski kayıtlar bu
+bölümde görünmez (yanlış ayda göstermek yerine).

@@ -10,6 +10,7 @@ import '../../domain/repositories/book_repository.dart';
 import '../../domain/services/book_sort.dart';
 import '../routes/app_routes.dart';
 import '../routes/route_args.dart';
+import '../utils/app_navigation.dart';
 
 class LibraryController extends GetxController {
   /// [onNotify] test edilebilirlik için verilir; verilmezse GetX snackbar
@@ -168,6 +169,78 @@ class LibraryController extends GetxController {
       }
     }
     return null;
+  }
+
+  /// [authorKey] grubundaki kitap sayısı (yazarlar sekmesi kartı).
+  int authorBookCount(String authorKey) =>
+      books.where((b) => _hasAuthor(b, authorKey)).length;
+
+  /// [authorKey] grubunun kitaplıkta geçen farklı yazımları (ilk görülme
+  /// sırasıyla).
+  ///
+  /// Open Library verisi Türkçe karakterleri sadeleştirebilir: aynı yazar
+  /// "Kasım" ve "Kasim" yazımlarıyla iki kitapta bulunabilir. İki yazım da
+  /// aynı arama anahtarına katlandığı için listede tek kart görünür; bu
+  /// metot kartın arkasındaki yazım çeşitliliğini görünür kılar ve
+  /// birleştirme ([renameAuthor]) kararında kullanıcıya gösterilir.
+  List<String> authorSpellings(String authorKey) {
+    final seen = <String>[];
+    for (final b in books) {
+      for (final raw in b.authors) {
+        final author = raw.trim();
+        if (author.isEmpty) continue;
+        if (TextNormalizer.searchKey(author) == authorKey &&
+            !seen.contains(author)) {
+          seen.add(author);
+        }
+      }
+    }
+    return seen;
+  }
+
+  /// [authorKey] grubundaki TÜM kitapların yazar bilgisini [newName]'e
+  /// çevirir; güncellenen kitap sayısını döner.
+  ///
+  /// - Birleştirme: yazarın tüm yazımları tek isimde toplanır ("Kasim"
+  ///   yazan kitapların hepsi "Kasım" olur). Listede zaten tek kart
+  ///   görünüyordu; bu işlem veriyi de tek yazıma sabitler.
+  /// - Aynı kitabın yazar listesinde birden fazla varyant varsa tek isimde
+  ///   birleştirilir; DİĞER yazarlar ve sıraları korunur.
+  /// - Hedef ad, kitaplıkta başka bir yazar grubuysa doğal birleşme olur:
+  ///   kitaplar o grubun kitaplarına eklenir.
+  /// - Okuma günlüğü ve diğer alanlar değişmez (deriveLog: false).
+  /// - Depo hatasında kalan kitaplar dokunulmaz (kısmi güncelleme mümkün);
+  ///   hata mesajı saveBook içinde gösterilir.
+  Future<int> renameAuthor(String authorKey, String newName) async {
+    final name = newName.trim();
+    if (name.isEmpty) return 0;
+
+    var changed = 0;
+    for (final book in List<BookModel>.of(books)) {
+      if (!_hasAuthor(book, authorKey)) continue;
+
+      final replaced = <String>[];
+      var touched = false;
+      for (final raw in book.authors) {
+        final author = raw.trim();
+        if (author.isEmpty) continue;
+        if (TextNormalizer.searchKey(author) == authorKey) {
+          touched = true;
+          if (!replaced.contains(name)) replaced.add(name);
+        } else if (!replaced.contains(author)) {
+          replaced.add(author);
+        }
+      }
+      if (!touched) continue;
+
+      final ok = await saveBook(
+        book.copyWith(authors: replaced),
+        deriveLog: false,
+      );
+      if (!ok) break;
+      changed++;
+    }
+    return changed;
   }
 
   /// Kitabın yazarları arasında [authorKey] ile eşleşen var mı?
@@ -549,20 +622,20 @@ class LibraryController extends GetxController {
         ),
         actions: [
           TextButton(
-            onPressed: () => Get.back<_DuplicateIsbnAction>(
-              result: _DuplicateIsbnAction.cancel,
+            onPressed: () => AppNav.pop<_DuplicateIsbnAction>(
+              _DuplicateIsbnAction.cancel,
             ),
             child: const Text('Vazgeç'),
           ),
           OutlinedButton(
-            onPressed: () => Get.back<_DuplicateIsbnAction>(
-              result: _DuplicateIsbnAction.view,
+            onPressed: () => AppNav.pop<_DuplicateIsbnAction>(
+              _DuplicateIsbnAction.view,
             ),
             child: const Text('Kitabı gör'),
           ),
           FilledButton(
-            onPressed: () => Get.back<_DuplicateIsbnAction>(
-              result: _DuplicateIsbnAction.addCopy,
+            onPressed: () => AppNav.pop<_DuplicateIsbnAction>(
+              _DuplicateIsbnAction.addCopy,
             ),
             child: const Text('Yeni kopya ekle'),
           ),

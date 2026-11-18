@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../utils/app_haptics.dart';
+import '../utils/app_navigation.dart';
 
 class ScannerController extends GetxController {
   /// [onNotify] test edilebilirlik için verilir; verilmezse GetX snackbar
@@ -69,13 +70,15 @@ class ScannerController extends GetxController {
   ///
   /// Doğrudan `Get.back()` yapmak, düşük donanımlı cihazlarda kameranın
   /// bir sonraki kareyi işlemeye çalışıp karekte takılmasına yol açabilir.
+  /// AppNav.pop kullanılır: flaş hatası bildirimi hâlâ açıksa Get.back()
+  /// pop yapmadan döner, barkod sonucu bir sonraki sayfaya ulaşmaz.
   Future<void> _returnWith(String code) async {
     try {
       await scanner.stop();
     } catch (_) {
       // stop() başarısız olsa bile akış devam etsin.
     }
-    Get.back(result: code);
+    AppNav.pop<String>(code);
   }
 
   Future<void> toggleTorch() async {

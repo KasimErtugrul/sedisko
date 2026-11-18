@@ -4,6 +4,8 @@ import 'package:get/get.dart';
 import '../../core/utils/text_normalizer.dart';
 import '../controllers/library_controller.dart';
 import '../routes/app_routes.dart';
+import '../utils/app_navigation.dart';
+import '../widgets/author_rename_dialog.dart';
 import '../widgets/book_tile.dart';
 import '../widgets/shelf_picker_sheet.dart';
 import '../widgets/sort_sheet.dart';
@@ -92,6 +94,17 @@ class _ShelfPageState extends State<ShelfPage> {
               tooltip: 'Bu yazarın kitaplarını bir rafa topla',
               icon: const Icon(Icons.drive_file_move_outline),
               onPressed: () => _collectAuthorToShelf(context),
+            );
+          }),
+          // Yazar filtresi aktifken: yazar adını değiştir (yazım birleştirme).
+          Obx(() {
+            if (_controller.authorFilter.value == null) {
+              return const SizedBox.shrink();
+            }
+            return IconButton(
+              tooltip: 'Yazarı yeniden adlandır',
+              icon: const Icon(Icons.drive_file_rename_outline),
+              onPressed: () => _renameAuthor(context),
             );
           }),
         ],
@@ -211,6 +224,37 @@ class _ShelfPageState extends State<ShelfPage> {
     );
   }
 
+  /// Yazar adını değiştirir: "Kasim" yazan kitapların hepsi "Kasım" olur.
+  /// Diyalog kitaplıktaki tüm yazımları gösterir; onaydan sonra filtre yeni
+  /// adın anahtarına taşınır (ad değişirse liste boş kalmasın).
+  Future<void> _renameAuthor(BuildContext context) async {
+    final authorKey = _controller.authorFilter.value;
+    if (authorKey == null) return;
+    final displayName = _controller.authorDisplayName(authorKey);
+    if (displayName == null) return;
+
+    final newName = await showAuthorRenameDialog(
+      context,
+      currentName: displayName,
+      spellings: _controller.authorSpellings(authorKey),
+      affectedBooks: _controller.authorBookCount(authorKey),
+    );
+    if (newName == null || newName == displayName) return;
+
+    final changed = await _controller.renameAuthor(authorKey, newName);
+    if (changed == 0) return;
+
+    // Yeni adın arama anahtarı eski adınkiyle aynı olmayabilir (örn.
+    // 'Kasim' → 'M. Kasım'); filtre güncel gruba taşınır.
+    _controller.authorFilter.value = TextNormalizer.searchKey(newName);
+
+    Get.snackbar(
+      'Yazar güncellendi',
+      '$changed kitap "$newName" olarak yazıldı.',
+      snackPosition: SnackPosition.BOTTOM,
+    );
+  }
+
   /// Aktif yazar filtresindeki kitapları seçilen rafa toplar.
   Future<void> _collectAuthorToShelf(BuildContext context) async {
     final targets = _controller.filteredBooks(shelf: widget.shelf);
@@ -224,11 +268,12 @@ class _ShelfPageState extends State<ShelfPage> {
     if (moved == 0) return;
 
     // Kitaplar başka bir rafa toplandıysa bu raf sayfası boşalır; kullanıcıyı
-    // güncel raf kartlarına geri al. Sıralama önemli: GetX 4.x'te Get.back(),
-    // açık bir snackbar gördüğünde onu kapatıp pop'u yapmadan döner; bu
-    // yüzden önce çıkış, snackbar en son gösterilmeli.
+    // güncel raf kartlarına geri al. AppNav.pop kullanılır: GetX 4.x'te
+    // Get.back(), açık bir snackbar gördüğünde pop'u yapmadan döner (örn.
+    // kısmi taşıma hatası bildirimi); bu yüzden çıkış önce yapılır ve
+    // snackbar en son gösterilmeli.
     if (widget.shelf != null && shelf.trim() != widget.shelf) {
-      Get.back();
+      AppNav.pop();
     }
 
     final display = shelf.trim().isEmpty ? 'Rafsız' : shelf.trim();

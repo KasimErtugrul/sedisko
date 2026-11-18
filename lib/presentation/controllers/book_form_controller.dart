@@ -11,6 +11,7 @@ import '../../data/services/cover_photo_store.dart';
 import '../../domain/repositories/book_repository.dart';
 import '../routes/app_routes.dart';
 import '../routes/route_args.dart';
+import '../utils/app_navigation.dart';
 import 'library_controller.dart';
 
 class BookFormController extends GetxController {
@@ -319,7 +320,11 @@ class BookFormController extends GetxController {
       if (oldPath != null && oldPath != book.coverPath) {
         unawaited(_photoStore.delete(oldPath));
       }
-      Get.back();
+      // AppNav.pop: snackbar açıkken Get.back() pop yapmadan döndüğü için
+      // (GetX 4.x snackbar uyumluluk davranışı) navigator doğrudan pop'lanır.
+      // Aksi halde beklenmedik bir bildirim açıkken Kaydet, sayfayı kapatmaz
+      // ve kullanıcı ikinci basışta ana sayfaya düşer.
+      AppNav.pop();
       Get.snackbar('Kaydedildi', book.title,
           snackPosition: SnackPosition.BOTTOM);
     } finally {
@@ -343,11 +348,11 @@ class BookFormController extends GetxController {
         ),
         actions: [
           TextButton(
-            onPressed: () => Get.back<bool>(result: false),
+            onPressed: () => AppNav.pop<bool>(false),
             child: const Text('Vazgeç'),
           ),
           FilledButton(
-            onPressed: () => Get.back<bool>(result: true),
+            onPressed: () => AppNav.pop<bool>(true),
             child: const Text('Kopya olarak kaydet'),
           ),
         ],

@@ -9,6 +9,7 @@ import '../../domain/services/reading_goal.dart';
 import '../controllers/library_controller.dart';
 import '../routes/app_routes.dart';
 import '../routes/route_args.dart';
+import '../utils/app_navigation.dart';
 import '../widgets/cover_image.dart';
 import '../widgets/reading_stats_panel.dart';
 import '../widgets/shelf_picker_sheet.dart';
@@ -426,14 +427,17 @@ class BookDetailPage extends GetView<LibraryController> {
         title: const Text('Kitap silinsin mi?'),
         content: Text('"${book.title}" kitaplıktan kalıcı olarak silinecek.'),
         actions: [
-          TextButton(onPressed: Get.back, child: const Text('Vazgeç')),
+          TextButton(
+            onPressed: () => AppNav.pop(),
+            child: const Text('Vazgeç'),
+          ),
           FilledButton(
             onPressed: () async {
-              Get.back(); // diyalog
+              AppNav.pop(); // diyalog
               // Silme başarılıysa detay sayfasından çık; başarısızsa
               // kal (hata mesajı LibraryController'da gösterilir).
               final ok = await controller.deleteBook(book.id);
-              if (ok) Get.back();
+              if (ok) AppNav.pop();
             },
             child: const Text('Sil'),
           ),
@@ -471,7 +475,7 @@ class _NotFoundScaffold extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             FilledButton(
-              onPressed: Get.back,
+              onPressed: () => AppNav.pop(),
               child: const Text('Geri dön'),
             ),
           ],
@@ -532,16 +536,19 @@ class _UpdatePageDialogState extends State<_UpdatePageDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: Get.back, child: const Text('Vazgeç')),
+        TextButton(
+          onPressed: () => AppNav.pop(),
+          child: const Text('Vazgeç'),
+        ),
         FilledButton(
-          onPressed: () {
+          onPressed: () async {
             final error = _validate(_controller.text);
             if (error != null) {
               setState(() => _error = error);
               return;
             }
             final page = int.tryParse(_controller.text.trim()) ?? 0;
-            Get.back();
+            AppNav.pop();
             Get.find<LibraryController>().updateProgress(widget.book, page);
           },
           child: const Text('Kaydet'),

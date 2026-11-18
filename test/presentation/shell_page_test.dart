@@ -36,9 +36,12 @@ class FakeBookRepository implements BookRepository {
   Future<BookModel?> fetchBookByIsbn(String isbn) async => null;
 }
 
-BookModel seed(String id, String title, String shelf) => BookModel(
+BookModel seed(String id, String title, String shelf,
+        {List<String> authors = const []}) =>
+    BookModel(
       id: id,
       title: title,
+      authors: authors,
       shelf: shelf,
       addedAt: DateTime(2026, 1, 1),
     );
@@ -56,7 +59,7 @@ void main() {
       permanent: true,
     );
     repository = FakeBookRepository(initial: [
-      seed('b1', 'Denizler Altında', 'Roman'),
+      seed('b1', 'Denizler Altında', 'Roman', authors: ['Orhan Pamuk']),
       seed('b2', 'Kürk Mantolu Madonna', 'Roman'),
       seed('b3', 'Osmanlı Tarihi', 'Tarih'),
       seed('b4', 'Not Defteri', ''),
@@ -82,14 +85,15 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('alt navigasyon Ana Sayfa, Raflar ve Ayarlar sekmelerini gösterir',
+  testWidgets('alt navigasyon Ana Sayfa, Raflar, Yazarlar ve Ayarlar sekmelerini gösterir',
       (tester) async {
     await pumpShell(tester);
 
-    // Üç sekme etiketi görünür (IndexedStack'te kapalı sayfaların AppBar
+    // Dört sekme etiketi görünür (IndexedStack'te kapalı sayfaların AppBar
     // başlıkları hit-test edilemez; hitTestable yalnız etiketleri bulur).
     expect(find.text('Ana Sayfa').hitTestable(), findsOneWidget);
     expect(find.text('Raflar').hitTestable(), findsOneWidget);
+    expect(find.text('Yazarlar').hitTestable(), findsOneWidget);
     expect(find.text('Ayarlar').hitTestable(), findsOneWidget);
 
     // Ana Sayfa açılışta seçilidir: özet + bölüm şeritleri ("Tüm kitaplar"
@@ -113,6 +117,19 @@ void main() {
     );
   });
 
+  testWidgets('Yazarlar sekmesinde yazar kartları grid halinde listelenir',
+      (tester) async {
+    await pumpShell(tester);
+
+    await tester.tap(find.text('Yazarlar').hitTestable());
+    await tester.pumpAndSettle();
+
+    // Yazarlar sekmesi: grid kartları; Ayarlar içeriği hâlâ gizli.
+    expect(find.text('Orhan Pamuk').hitTestable(), findsOneWidget);
+    expect(find.text('1 kitap').hitTestable(), findsOneWidget);
+    expect(find.text('Görünüm').hitTestable(), findsNothing);
+  });
+
   testWidgets('Raflar sekmesinde yatay raf kartları vardır', (tester) async {
     await pumpShell(tester);
 
@@ -120,10 +137,12 @@ void main() {
     await tester.pumpAndSettle();
 
     // Raflar sekmesi: 'Tüm kitaplar' ve raflar, ad + kitap sayısı kartları.
+    // Ana sayfanın "Rafların" gridi de "2 kitap" yazar; offstage olduğu için
+    // hitTestable ile yalnız ekrandaki kart sayılır.
     expect(find.byKey(const ValueKey('shelf-card-all')), findsOneWidget);
     expect(find.byKey(const ValueKey('shelf-card-Roman')), findsOneWidget);
     expect(find.byKey(const ValueKey('shelf-card-Rafsız')), findsOneWidget);
-    expect(find.text('2 kitap'), findsOneWidget); // Roman kartı
+    expect(find.text('2 kitap').hitTestable(), findsOneWidget); // Roman kartı
   });
 
   testWidgets('raf kartına dokununca rafın kitapları yeni sayfada açılır',
@@ -136,14 +155,15 @@ void main() {
     await tester.pumpAndSettle();
 
     // AppBar başlığı raf adıdır; yalnız Roman kitapları listelenir.
+    // Ana sayfa şeritleri rota altında kaldığı için hitTestable kullanılır.
     expect(
       find.descendant(of: find.byType(AppBar), matching: find.text('Roman')),
       findsOneWidget,
     );
-    expect(find.text('Denizler Altında'), findsOneWidget);
-    expect(find.text('Kürk Mantolu Madonna'), findsOneWidget);
-    expect(find.text('Osmanlı Tarihi'), findsNothing);
-    expect(find.text('Not Defteri'), findsNothing);
+    expect(find.text('Denizler Altında').hitTestable(), findsOneWidget);
+    expect(find.text('Kürk Mantolu Madonna').hitTestable(), findsOneWidget);
+    expect(find.text('Osmanlı Tarihi').hitTestable(), findsNothing);
+    expect(find.text('Not Defteri').hitTestable(), findsNothing);
   });
 
   testWidgets("'Tüm kitaplar' kartı kitaplığın tamamını listeler",
@@ -162,16 +182,17 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(find.text('Denizler Altında'), findsOneWidget);
-    expect(find.text('Kürk Mantolu Madonna'), findsOneWidget);
+    // Ana sayfa şeritleri rota altında: yalnız ekrandakiler sayılır.
+    expect(find.text('Denizler Altında').hitTestable(), findsOneWidget);
+    expect(find.text('Kürk Mantolu Madonna').hitTestable(), findsOneWidget);
 
     // ListView tembel yapıdadır; 'Rafsız' kitap için kaydır.
     await tester.scrollUntilVisible(
-      find.text('Not Defteri'),
+      find.text('Not Defteri').hitTestable(),
       200,
       scrollable: find.byType(Scrollable).last,
     );
-    expect(find.text('Not Defteri'), findsOneWidget);
+    expect(find.text('Not Defteri').hitTestable(), findsOneWidget);
   });
 
   testWidgets('ana sayfada arama yazınca sonuç listesi ve durum çipleri çıkar',

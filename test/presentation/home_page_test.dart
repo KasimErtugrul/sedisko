@@ -99,7 +99,7 @@ void main() {
   Future<void> pumpHome(WidgetTester tester) async {
     // Uzun akışı tek ekranda kurmak için test yüzeyi yüksek tutulur; böylece
     // sanallaştırılmış listenin alt bölümleri de ağaçta kurulur.
-    tester.view.physicalSize = const Size(400, 1600);
+    tester.view.physicalSize = const Size(400, 2000);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(GetMaterialApp(home: const HomePage()));
@@ -121,12 +121,12 @@ void main() {
     await pumpHome(tester);
 
     // Bölüm başlığı kaldırıldı; tam kitaplık Raflar > Tüm kitaplar
-    // kartından açılır. 'Hayvan Çiftliği' (bitmiş, not/favori/okuma
-    // yok) hiçbir bölümde yok; 'Dönüşüm' notlu olduğu için yine
-    // "Not aldıkların" şeridinde görünür.
+    // kartından açılır. 'Hayvan Çiftliği' artık "Son eklenenler" şeridinde
+    // (tüm kitaplar bir tarihte eklenmiştir); 'Dönüşüm' hem "Not aldıkların"
+    // hem "Son eklenenler" şeridinde görünür.
     expect(find.text('Tüm kitaplar'), findsNothing);
-    expect(find.text('Hayvan Çiftliği'), findsNothing);
-    expect(find.text('Dönüşüm'), findsOneWidget);
+    expect(find.text('Hayvan Çiftliği'), findsOneWidget);
+    expect(find.text('Dönüşüm'), findsNWidgets(2));
   });
 
   testWidgets('favori olmasa da Favoriler bölümü ipucuyla görünür',
@@ -142,31 +142,45 @@ void main() {
 
   testWidgets('bitirme hedefi olan kitaplar hedef şeridinde sıralanır',
       (tester) async {
-    // b2: yakın hedef (2026-07-01), b3: uzak hedef (2026-12-31), b1: bitmiş
-    // + hedefli (hedef şeridine girmez).
+    // Takvim günü bazlı göreli tarihler: test hangi günde çalışırsa
+    // çalışsın geri sayım metinleri aynıdır (b2: 10 gün, b3: 40 gün).
+    final today = DateTime.now();
+    final b2Target = DateTime(today.year, today.month, today.day)
+        .add(const Duration(days: 10));
+    final b3Target = DateTime(today.year, today.month, today.day)
+        .add(const Duration(days: 40));
+    // b5: bitmiş + hedefli — hedef şeridine girmez (bitmişler hedefli
+    // değildir), "Son eklenenler" şeridinde görünür.
     repository.store.add(seed(
       id: 'b5',
       title: 'Hedefli Bitmiş',
       status: ReadingStatus.finished,
-      target: DateTime(2026, 2, 1),
+      target: today.subtract(const Duration(days: 3)),
     ));
     await Get.find<LibraryController>().loadBooks();
     // Hedefleri kur (store'da id ile hedefli kayıtları güncelle).
     final controller = Get.find<LibraryController>();
     await controller.saveBook(
-      controller.byId('b2')!.copyWith(targetFinishDate: DateTime(2026, 7, 1)),
+      controller.byId('b2')!.copyWith(targetFinishDate: b2Target),
       deriveLog: false,
     );
     await controller.saveBook(
-      controller.byId('b3')!.copyWith(targetFinishDate: DateTime(2026, 12, 31)),
+      controller.byId('b3')!.copyWith(targetFinishDate: b3Target),
       deriveLog: false,
     );
 
     await pumpHome(tester);
 
     expect(find.text('Bitirme hedefleri'), findsOneWidget);
-    // Bitmiş kitap hedef şeridine girmez.
-    expect(find.text('Hedefli Bitmiş'), findsNothing);
+    // En yakın hedef önce: yatay şeritte "10 gün kaldı" "40 gün kaldı"nın
+    // SOLUNDADIR (aynı satır, sıra soldan sağa).
+    final near = tester.getTopLeft(find.text('10 gün kaldı'));
+    final far = tester.getTopLeft(find.text('40 gün kaldı'));
+    expect(near.dx < far.dx, isTrue);
+    // Şeritte yalnız 2 geri sayım kartı vardır; bitmiş 'Hedefli Bitmiş'
+    // ("Son eklenenler"de görünür) hedef şeridine girmez.
+    expect(find.textContaining('gün kaldı'), findsNWidgets(2));
+    expect(find.text('Hedefli Bitmiş'), findsOneWidget);
   });
 
   testWidgets('en çok sayfalı kitaplar bölümü azalan sıralıdır',
@@ -174,8 +188,11 @@ void main() {
     await controllerSetupPages(tester);
 
     expect(find.text('En çok sayfalı kitaplar'), findsOneWidget);
-    // Şerit kartlarında ilerleme görünür; b2 üç şeritte birden vardır
-    // (Devam eden + En çok sayfalı + Not aldıkların).
+    // Şerit kartlarında ilerleme görünür; b2 dört şeritte birden vardır
+    // (Devam eden + Son eklenenler + En çok sayfalı + Not aldıkların).
+    // "Son eklenenler" şeridinde b2 Türkçe ad sırasıyla 4. karttır ve yatay
+    // şerit yalnız görünür kartları kurduğu için o kopya ağaçta değildir:
+    // ekranda kurulan 3 kopya sayılır.
     expect(find.text('Sayfa 50/200'), findsNWidgets(3));
   });
 
@@ -216,7 +233,7 @@ Future<void> controllerSetupPages(WidgetTester tester) async {
     controller.byId('b1')!.copyWith(pageCount: 480),
     deriveLog: false,
   );
-  tester.view.physicalSize = const Size(400, 1600);
+  tester.view.physicalSize = const Size(400, 2000);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(GetMaterialApp(home: const HomePage()));
