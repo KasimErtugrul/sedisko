@@ -208,4 +208,46 @@ void main() {
       expect(ids.length, 1000);
     });
   });
+
+  group('BookModel.targetFinishDate', () {
+    test('toJson → fromJson turunda korunur', () {
+      final book = BookModel(
+        id: 'tg1',
+        title: 'Hedefli kitap',
+        addedAt: DateTime(2026, 3, 1),
+        targetFinishDate: DateTime(2026, 12, 15),
+      );
+
+      final restored = BookModel.fromJson(book.toJson());
+
+      expect(restored, book); // Equatable eşitliği
+      expect(restored.targetFinishDate, DateTime(2026, 12, 15));
+    });
+
+    test('eski veride alan yoksa null gelir', () {
+      final book = BookModel.fromJson({'id': 'tg2', 'title': 'Eski kayıt'});
+      expect(book.targetFinishDate, isNull);
+    });
+
+    test('copyWith null ile temizler, verilmezse korur', () {
+      final base = BookModel(
+        id: 'tg3',
+        title: 'T',
+        addedAt: DateTime(2026, 3, 1),
+        targetFinishDate: DateTime(2026, 12, 15),
+      );
+
+      expect(base.copyWith(targetFinishDate: null).targetFinishDate, isNull);
+      expect(base.copyWith(title: 'Y').targetFinishDate, DateTime(2026, 12, 15));
+    });
+
+    test('bozuk tarih metni kaydı düşürmez, null gelir', () {
+      final book = BookModel.fromJson({
+        'id': 'tg4',
+        'title': 'T',
+        'targetFinishDate': 'bu bir tarih değil',
+      });
+      expect(book.targetFinishDate, isNull);
+    });
+  });
 }

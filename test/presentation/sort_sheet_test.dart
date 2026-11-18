@@ -6,10 +6,15 @@ import 'package:kitaplik/domain/repositories/book_repository.dart';
 import 'package:kitaplik/domain/services/book_sort.dart';
 import 'package:kitaplik/presentation/controllers/library_controller.dart';
 import 'package:kitaplik/presentation/controllers/settings_controller.dart';
-import 'package:kitaplik/presentation/pages/home_page.dart';
+import 'package:kitaplik/presentation/pages/shelf_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Sıralama alt sayfası: yön segmenti + alan seçimi + liste güncellemesi.
+///
+/// Doğrulama, kitaplığın tamamını listeleyen genel kitaplar sayfasında
+/// (ShelfPage, raf=null) yapılır: ana sayfadan "Tüm kitaplar" listesi
+/// kaldırıldı, sıralama çıktısı artık bu liste + arama sonuçlarında
+/// görünür.
 class FakeBookRepository implements BookRepository {
   FakeBookRepository({List<BookModel>? initial}) : store = [...?initial];
 
@@ -87,11 +92,11 @@ void main() {
     Get.reset();
   });
 
-  Future<void> pumpHome(WidgetTester tester) async {
+  Future<void> pumpBookList(WidgetTester tester) async {
     tester.view.physicalSize = const Size(400, 1600);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
-    await tester.pumpWidget(GetMaterialApp(home: const HomePage()));
+    await tester.pumpWidget(GetMaterialApp(home: const ShelfPage()));
     await tester.pumpAndSettle();
   }
 
@@ -103,7 +108,7 @@ void main() {
 
   testWidgets('yön değişimi sayfayı kapatmaz, alan seçince kapanır ve liste '
       'güncellenir', (tester) async {
-    await pumpHome(tester);
+    await pumpBookList(tester);
     await openSortSheet(tester);
 
     // Azalan'a bas: sayfa açık kalır, yön kaydedilir.
@@ -121,7 +126,7 @@ void main() {
     expect(controller.sortAscending.value, isFalse);
     expect(controller.hasCustomSort, isTrue);
 
-    // 'Tüm kitaplar' listesi sayfa sayısı azalan dizilir: 412 > 184 > 96.
+    // Genel kitaplar listesi sayfa sayısı azalan dizilir: 412 > 184 > 96.
     final dune = tester.getTopLeft(find.text('Dune')).dy;
     final simyaci = tester.getTopLeft(find.text('Simyacı')).dy;
     final donusum = tester.getTopLeft(find.text('Dönüşüm')).dy;
@@ -131,7 +136,7 @@ void main() {
 
   testWidgets('yayınevi artan sıralama aynı grupta ada göre kırılır',
       (tester) async {
-    await pumpHome(tester);
+    await pumpBookList(tester);
     await openSortSheet(tester);
 
     await tester.tap(find.text('Yayınevi'));
@@ -151,7 +156,7 @@ void main() {
 
   testWidgets('varsayılan görünüm kitap adı artandır ve rozet yoktur',
       (tester) async {
-    await pumpHome(tester);
+    await pumpBookList(tester);
 
     // Kitap adı artan: Dönüşüm < Dune < Simyacı.
     final donusum = tester.getTopLeft(find.text('Dönüşüm')).dy;

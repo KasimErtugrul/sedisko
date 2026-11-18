@@ -45,12 +45,13 @@ class ShelvesPage extends GetView<LibraryController> {
   }
 
   /// Yatay raf kartları: 'Tüm kitaplar' + dolu raflar + varsa 'Rafsız'.
+  /// Kartlar zengin özet taşır: kitap sayısı + okunuyor + bitti kırılımı.
   Widget _shelfStrip(BuildContext context) {
     return ListView(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
       children: [
         SizedBox(
-          height: 150,
+          height: 178,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             itemCount: controller.shelfKeys.length + 1,
@@ -61,6 +62,8 @@ class ShelvesPage extends GetView<LibraryController> {
                   icon: Icons.auto_stories,
                   name: 'Tüm kitaplar',
                   count: controller.books.length,
+                  readingCount: controller.readingCount,
+                  finishedCount: controller.finishedCount,
                   onTap: () =>
                       Get.toNamed(Routes.shelf, arguments: const ShelfArgs()),
                 );
@@ -71,6 +74,8 @@ class ShelvesPage extends GetView<LibraryController> {
                 icon: key == 'Rafsız' ? Icons.folder_off_outlined : Icons.shelves,
                 name: key,
                 count: controller.shelfCount(key),
+                readingCount: controller.shelfReadingCount(key),
+                finishedCount: controller.shelfFinishedCount(key),
                 onTap: () => Get.toNamed(
                   Routes.shelf,
                   arguments: ShelfArgs(shelf: key),
@@ -91,24 +96,29 @@ class ShelvesPage extends GetView<LibraryController> {
   }
 }
 
-/// Yatay raf kartı: raf adı + kitap sayısı.
+/// Zengin yatay raf kartı: raf adı + kitap sayısı + okunuyor/bitti kırılımı.
 class _ShelfCard extends StatelessWidget {
   const _ShelfCard({
     super.key,
     required this.icon,
     required this.name,
     required this.count,
+    required this.readingCount,
+    required this.finishedCount,
     required this.onTap,
   });
 
   final IconData icon;
   final String name;
   final int count;
+  final int readingCount;
+  final int finishedCount;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final small = Theme.of(context).textTheme.bodySmall;
     return Padding(
       padding: const EdgeInsets.only(right: 12),
       child: Card(
@@ -116,7 +126,7 @@ class _ShelfCard extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           child: Container(
-            width: 148,
+            width: 158,
             padding: const EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -131,10 +141,19 @@ class _ShelfCard extends StatelessWidget {
                       ?.copyWith(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  '$count kitap',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
+                Text('$count kitap', style: small),
+                // Kırılım satırı: okunuyor/bitti bilinen kadar gösterilir;
+                // ikisi de yoksa satır yer tutmaz.
+                if (readingCount > 0)
+                  Text(
+                    '$readingCount okunuyor',
+                    style: small?.copyWith(color: Colors.orange.shade700),
+                  ),
+                if (finishedCount > 0)
+                  Text(
+                    '$finishedCount bitti',
+                    style: small?.copyWith(color: Colors.green.shade700),
+                  ),
               ],
             ),
           ),

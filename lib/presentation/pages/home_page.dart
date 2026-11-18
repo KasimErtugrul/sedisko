@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../core/utils/date_formatter.dart';
 import '../../data/models/book_model.dart';
+import '../../domain/services/reading_goal.dart';
 import '../controllers/library_controller.dart';
 import '../controllers/settings_controller.dart';
 import '../routes/app_routes.dart';
@@ -14,12 +16,15 @@ import '../widgets/status_filter_row.dart';
 
 /// Ana sayfa sekmesi: kitap odaklı özet akışı.
 ///
-/// - Arama boşken: özet satırı (toplam / okunuyor / bitti), "Devam eden
-///   kitaplar", "Favoriler" ve "Not aldıkların" yatay kapak şeritleri,
-///   ardından tüm kitaplık listesi.
+/// - Arama boşken: özet satırı (toplam / okunuyor / bitti), ardından
+///   "Devam eden kitaplar", "Favoriler" (daima görünür; boşken yönlendirme
+///   ipucu), "Bitirme hedefleri", "En çok sayfalı kitaplar" ve "Not
+///   aldıkların" yatay şeritleri. "Tüm kitaplar" listesi ana sayfadan
+///   kaldırıldı: tam kitaplık Raflar sekmesindeki "Tüm kitaplar" kartından
+///   açılır.
 /// - Arama yazılırken: durum filtresi çipleri + eşleşen kitap listesi.
 ///
-/// Tüm liste `ListView.builder` ile tek sanallaştırılmış listede kurulur;
+/// Tüm akış `ListView.builder` ile tek sanallaştırılmış listede kurulur;
 /// 200+ kitapta yalnız görünür öğeler inşa edilir.
 class HomePage extends GetView<LibraryController> {
   const HomePage({super.key});
@@ -30,7 +35,7 @@ class HomePage extends GetView<LibraryController> {
       appBar: AppBar(
         title: const Text('Kitaplığım'),
         actions: [
-          // Tüm kitaplar bölümünü ve arama sonuçlarını sıralar.
+          // Arama sonuçlarını (ve raf sayfalarını) sıralar.
           Obx(
             () => IconButton(
               tooltip: 'Sırala',
@@ -152,50 +157,59 @@ class HomePage extends GetView<LibraryController> {
     );
   }
 
-  /// Ana akış: özet + bölümler + tüm kitaplar, tek sanallaştırılmış liste.
-  /// "Tüm kitaplar" bölümü aktif sıralamayı izler ([sortedAll]); bölüm
-  /// şeritleri (devam eden / favoriler / notlar) sabit küratörlük sırasıyla
-  /// kalır.
+  /// Ana akış: özet + bölüm şeritleri, tek sanallaştırılmış liste.
+  ///
+  /// "Favoriler" bölümü kitaplıkta favori olmasa bile görünür; boşken
+  /// kullanıcıya favorileştirmeyi öğreten ipucu kartı gösterilir.
+  /// Diğer bölümler yalnız doluysa listeye girer, yer tutmaz.
   Widget _homeFeed() {
     final reading = controller.readingBooks;
     final favorites = controller.favoriteBooks;
+    final goals = controller.goalBooks;
+    final longest = controller.longestBooks;
     final noted = controller.notedBooks;
-    final all = controller.sortedAll;
 
-    // Bölüm şeritleri yalnız doluysa listeye girer; boş bölümler yer tutmaz.
     final sections = <_Section>[
       if (reading.isNotEmpty) _Section('Devam eden kitaplar', reading),
-      if (favorites.isNotEmpty) _Section('Favoriler', favorites),
+      _Section(
+        'Favoriler',
+        favorites,
+        emptyMessage: 'Henüz favori kitabın yok.\n'
+            'Kitap detayındaki kalp ikonuyla favorilerine ekleyebilirsin.',
+      ),
+      if (goals.isNotEmpty)
+        _Section(
+          'Bitirme hedefleri',
+          goals,
+          emphasizeGoal: true,
+        ),
+      if (longest.isNotEmpty) _Section('En çok sayfalı kitaplar', longest),
       if (noted.isNotEmpty) _Section('Not aldıkların', noted),
     ];
 
-    final itemCount =
-        1 + sections.length * 2 + 1 + all.length; // özet + (başlık+şerit) + tümü başlığı + kitaplar
+    final itemCount = 1 + sections.length * 2; // özet + her bölüm (başlık+şerit)
 
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
       itemCount: itemCount,
       itemBuilder: (context, index) {
-        if (index == 0) return _SummaryRow(all: all);
+        if (index == 0) return _SummaryRow();
         var cursor = 1;
         for (final section in sections) {
           if (index == cursor) return _SectionHeader(section.title);
           if (index == cursor + 1) {
-            return _BookStrip(books: section.books);
+            final empty = section.books.isEmpty;
+            if (empty && section.emptyMessage != null) {
+              return _SectionEmptyHint(message: section.emptyMessage!);
+            }
+            return _BookStrip(
+              books: section.books,
+              emphasizeGoal: section.emphasizeGoal,
+            );
           }
           cursor += 2;
         }
-        if (index == cursor) {
-          return _SectionHeader('Tüm kitaplar', subtitle: '${all.length}');
-        }
-        final book = all[index - cursor - 1];
-        return BookTile(
-          key: ValueKey('home-${book.id}'),
-          book: book,
-          onTap: () => Get.toNamed(Routes.detail, arguments: book.id),
-          // Uzun bas: kitabı başka rafa taşı.
-          onLongPress: () => pickShelfAndMove(context, book),
-        );
+        return const SizedBox.shrink();
       },
     );
   }
@@ -237,17 +251,27 @@ class HomePage extends GetView<LibraryController> {
 
 /// Ana akışta yatay şerit olarak gösterilecek bölüm.
 class _Section {
-  const _Section(this.title, this.books);
+  const _Section(
+    this.title,
+    this.books, {
+    this.emptyMessage,
+    this.emphasizeGoal = false,
+  });
 
   final String title;
   final List<BookModel> books;
+
+  /// Bölüm boşken gösterilecek yönlendirme metni; `null` ise boş bölüm
+  /// hiç listeye girmez (yer tutmaz).
+  final String? emptyMessage;
+
+  /// Şerit kartlarında bitirme hedefi geri sayımının gösterilmesi.
+  final bool emphasizeGoal;
 }
 
 /// Özet satırı: toplam / okunuyor / bitti sayıları.
 class _SummaryRow extends GetView<LibraryController> {
-  const _SummaryRow({required this.all});
-
-  final List<BookModel> all;
+  const _SummaryRow();
 
   @override
   Widget build(BuildContext context) {
@@ -280,7 +304,7 @@ class _SummaryRow extends GetView<LibraryController> {
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         children: [
-          stat('${all.length}', 'Toplam', scheme.primary),
+          stat('${controller.books.length}', 'Toplam', scheme.primary),
           const SizedBox(width: 8),
           stat('${controller.readingCount}', 'Okunuyor', Colors.orange),
           const SizedBox(width: 8),
@@ -292,33 +316,54 @@ class _SummaryRow extends GetView<LibraryController> {
 }
 
 class _SectionHeader extends StatelessWidget {
-  const _SectionHeader(this.title, {this.subtitle});
+  const _SectionHeader(this.title);
 
   final String title;
-  final String? subtitle;
 
   @override
   Widget build(BuildContext context) {
+    // Baseline hizalı Row yerine tek Text: uzun başlıklar sınırlı genişlikte
+    // sarılır, taşma yapmaz.
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 12, 4, 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.baseline,
-        textBaseline: TextBaseline.alphabetic,
-        children: [
-          Text(
-            title,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-          ),
-          if (subtitle != null) ...[
-            const SizedBox(width: 6),
-            Text(
-              subtitle!,
-              style: Theme.of(context).textTheme.bodySmall,
+      child: Text(
+        title,
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+      ),
+    );
+  }
+}
+
+/// Boş bölümün yönlendirme ipucu kartı (ör. favori yokken Favoriler).
+class _SectionEmptyHint extends StatelessWidget {
+  const _SectionEmptyHint({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Icon(
+              Icons.favorite_outline,
+              size: 22,
+              color: scheme.outline,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                message,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
             ),
           ],
-        ],
+        ),
       ),
     );
   }
@@ -326,14 +371,18 @@ class _SectionHeader extends StatelessWidget {
 
 /// Yatay kapak şeridi; kitaba dokununca detay sayfası açılır.
 class _BookStrip extends StatelessWidget {
-  const _BookStrip({required this.books});
+  const _BookStrip({required this.books, this.emphasizeGoal = false});
 
   final List<BookModel> books;
+
+  /// true: kart durumu yerine bitirme hedefi geri sayımını gösterir
+  /// ("X gün kaldı" / "N gün gecikti").
+  final bool emphasizeGoal;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 208,
+      height: 252,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: books.length,
@@ -343,6 +392,7 @@ class _BookStrip extends StatelessWidget {
           return _BookCoverCard(
             key: ValueKey('strip-${book.id}'),
             book: book,
+            emphasizeGoal: emphasizeGoal,
             onTap: () => Get.toNamed(Routes.detail, arguments: book.id),
           );
         },
@@ -351,21 +401,26 @@ class _BookStrip extends StatelessWidget {
   }
 }
 
+/// Zengin kapak kartı: kapak + başlık + yazar + durum/sayfa + raf.
+/// Hedefli şeritlerde raf satırı yerine geri sayım satırı çıkar.
 class _BookCoverCard extends StatelessWidget {
   const _BookCoverCard({
     super.key,
     required this.book,
     required this.onTap,
+    this.emphasizeGoal = false,
   });
 
   final BookModel book;
   final VoidCallback onTap;
+  final bool emphasizeGoal;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final small = theme.textTheme.bodySmall;
     return SizedBox(
-      width: 96,
+      width: 116,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
@@ -377,13 +432,13 @@ class _BookCoverCard extends StatelessWidget {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
                   child: SizedBox(
-                    width: 96,
-                    height: 140,
+                    width: 116,
+                    height: 150,
                     child: CoverImage(
                       url: book.coverUrl,
                       path: book.coverPath,
-                      width: 96,
-                      height: 140,
+                      width: 116,
+                      height: 150,
                     ),
                   ),
                 ),
@@ -396,19 +451,78 @@ class _BookCoverCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 6),
-            Expanded(
-              child: Text(
-                book.title,
-                maxLines: 2,
+            Text(
+              book.title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(fontWeight: FontWeight.w600),
+            ),
+            if (book.authors.isNotEmpty)
+              Text(
+                book.authorsText,
+                maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(fontWeight: FontWeight.w600),
+                style: small?.copyWith(color: theme.colorScheme.outline),
+              ),
+            const SizedBox(height: 2),
+            Text(
+              _statusLine(),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: small,
+            ),
+            Text(
+              emphasizeGoal
+                  ? _goalCountdownLine()
+                  : (book.shelf.trim().isEmpty
+                      ? 'Rafsız'
+                      : 'Raf: ${book.shelf.trim()}'),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: small?.copyWith(
+                color: _countdownColor(theme) ?? theme.colorScheme.outline,
               ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  /// Durum/sayfa satırı: okunuyorsa ilerleme, bittiyse bitiş, başlanmadıysa
+  /// sayfa sayısı (bilinmiyorsa durum etiketi).
+  String _statusLine() {
+    switch (book.status) {
+      case ReadingStatus.reading:
+        return book.pageCount > 0
+            ? 'Sayfa ${book.currentPage}/${book.pageCount}'
+            : 'Sayfa ${book.currentPage}';
+      case ReadingStatus.finished:
+        return 'Bitti • ${formatDate(book.finishedAt)}';
+      case ReadingStatus.notStarted:
+        return book.pageCount > 0
+            ? '${book.pageCount} sayfa'
+            : 'Henüz başlanmadı';
+    }
+  }
+
+  /// Hedef şeridindeki geri sayım satırı.
+  String _goalCountdownLine() {
+    final target = book.targetFinishDate;
+    if (target == null) return '';
+    final days = ReadingGoal.daysLeft(target, DateTime.now());
+    if (days < 0) return '${-days} gün gecikti';
+    if (days == 0) return 'Hedef bugün';
+    return '$days gün kaldı';
+  }
+
+  Color? _countdownColor(ThemeData theme) {
+    if (!emphasizeGoal || book.targetFinishDate == null) return null;
+    final days =
+        ReadingGoal.daysLeft(book.targetFinishDate!, DateTime.now());
+    if (days < 0) return theme.colorScheme.error;
+    return null;
   }
 }
 

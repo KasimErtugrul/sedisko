@@ -37,6 +37,7 @@ class BookModel extends Equatable {
     this.isManual = false,
     this.isFavorite = false,
     this.readingLog = const [],
+    this.targetFinishDate,
   });
 
   final String id;
@@ -69,6 +70,11 @@ class BookModel extends Equatable {
   /// okuma). Eski veride bu alan yoktur; bozuk kayıtlar ayrıştırılırken
   /// atlanır ve boş liste varsayılan olarak kullanılır.
   final List<ReadingLogEntry> readingLog;
+
+  /// Kullanıcının kitabı bitirmeyi hedeflediği tarih (bitirme hedefi).
+  /// Eski veride bu alan yoktur; `null` gelir. Kart, detay ve ana sayfa
+  /// hedefe kalan günü ve günde okunması gereken sayfayı bundan üretir.
+  final DateTime? targetFinishDate;
 
   final DateTime addedAt;
 
@@ -161,6 +167,7 @@ class BookModel extends Equatable {
       isManual: json['isManual'] is bool ? json['isManual'] as bool : false,
       isFavorite: json['isFavorite'] is bool ? json['isFavorite'] as bool : false,
       readingLog: _parseLog(json['readingLog']),
+      targetFinishDate: _parseDate(json['targetFinishDate']),
       addedAt: _parseDate(json['addedAt']) ?? DateTime.now(),
     );
   }
@@ -195,6 +202,7 @@ class BookModel extends Equatable {
         'isFavorite': isFavorite,
         if (readingLog.isNotEmpty)
           'readingLog': [for (final entry in readingLog) entry.toJson()],
+        'targetFinishDate': targetFinishDate?.toIso8601String(),
         'addedAt': addedAt.toIso8601String(),
       };
 
@@ -218,6 +226,7 @@ class BookModel extends Equatable {
     bool? isManual,
     bool? isFavorite,
     List<ReadingLogEntry>? readingLog,
+    Object? targetFinishDate = _unset,
   }) {
     return BookModel(
       id: id,
@@ -242,6 +251,9 @@ class BookModel extends Equatable {
       isManual: isManual ?? this.isManual,
       isFavorite: isFavorite ?? this.isFavorite,
       readingLog: readingLog ?? this.readingLog,
+      targetFinishDate: identical(targetFinishDate, _unset)
+          ? this.targetFinishDate
+          : targetFinishDate as DateTime?,
       addedAt: addedAt,
     );
   }
@@ -306,6 +318,7 @@ class BookModel extends Equatable {
         isManual,
         isFavorite,
         readingLog,
+        targetFinishDate,
         addedAt,
       ];
 }

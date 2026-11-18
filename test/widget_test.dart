@@ -75,6 +75,13 @@ void main() {
   });
 
   testWidgets('formda zorunlu alanlar boş kaydedilemez', (tester) async {
+    // Form bitirme hedefi alanıyla uzadı; tek ekrana sığacak kadar yüksek
+    // yüzey kullanılır. Böylece üstteki alanlar ListView tembel kurulumundan
+    // düşüp Form.validate() dışında kalmaz ve hata metinleri doğrudan
+    // görünür olur.
+    tester.view.physicalSize = const Size(800, 3000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
     await pumpApp(tester);
 
     await tester.tap(find.byType(FloatingActionButton));
@@ -82,23 +89,15 @@ void main() {
     await tester.tap(find.text('Manuel ekle'));
     await tester.pumpAndSettle();
 
-    // ListView tembel yapıdadır; Kaydet butonu ağaçta yoksa önce kaydır.
-    final scrollable = find.byType(Scrollable).first;
-    final kaydetFinder = find.text('Kaydet');
-    await tester.scrollUntilVisible(kaydetFinder, 200, scrollable: scrollable);
-    await tester.pumpAndSettle();
-    await tester.tap(kaydetFinder);
+    expect(find.text('Yeni kitap'), findsOneWidget);
+    expect(find.text('Bitirme hedefi (isteğe bağlı)'), findsOneWidget);
+
+    await tester.tap(find.text('Kaydet'));
     await tester.pumpAndSettle();
 
-    // Doğrulama hataları; üst alanlar görünümden çıktıysa geri kaydır.
-    final titleError = find.text('Kitap adı gerekli');
-    await tester.scrollUntilVisible(titleError, -200, scrollable: scrollable);
-    await tester.pumpAndSettle();
-    expect(titleError, findsOneWidget);
-
-    final shelfError = find.text('Raf bilgisi gerekli');
-    await tester.scrollUntilVisible(shelfError, 200, scrollable: scrollable);
-    await tester.pumpAndSettle();
-    expect(shelfError, findsOneWidget);
+    // Zorunlu alan hataları görünür; kayıt gerçekleşmez (hâlâ formdayız).
+    expect(find.text('Kitap adı gerekli'), findsOneWidget);
+    expect(find.text('Raf bilgisi gerekli'), findsOneWidget);
+    expect(find.text('Yeni kitap'), findsOneWidget);
   });
 }

@@ -180,6 +180,8 @@ class BookFormPage extends GetView<BookFormController> {
               );
             }),
             const SizedBox(height: 12),
+            _targetDateField(context, c),
+            const SizedBox(height: 12),
             TextFormField(
               controller: c.notesCtrl,
               maxLines: 3,
@@ -352,6 +354,40 @@ class BookFormPage extends GetView<BookFormController> {
           child: Text(formatDate(value.value)),
         ),
       ),
+    );
+  }
+
+  /// Bitirme hedefi alanı: dokun → gelecek tarih seç; seçiliyse temizleme
+  /// düğmesi çıkar. Hedef koymak isteğe bağlıdır ve okuma durumundan
+  /// bağımsızdır (kitabı henüz başlamadan da hedef konabilir).
+  Widget _targetDateField(BuildContext context, BookFormController c) {
+    return Obx(
+      () {
+        final target = c.targetFinishDate.value;
+        return InkWell(
+          onTap: () => c.pickTargetDate(context),
+          child: InputDecorator(
+            decoration: InputDecoration(
+              labelText: 'Bitirme hedefi (isteğe bağlı)',
+              helperText: '"Bu tarihe kadar bitireceğim" hedefi; kart ve '
+                  'detayda kalan günü ve günlük sayfa planını gösterir',
+              border: _border,
+              suffixIcon: target == null
+                  ? const Icon(Icons.flag_outlined)
+                  : IconButton(
+                      tooltip: 'Hedefi kaldır',
+                      icon: const Icon(Icons.clear),
+                      onPressed: c.clearTargetDate,
+                    ),
+            ),
+            child: Text(
+              target == null
+                  ? 'Tarih seç'
+                  : formatDate(target),
+            ),
+          ),
+        );
+      },
     );
   }
 }

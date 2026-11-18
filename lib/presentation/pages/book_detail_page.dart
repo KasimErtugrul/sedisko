@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import '../../core/utils/date_formatter.dart';
 import '../../core/utils/text_normalizer.dart';
 import '../../data/models/book_model.dart';
+import '../../domain/services/reading_goal.dart';
 import '../controllers/library_controller.dart';
 import '../routes/app_routes.dart';
 import '../routes/route_args.dart';
@@ -317,6 +318,9 @@ class BookDetailPage extends GetView<LibraryController> {
               if (book.status == ReadingStatus.finished)
                 Text('Bitiş: ${formatDate(book.finishedAt)}'),
             ],
+            // Hedef, okuma durumundan bağımsız gösterilir: başlanmamış
+            // kitapta da "kaç gün kaldı / günde kaç sayfa" planı görünsün.
+            ..._goalLines(theme, book),
             const SizedBox(height: 12),
             Wrap(
               spacing: 8,
@@ -352,6 +356,68 @@ class BookDetailPage extends GetView<LibraryController> {
         ),
       ),
     );
+  }
+
+  /// Bitirme hedefi satırları; hedef yoksa boş liste (hiçbir şey çizilmez).
+  ///
+  /// - Devam eden/başlanmamış kitap: hedef tarihi + kalan takvim günü +
+  ///   günde okunması gereken sayfa (hesaplanabiliyorsa). Tarihi geçmişse
+  ///   gecikme günleri hata rengiyle vurgulanır.
+  /// - Bitmiş kitap: hedefe göre sonuç (kaç gün önce/aşılarak bitildi).
+  List<Widget> _goalLines(ThemeData theme, BookModel book) {
+    final target = book.targetFinishDate;
+    if (target == null) return const [];
+
+    if (book.status == ReadingStatus.finished) {
+      final diff = ReadingGoal.finishedAgainstTarget(book);
+      if (diff == null) return const [];
+      final text = diff > 0
+          ? 'Bitirme hedefi: ${formatDate(target)} • '
+              'hedefinden $diff gün önce bitirdin'
+          : diff < 0
+              ? 'Bitirme hedefi: ${formatDate(target)} • '
+                  'hedefi ${-diff} gün aştın'
+              : 'Bitirme hedefi: ${formatDate(target)} • hedef gününde bitti';
+      return [
+        const SizedBox(height: 4),
+        Text(text, style: theme.textTheme.bodySmall),
+      ];
+    }
+
+    final days = ReadingGoal.daysLeft(target, DateTime.now());
+    final small = theme.textTheme.bodySmall;
+    if (days < 0) {
+      return [
+        const SizedBox(height: 4),
+        Text(
+          'Bitirme hedefi: ${formatDate(target)} • ${-days} gün gecikti',
+          style: small?.copyWith(
+            color: theme.colorScheme.error,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ];
+    }
+
+    final perDay = ReadingGoal.pagesPerDay(book, DateTime.now());
+    return [
+      const SizedBox(height: 4),
+      Text(
+        'Bitirme hedefi: ${formatDate(target)} • '
+        '${days == 0 ? "son gün!" : "$days gün kaldı"}',
+        style: days == 0
+            ? small?.copyWith(
+                color: theme.colorScheme.error,
+                fontWeight: FontWeight.w600,
+              )
+            : small,
+      ),
+      if (perDay != null)
+        Text(
+          'Hedefe yetişmek için günde ~$perDay sayfa okumalısın',
+          style: small,
+        ),
+    ];
   }
 
   void _confirmDelete(BookModel book) {

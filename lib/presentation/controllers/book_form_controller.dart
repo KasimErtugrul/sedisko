@@ -44,6 +44,11 @@ class BookFormController extends GetxController {
   final status = ReadingStatus.notStarted.obs;
   final startedAt = Rxn<DateTime>();
   final finishedAt = Rxn<DateTime>();
+
+  /// Bitirme hedefi: kitabı hangi tarihe kadar bitirmek istiyorsun.
+  /// İsteğe bağlıdır; kayıtta [BookModel.targetFinishDate]'e yazılır.
+  final targetFinishDate = Rxn<DateTime>();
+
   final coverUrl = RxnString();
 
   /// Çekilen/seçilen kitap fotoğrafının kalıcı yolu; kayıtta
@@ -93,6 +98,7 @@ class BookFormController extends GetxController {
     status.value = book.status;
     startedAt.value = book.startedAt;
     finishedAt.value = book.finishedAt;
+    targetFinishDate.value = book.targetFinishDate;
     coverUrl.value = book.coverUrl;
     coverPath.value = book.coverPath;
     _originalCoverPath = book.coverPath;
@@ -237,6 +243,24 @@ class BookFormController extends GetxController {
     if (picked != null) target.value = picked;
   }
 
+  /// Bitirme hedefi: gelecekte bir tarih seçilir; geçmiş tarih seçilemez
+  /// (hedefin anlamı bu). Temizleme [clearTargetDate] ile yapılır.
+  Future<void> pickTargetDate(BuildContext context) async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: targetFinishDate.value ?? today.add(const Duration(days: 30)),
+      firstDate: today,
+      lastDate: today.add(const Duration(days: 365 * 10)),
+      helpText: 'Bitirme hedefi seç',
+    );
+    if (picked != null) targetFinishDate.value = picked;
+  }
+
+  /// Bitirme hedefini kaldırır.
+  void clearTargetDate() => targetFinishDate.value = null;
+
   // ---------- Kaydet ----------
 
   Future<void> save() async {
@@ -280,6 +304,7 @@ class BookFormController extends GetxController {
       notes: _nullIfEmpty(notesCtrl.text),
       isManual: _isManual,
       isFavorite: isFavorite.value,
+      targetFinishDate: targetFinishDate.value,
       addedAt: _addedAt,
     );
 

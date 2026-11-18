@@ -92,11 +92,13 @@ void main() {
     expect(find.text('Raflar').hitTestable(), findsOneWidget);
     expect(find.text('Ayarlar').hitTestable(), findsOneWidget);
 
-    // Ana Sayfa açılışta seçilidir: özet + tüm kitaplar listesi.
+    // Ana Sayfa açılışta seçilidir: özet + bölüm şeritleri ("Tüm kitaplar"
+    // listesi ana sayfadan kaldırıldı; tam kitaplık Raflar sekmesindeki
+    // "Tüm kitaplar" kartından açılır).
     expect(find.text('Toplam'), findsOneWidget);
     expect(find.text('Okunuyor'), findsOneWidget);
     expect(find.text('Bitti'), findsOneWidget);
-    expect(find.text('Tüm kitaplar'), findsWidgets);
+    expect(find.text('Favoriler'), findsWidgets);
 
     // Ayarlar sekmesi kapalıyken içerik görünür değil (IndexedStack offstage).
     expect(find.text('Görünüm').hitTestable(), findsNothing);

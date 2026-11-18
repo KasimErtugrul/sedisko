@@ -41,6 +41,9 @@ BookModel seed({
   bool favorite = false,
   String notes = '',
   ReadingStatus status = ReadingStatus.notStarted,
+  int pageCount = 0,
+  int currentPage = 0,
+  DateTime? target,
 }) {
   return BookModel(
     id: id,
@@ -50,7 +53,10 @@ BookModel seed({
     isFavorite: favorite,
     notes: notes.isEmpty ? null : notes,
     status: status,
+    pageCount: pageCount,
+    currentPage: currentPage,
     startedAt: status == ReadingStatus.notStarted ? null : DateTime(2026, 1, 2),
+    targetFinishDate: target,
   );
 }
 
@@ -73,6 +79,8 @@ void main() {
         title: 'Şeker Portakalı',
         status: ReadingStatus.reading,
         notes: 'Bölüm özetleri burada',
+        pageCount: 200,
+        currentPage: 50,
       ),
       seed(id: 'b3', title: 'Dönüşüm', notes: 'Gregor hikâyesi'),
       seed(id: 'b4', title: 'Hayvan Çiftliği', status: ReadingStatus.finished),
@@ -98,42 +106,77 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('özet satırı ve tüm kitaplar listesi görünür', (tester) async {
+  testWidgets('özet satırı ve bölüm şeritleri görünür', (tester) async {
     await pumpHome(tester);
 
     expect(find.text('Toplam'), findsOneWidget);
     expect(find.text('Okunuyor'), findsOneWidget);
     expect(find.text('Bitti'), findsOneWidget);
-    // 'Simyacı' favoriler şeridinde, 'Tüm kitaplar' listesinde de vardır.
-    expect(find.text('Simyacı'), findsWidgets);
-    expect(find.text('Tüm kitaplar'), findsOneWidget);
-    expect(find.text('Hayvan Çiftliği'), findsOneWidget);
-  });
-
-  testWidgets('dolu bölümler başlık ve yatay şerit gösterir', (tester) async {
-    await pumpHome(tester);
-
     expect(find.text('Devam eden kitaplar'), findsOneWidget);
     expect(find.text('Favoriler'), findsOneWidget);
     expect(find.text('Not aldıkların'), findsOneWidget);
-
-    // Favori kapak kartında kalp rozeti vardır.
-    expect(find.byIcon(Icons.favorite), findsWidgets);
   });
 
-  testWidgets('dolu olmayan bölümler listeye girmez', (tester) async {
-    // Favori, okunuyor ve notlu kitapları sil; yalnız bitmiş kitap kalsın.
+  testWidgets("'Tüm kitaplar' bölümü ana sayfada artık yok", (tester) async {
+    await pumpHome(tester);
+
+    // Bölüm başlığı kaldırıldı; tam kitaplık Raflar > Tüm kitaplar
+    // kartından açılır. 'Hayvan Çiftliği' (bitmiş, not/favori/okuma
+    // yok) hiçbir bölümde yok; 'Dönüşüm' notlu olduğu için yine
+    // "Not aldıkların" şeridinde görünür.
+    expect(find.text('Tüm kitaplar'), findsNothing);
+    expect(find.text('Hayvan Çiftliği'), findsNothing);
+    expect(find.text('Dönüşüm'), findsOneWidget);
+  });
+
+  testWidgets('favori olmasa da Favoriler bölümü ipucuyla görünür',
+      (tester) async {
+    // Favoriyi kaldır; bölüm yine de görünmeli, yönlendirme metniyle.
     await Get.find<LibraryController>().deleteBook('b1');
-    await Get.find<LibraryController>().deleteBook('b2');
-    await Get.find<LibraryController>().deleteBook('b3');
 
     await pumpHome(tester);
 
-    expect(find.text('Devam eden kitaplar'), findsNothing);
-    expect(find.text('Favoriler'), findsNothing);
-    expect(find.text('Not aldıkların'), findsNothing);
-    expect(find.text('Tüm kitaplar'), findsOneWidget);
-    expect(find.text('Hayvan Çiftliği'), findsOneWidget);
+    expect(find.text('Favoriler'), findsOneWidget);
+    expect(find.textContaining('Henüz favori kitabın yok'), findsOneWidget);
+  });
+
+  testWidgets('bitirme hedefi olan kitaplar hedef şeridinde sıralanır',
+      (tester) async {
+    // b2: yakın hedef (2026-07-01), b3: uzak hedef (2026-12-31), b1: bitmiş
+    // + hedefli (hedef şeridine girmez).
+    repository.store.add(seed(
+      id: 'b5',
+      title: 'Hedefli Bitmiş',
+      status: ReadingStatus.finished,
+      target: DateTime(2026, 2, 1),
+    ));
+    await Get.find<LibraryController>().loadBooks();
+    // Hedefleri kur (store'da id ile hedefli kayıtları güncelle).
+    final controller = Get.find<LibraryController>();
+    await controller.saveBook(
+      controller.byId('b2')!.copyWith(targetFinishDate: DateTime(2026, 7, 1)),
+      deriveLog: false,
+    );
+    await controller.saveBook(
+      controller.byId('b3')!.copyWith(targetFinishDate: DateTime(2026, 12, 31)),
+      deriveLog: false,
+    );
+
+    await pumpHome(tester);
+
+    expect(find.text('Bitirme hedefleri'), findsOneWidget);
+    // Bitmiş kitap hedef şeridine girmez.
+    expect(find.text('Hedefli Bitmiş'), findsNothing);
+  });
+
+  testWidgets('en çok sayfalı kitaplar bölümü azalan sıralıdır',
+      (tester) async {
+    await controllerSetupPages(tester);
+
+    expect(find.text('En çok sayfalı kitaplar'), findsOneWidget);
+    // Şerit kartlarında ilerleme görünür; b2 üç şeritte birden vardır
+    // (Devam eden + En çok sayfalı + Not aldıkların).
+    expect(find.text('Sayfa 50/200'), findsNWidgets(3));
   });
 
   testWidgets('arama yazılınca bölümler yerine sonuç listesi çıkar',
@@ -164,4 +207,18 @@ void main() {
       findsOneWidget,
     );
   });
+}
+
+/// Sayfa sayıları olan ikinci bir senaryo kurar ve ana sayfayı pompalar.
+Future<void> controllerSetupPages(WidgetTester tester) async {
+  final controller = Get.find<LibraryController>();
+  await controller.saveBook(
+    controller.byId('b1')!.copyWith(pageCount: 480),
+    deriveLog: false,
+  );
+  tester.view.physicalSize = const Size(400, 1600);
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.reset);
+  await tester.pumpWidget(GetMaterialApp(home: const HomePage()));
+  await tester.pumpAndSettle();
 }

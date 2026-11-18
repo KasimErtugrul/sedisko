@@ -2,9 +2,16 @@ import 'package:flutter/material.dart';
 
 import '../../core/utils/date_formatter.dart';
 import '../../data/models/book_model.dart';
+import '../../domain/services/reading_goal.dart';
 import '../utils/app_haptics.dart';
 import 'cover_image.dart';
 
+/// Tüm liste kartlarında kullanılan zengin kitap satırı.
+///
+/// Kullanıcı isteğiyle kartlar artık kitaba ve rafa ilişkin tüm bilgileri
+/// tek bakışta gösterir: kapak, başlık, yazar(lar), raf, yayınevi, basım
+/// yılı, sayfa sayısı, okuma durumu/sayfa/tarihler ve varsa bitirme
+/// hedefi (kalan gün + günlük sayfa planı ya da gecikme uyarısı).
 class BookTile extends StatelessWidget {
   const BookTile({
     super.key,
@@ -71,14 +78,85 @@ class BookTile extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.bodyMedium,
                       ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _metaLine(),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: theme.colorScheme.outline),
+                    ),
                     const SizedBox(height: 6),
                     _statusBlock(theme),
+                    if (_goalText() != null) ...[
+                      const SizedBox(height: 4),
+                      _goalLine(theme),
+                    ],
                   ],
                 ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  /// Raf + yayınevi + basım + sayfa sayısı özeti; olmayan alanlar atlanır.
+  String _metaLine() {
+    final parts = <String>[
+      book.shelf.trim().isEmpty ? 'Rafsız' : 'Raf: ${book.shelf.trim()}',
+      if (book.publisher != null && book.publisher!.trim().isNotEmpty)
+        book.publisher!,
+      if (book.publishDate != null && book.publishDate!.trim().isNotEmpty)
+        'Basım: ${book.publishDate}',
+      if (book.pageCount > 0) '${book.pageCount} sayfa',
+    ];
+    return parts.join(' • ');
+  }
+
+  /// Bitirme hedefi metni; hedef yoksa ya da anlamlı değilse `null`.
+  /// Bitmemiş kitapta kalan gün (+ günlük plan/gecikme), bitmiş kitapta
+  /// hedefe göre sonuç gösterilir.
+  String? _goalText() {
+    final target = book.targetFinishDate;
+    if (target == null) return null;
+    final now = DateTime.now();
+
+    if (book.status == ReadingStatus.finished) {
+      final diff = ReadingGoal.finishedAgainstTarget(book);
+      if (diff == null) return null;
+      if (diff > 0) return 'Hedefinden $diff gün önce bitirdin';
+      if (diff < 0) return 'Hedefi ${-diff} gün aştın';
+      return 'Hedef gününde bitti';
+    }
+
+    final days = ReadingGoal.daysLeft(target, now);
+    if (days < 0) return 'Hedef: ${formatDate(target)} • ${-days} gün gecikti';
+    if (days == 0) {
+      return 'Hedef: bugün (${formatDate(target)})';
+    }
+    final perDay = ReadingGoal.pagesPerDay(book, now);
+    return perDay == null
+        ? 'Hedef: ${formatDate(target)} • $days gün kaldı'
+        : 'Hedef: ${formatDate(target)} • $days gün • günde ~$perDay sayfa';
+  }
+
+  /// Hedef satırı; gecikmişse dikkat çekmek için hata rengiyle yazılır.
+  Widget _goalLine(ThemeData theme) {
+    final text = _goalText()!;
+    final overdue =
+        book.status != ReadingStatus.finished && ReadingGoal.isOverdue(
+      book,
+      DateTime.now(),
+    );
+    return Text(
+      text,
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      style: theme.textTheme.bodySmall?.copyWith(
+        color: overdue ? theme.colorScheme.error : null,
+        fontWeight: overdue ? FontWeight.w600 : null,
       ),
     );
   }

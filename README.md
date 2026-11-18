@@ -411,15 +411,62 @@ flutter test
     sıfırlama test gövdesi içinde `try/finally` ile yapılır — eski ve yeni
     SDK'larda aynı şekilde güvenlidir. Uygulama kodunda değişiklik yoktur.
 
+### Yeni özellikler (1.8.0)
+
+42. **Tüm kartlar tam bilgi gösterir** — kullanıcı isteğiyle uygulama
+    içindeki her kart artık kitaba ve rafa ilişkin tüm bilgileri tek
+    bakışta veriyor:
+    - **Kitap satır kartları** (raf sayfası, arama sonuçları, yazar
+      görünümü): başlık ve yazarın altında birleşik bilgi satırı — raf
+      ("Rafsız" dahil), yayınevi, basım yılı, sayfa sayısı. Altında okuma
+      durumu bloğu ve varsa bitirme hedefi satırı (gecikmişse hata
+      rengiyle vurgulu).
+    - **Ana sayfa kapak kartları** (şeritler): kapak altında başlık +
+      yazar + durum/sayfa ("Sayfa 50/200", "320 sayfa", "Bitti • tarih") +
+      raf satırı.
+    - **Raf kartları** (Raflar sekmesi): artık yalnız ad + sayı değil;
+      kitap sayısının altında "N okunuyor" ve "N bitti" kırılımı
+      ("Tüm kitaplar" kartında genel kırılım).
+
+43. **Bitirme hedefi** — kitaba "bu tarihe kadar bitireceğim" hedefi
+    konabiliyor:
+    - Formda "Bitirme hedefi (isteğe bağlı)" alanı: dokun → gelecek tarih
+      seç (geçmiş tarih seçilemez), temizleme düğmesiyle kaldırılır.
+      Kayıtta `targetFinishDate` alanına yazılır; eski kayıtlarda boş
+      gelir.
+    - **Detay sayfası:** hedefe kalan takvim günü ve günde okunması
+      gereken sayfa planı ("günde ~20 sayfa okumalısın"); hedef günü
+      "son gün!" uyarısı; tarihi geçen kitapta kaç gün geciktiği hata
+      rengiyle gösterilir. Bitmiş kitapta hedefe göre sonuç: "hedefinden
+      4 gün önce bitirdin" / "hedefi 3 gün aştın".
+    - **Ana sayfa "Bitirme hedefleri" şeridi:** hedefli, bitmemiş kitaplar
+      en yakın hedef önce (gecikenler en başta); kartlarda geri sayım
+      ("12 gün kaldı" / "3 gün gecikti").
+    - **Kartlarda:** hedef tarihi + kalan gün + günlük sayfa planı tek
+      satırda; gecikme vurgulu.
+    - Hesaplar takvim günü bazlıdır (`ReadingGoal` servisi, enjekte
+      edilebilir saat): testler ve uygulama günün hangi saatinde
+      çalışırsa çalışsın aynı sonucu verir.
+
+44. **Ana sayfa düzeni yenilendi** —
+    - **"Tüm kitaplar" listesi ana sayfadan kaldırıldı:** tam kitaplık
+      artık Raflar sekmesindeki "Tüm kitaplar" kartından açılır. Ana
+      sayfa özet + bölüm şeritlerine odaklandı; sıralama çıktısı arama
+      sonuçları ve genel kitaplar sayfasında geçerlidir.
+    - **"Favoriler" bölümü daima görünür:** hiç kitap favorilenmemişse
+      bile bölüm başlığıyla birlikte "Henüz favori kitabın yok" ipucu
+      kartı gösterilir; favorileştirmeyi keşfettirir.
+    - **"En çok sayfalı kitaplar" şeridi:** sayfa sayısı bilinen en kalın
+      10 kitap azalan sıralı (eşitlikte kitap adı, kararlı sıra).
+
 ## Sürüm notları
 
-`pubspec.yaml` sürümü `1.7.1+11`'e yükseltildi; 1.7.1 yalnızca yukarıdaki
-41 numaralı test düzeltmesini içerir, uygulama davranışı 1.7.0 ile aynıdır.
-Depolama anahtarları
+`pubspec.yaml` sürümü `1.8.0+12`'ye yükseltildi. Depolama anahtarları
 (`books_v1` ve `settings_*`) değişmedi: mevcut kullanıcılar kitaplıklarını
 kaybetmez; okuma günlüğü alanı (`readingLog`) eski kayıtlarda boş gelir ve
 ilk kayıttan itibaren derlenmeye başlar; `isFavorite` eski kayıtlarda
-`false` gelir; `coverPath` eski kayıtlarda boş gelir. Raf taşıma ve favori
+`false` gelir; `coverPath` ve bitirme hedefi (`targetFinishDate`) eski
+kayıtlarda boş gelir. Raf taşıma ve favori
 çevrimi günlük türetmez; yalnız okuma durumu/sayfa değişimleri günlüğe
 yazar. Sıralama tercihi oturum içindedir; uygulama her açılışta kitap adı
 artan varsayılanıyla başlar.

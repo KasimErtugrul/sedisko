@@ -43,8 +43,8 @@ class LibraryController extends GetxController {
 
   /// Aktif sıralama alanı ve yönü. Varsayılan: kitap adı artan.
   /// `books` listesinin kendi raf/ada düzeni (ana sayfa bölümleri ve
-  /// raf kartlarının beklediği) korunur; sıralama yalnız [filteredBooks]
-  /// ve [sortedAll] çıktısına uygulanır.
+  /// raf kartlarının beklediği) korunur; sıralama [filteredBooks] ve
+  /// [sortedAll] çıktısına uygulanır.
   final sortField = BookSortField.title.obs;
   final sortAscending = true.obs;
 
@@ -130,9 +130,8 @@ class LibraryController extends GetxController {
     return result;
   }
 
-  /// Kitaplığın tamamı, aktif sıralamayla (ana sayfa "Tüm kitaplar"
-  /// bölümü). Arama/durum filtreleri uygulanmaz; bu bölüm daima tam
-  /// listeyi gösterir.
+  /// Kitaplığın tamamı, aktif sıralamayla. Arama/durum filtreleri
+  /// uygulanmaz; daima tam listeyi verir (testler ve genel sorgular için).
   List<BookModel> get sortedAll {
     final list = books.toList();
     BookSorter.sort(list, sortField.value, sortAscending.value);
@@ -223,6 +222,60 @@ class LibraryController extends GetxController {
   /// Notu olan kitaplar (ana sayfa "Not aldıkların" şeridi).
   List<BookModel> get notedBooks =>
       books.where((b) => (b.notes ?? '').trim().isNotEmpty).toList();
+
+  /// Bitirme hedefi koymuş, henüz bitmemiş kitaplar (ana sayfa "Bitirme
+  /// hedefleri" şeridi). En yakın hedef önce; tarihi geçenler en başta
+  /// (gecikme en acil) görünür. Aynı tarihliler kitap adına göre
+  /// sıralanır: liste her kurulumda aynı sırayla gelir.
+  List<BookModel> get goalBooks {
+    final list = books
+        .where((b) =>
+            b.targetFinishDate != null && b.status != ReadingStatus.finished)
+        .toList();
+    list.sort((a, b) {
+      final byDate = a.targetFinishDate!.compareTo(b.targetFinishDate!);
+      if (byDate != 0) return byDate;
+      return TextNormalizer.compareTr(a.title, b.title);
+    });
+    return list;
+  }
+
+  /// Sayfa sayısı bilinen en kalın kitaplar (ana sayfa "En çok sayfalı
+  /// kitaplar" şeridi). Azalan sayfa sayısı; eşitlikte kitap adı, o da
+  /// eşitse id (kararlı sıra). En fazla 10 kitap döner.
+  List<BookModel> get longestBooks {
+    final list = books.where((b) => b.pageCount > 0).toList();
+    list.sort((a, b) {
+      final byPages = b.pageCount.compareTo(a.pageCount);
+      if (byPages != 0) return byPages;
+      final byTitle = TextNormalizer.compareTr(a.title, b.title);
+      if (byTitle != 0) return byTitle;
+      return a.id.compareTo(b.id);
+    });
+    return list.take(10).toList();
+  }
+
+  /// [shelfKey] rafındaki okumada olan kitap sayısı ('Rafsız' dahil).
+  /// Raf kartlarının zengin özetinde kullanılır.
+  int shelfReadingCount(String shelfKey) => _shelfStatusCount(
+        shelfKey,
+        (b) => b.status == ReadingStatus.reading,
+      );
+
+  /// [shelfKey] rafındaki bitmiş kitap sayısı ('Rafsız' dahil).
+  int shelfFinishedCount(String shelfKey) => _shelfStatusCount(
+        shelfKey,
+        (b) => b.status == ReadingStatus.finished,
+      );
+
+  int _shelfStatusCount(String shelfKey, bool Function(BookModel) test) {
+    if (shelfKey == 'Rafsız') {
+      return books
+          .where((b) => b.shelf.trim().isEmpty && test(b))
+          .length;
+    }
+    return books.where((b) => b.shelf.trim() == shelfKey && test(b)).length;
+  }
 
   /// Okumada olan kitaplar (ana sayfa "Devam eden kitaplar" şeridi).
   List<BookModel> get readingBooks =>
