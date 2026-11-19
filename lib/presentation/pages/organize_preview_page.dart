@@ -1,0 +1,263 @@
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+
+import '../../data/models/book_model.dart';
+import '../../data/models/shelf_model.dart';
+import '../../domain/services/shelf_planner.dart';
+import '../controllers/shelf_organize_controller.dart';
+import '../routes/app_routes.dart';
+import '../widgets/organize/capacity_bar.dart';
+
+/// Hedef düzenin önizlemesi: raf raf, hangi kitaplar nerede olacak.
+///
+/// Bu sayfa HİÇBİR ŞEY YAZMAZ; kullanıcı "Taşıma planını oluştur" düğmesine
+/// basana kadar kitapların raf ataması değişmez. Uyarılar (taşan grup,
+/// kapasite yetersizliği) en üstte turuncu bandla gösterilir.
+class OrganizePreviewPage extends StatelessWidget {
+  const OrganizePreviewPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = Get.find<ShelfOrganizeController>();
+    return Scaffold(
+      appBar: AppBar(title: const Text('Hedef düzen (önizleme)')),
+      body: Obx(() {
+        final arrangement = controller.preview.value;
+        if (arrangement == null) {
+          return const Center(child: Text('Önizleme yok. Kuruluma dön.'));
+        }
+
+        return Column(
+          children: [
+            if (arrangement.warnings.isNotEmpty)
+              _WarningsBanner(warnings: arrangement.warnings),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+                children: [
+                  for (final planned in arrangement.shelves)
+                    _PlannedShelfCard(planned: planned),
+                  if (arrangement.unplaced.isNotEmpty)
+                    _UnplacedCard(books: arrangement.unplaced),
+                  Text(
+                    'Kitap sırası, rafta fiziksel diziliş sırasıdır. '
+                    'Beğenmediysen geri dönüp kriteri değiştirebilirsin.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  key: const ValueKey('organize-create-plan'),
+                  onPressed: () => _createPlan(context, controller),
+                  icon: const Icon(Icons.route),
+                  label: const Text('Taşıma planını oluştur'),
+                ),
+              ),
+            ),
+          ],
+        );
+      }),
+    );
+  }
+
+  Future<void> _createPlan(
+    BuildContext context,
+    ShelfOrganizeController controller,
+  ) async {
+    await controller.createPlan();
+    if (controller.plan.value == null) {
+      Get.snackbar(
+        'Taşınacak kitap yok',
+        'Kitaplar zaten hedef düzende; plan üretilmedi.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+    Get.offNamed(Routes.organizePlan);
+  }
+}
+
+class _WarningsBanner extends StatelessWidget {
+  const _WarningsBanner({required this.warnings});
+
+  final List<String> warnings;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: scheme.tertiaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (final warning in warnings)
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.info_outline, size: 18, color: scheme.onTertiaryContainer),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      warning,
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(color: scheme.onTertiaryContainer),
+                    ),
+                  ),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Tek rafın planı: başlık (ad + yer + doluluk) ve kitap listesi.
+class _PlannedShelfCard extends StatelessWidget {
+  const _PlannedShelfCard({required this.planned});
+
+  final PlannedShelf planned;
+
+  bool get _isMix =>
+      planned.shelf.name == ShelfModel.mixShelfName;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      key: ValueKey('planned-${planned.shelf.name}'),
+      margin: const EdgeInsets.only(bottom: 10),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  _isMix ? Icons.folder_special_outlined : Icons.shelves,
+                  color: _isMix ? scheme.tertiary : scheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _isMix
+                        ? '${planned.shelf.name} (plan üretti)'
+                        : planned.shelf.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                if (planned.shelf.location.isNotEmpty)
+                  Flexible(
+                    child: Text(
+                      planned.shelf.location,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            CapacityBar(
+              count: planned.count,
+              capacity: planned.shelf.capacity,
+              dense: true,
+            ),
+            const Divider(height: 16),
+            if (planned.books.isEmpty)
+              Text(
+                'Bu raf boş kalacak.',
+                style: Theme.of(context).textTheme.bodySmall,
+              )
+            else
+              for (var i = 0; i < planned.books.length; i++)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 24,
+                        child: Text(
+                          '${i + 1}.',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
+                      Expanded(
+                        child: Text(
+                          planned.books[i].title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Flexible(
+                        child: Text(
+                          planned.books[i].authorsText,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _UnplacedCard extends StatelessWidget {
+  const _UnplacedCard({required this.books});
+
+  final List<BookModel> books;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      key: const ValueKey('planned-unplaced'),
+      margin: const EdgeInsets.only(bottom: 10),
+      color: scheme.errorContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.error_outline, color: scheme.error),
+                const SizedBox(width: 8),
+                Text(
+                  '${books.length} kitap hiçbir rafa sığmadı',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Yeni raf ekleyip yeniden planla; bu kitaplar şimdilik '
+              'mevcut yerlerinde kalacak.',
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: scheme.onErrorContainer),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '../../core/utils/text_normalizer.dart';
 import '../../data/models/book_model.dart';
 import '../controllers/library_controller.dart';
+import '../controllers/shelf_organize_controller.dart';
 
 /// Raf seçim alt sayfası: mevcut raflar + 'Rafsız' + 'Yeni raf...'.
 ///
@@ -24,10 +25,47 @@ Future<String?> showShelfPickerSheet(
 
 /// [book] için raf seç ve taşı; başarıda bilgi balonu göster.
 /// İptal ya da aynı raf seçiminde hiçbir şey yapmaz.
+///
+/// Raf tanımı varsa kapasite denetlenir (kullanıcı kararı: uyarılı
+/// taşıma): dolu raf 'Raf doluyor (50/50)' uyarısıyla yine de kabul edilir.
 Future<void> pickShelfAndMove(BuildContext context, BookModel book) async {
   final shelf = await showShelfPickerSheet(context, currentShelf: book.shelf);
   if (shelf == null) return; // İptal
   if (shelf.trim() == book.shelf.trim()) return; // Aynı raf, işlem yok
+
+  if (shelf.trim().isNotEmpty &&
+      Get.isRegistered<ShelfOrganizeController>()) {
+    final organize = Get.find<ShelfOrganizeController>();
+    final definition = organize.shelfByName(shelf);
+    if (definition != null) {
+      final count = organize.shelfCount(shelf);
+      final isFull = count >= definition.capacity;
+      final movingBack = TextNormalizer.searchKey(book.shelf.trim()) !=
+          TextNormalizer.searchKey(shelf.trim());
+      if (isFull && movingBack) {
+        final confirmed = await Get.dialog<bool>(
+          AlertDialog(
+            title: const Text('Raf doluyor'),
+            content: Text(
+              '"${definition.name}" rafı dolu ($count/${definition.capacity}). '
+              'Yine de taşısın mı?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Get.back(result: false),
+                child: const Text('Vazgeç'),
+              ),
+              FilledButton(
+                onPressed: () => Get.back(result: true),
+                child: const Text('Yine de taşı'),
+              ),
+            ],
+          ),
+        );
+        if (confirmed != true) return;
+      }
+    }
+  }
 
   final controller = Get.find<LibraryController>();
   final ok = await controller.moveToShelf(book, shelf);
@@ -50,6 +88,11 @@ class _ShelfPickerSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = Get.find<LibraryController>();
     final current = (currentShelf ?? '').trim();
+    // Kapasite göstergeleri yalnız raf tanımları varken eklenir; asistan
+    // kayıtlı değilse (eski testler) liste aynı kalır.
+    final organize = Get.isRegistered<ShelfOrganizeController>()
+        ? Get.find<ShelfOrganizeController>()
+        : null;
 
     return SafeArea(
       child: ListView(
@@ -67,7 +110,7 @@ class _ShelfPickerSheet extends StatelessWidget {
             ListTile(
               leading: const Icon(Icons.shelves),
               title: Text(shelf),
-              trailing: shelf == current ? const Icon(Icons.check) : null,
+              trailing: _trailing(context, organize, shelf, current),
               onTap: () => Navigator.pop(context, shelf),
             ),
           ListTile(
@@ -89,6 +132,32 @@ class _ShelfPickerSheet extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  /// Satır sonu: tanımlı rafta doluluk göstergesi ('2/50'), tanımsızda
+  /// ya da mevcut rafta yalnız onay işareti.
+  Widget? _trailing(
+    BuildContext context,
+    ShelfOrganizeController? organize,
+    String shelf,
+    String current,
+  ) {
+    final checked = shelf == current ? const Icon(Icons.check) : null;
+    if (organize == null) return checked;
+    final definition = organize.shelfByName(shelf);
+    if (definition == null) return checked;
+    final count = organize.shelfCount(shelf);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          '$count/${definition.capacity}',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        const SizedBox(width: 8),
+        if (checked != null) checked,
+      ],
     );
   }
 

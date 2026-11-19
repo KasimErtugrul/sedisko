@@ -650,26 +650,111 @@ flutter test
     hedef metinleriyle kurulurken tek taşma bile istisna düşmez.
     Ayarlar, palet ve ölçek seçici widget'ları `Wrap`/`ChoiceChip` ile
     dar ekranda alt alta sarılır; hiçbir satır sabit genişlik varsaymaz.
+54. **Raf düzeni asistanı (hedef düzen + fiziksel taşıma planı)** —
+    kullanıcı isteği: "yazarları bir rafta birleştireyim / yayınevine
+    göre / isme göre / sayfa sayısına göre; 50 kitaplık rafa 80 kitabı
+    birleştirmemeli; raflar taşmamalı veya eksik kalmamalı" ve "uygulama
+    dese ki şu raflardaki şu kitapları şu rafa taşı — ev iki katlı, her
+    kitap için in çık yapmak istemiyorum".
+    - **Raf tanımları** (`shelves_v1`): ad + kapasite (kitap sayısı) +
+      serbest yer etiketi ('Alt kat', 'Üst kat', …) + fiziksel sıra.
+      Hızlı kurulum tek kapasiteyle 'Raf 1..N' açar; kitaplardaki mevcut
+      raf adları ilk açılışta varsayılan kapasiteyle içe aktarılır. Raf
+      adı değişirse kitaplara sirayet eder. Kitap ataması hâlâ
+      `books_v1`'in `shelf` alanında; kitap verisi değişmez.
+    - **Hedef düzen** (`domain/services/shelf_planner.dart`): yazar/
+      yayınevi modunda gruplar kitap sayısı **çoktan aza** sıralanır
+      (eşitlikte Türkçe alfabe) ve her grup BÜTÜN halinde ilk sığan rafa
+      yerleşir (first-fit); küçük sonraki grup önceki rafın boşluğuna
+      geri döner (raflar dolu kalır). En büyük raf kapasitesini aşan
+      grup: sığan kadarı rafda, artığı 'Karışık kitaplar' rafında.
+      İsim/sayfa modunda kitaplar akış gibi dizilir (A→Z, ince→kalın;
+      eksik bilgi sonda), raf dolunca sıradakine geçilir. Hiçbir raf
+      kapasitesini aşmaz; plan aynı girdiden aynı sonucu üretir.
+    - **Fiziksel taşıma planı** (`domain/services/move_plan_builder.dart`):
+      hedef düzenle mevcut durumun farkı tur tur yürüyüş senaryosuna
+      çevrilir. Tur = tek yer (kat): aynı etiketli rafların işi tek
+      turda toplanır, yer değişimi yalnız yığın başka yere gideceği
+      zaman olur. Raf ziyaretinde "önce çıkanları AL, sonra gelenleri
+      KOY" sırası korunur; elde taşınabilecek kitap sınırı (varsayılan
+      10) aşılırsa alım aynı turun devamında bölünür. Plan kalıcıdır
+      (`organize_plan_v1`); tur "Yaptım" işaretlendiğinde o turda KONAN
+      kitapların rafı anında güncellenir (alınıp yolda olanlar
+      yerleştikleri turda yazılır) — yarıda bırakılan plan "Yeniden
+      planla" ile mevcut gerçekten yeniden kurulur, iptal kitaplara
+      dokunmaz.
+    - **Akış:** Raflar sekmesinde davet kartı / ilerleme bandı → kurulum
+      (kriter + "Kitaplarımın tamamını girdim" onayı, tamlık onayı
+      verilmeden başlamaz) → hedef düzen önizlemesi (raf raf kitap
+      listesi + doluluk çubuğu; uyarılar en üstte; bir şey yazılmaz)
+      → taşıma planı (tur tur, emir emir, "Yaptım") → plan bittiğinde
+      anahtar silinir. Plandan sonra eklenen kitaplar "yeni gelenler"
+      olarak bildirilir.
+    - **Uyarılı elle taşıma:** raf seçicide tanımlı raflar artık
+      '2/50' doluluk gösterir; dolu raf seçilince "Raf doluyor (50/50)"
+      uyarısı çıkar, kullanıcı yine de taşıyabilir.
+
+### Yedekleme ve aktarım (1.14.0)
+
+55. **Kitaplık yedeği: tek dosya paylaş, tek dosyadan geri yükle** —
+    kullanıcı isteği: "eşimde de bu uygulama var; ev kütüphanesini tek tek
+    raf raf girdi. Keşke WhatsApp'tan bu veritabanını bir dosya halinde
+    gönderebilse de bende tek tek uğraşmasam."
+    - **Paylaş** (Ayarlar → Yedekleme ve aktarım): tüm kitaplar
+      (`books_v1`) ve raf tanımları (`shelves_v1`) tek bir
+      `kitapligim_yedek_<tarih>_<saat>.json` dosyasına yazılır ve
+      sistem paylaşım menüsü açılır (WhatsApp, e-posta…). Dosya zarfı
+      format etiketi (`kitapligim-yedek`) + sürüm taşır; kitaplık
+      boşken paylaşım yapılmaz.
+    - **İçe aktar**: WhatsApp'tan indirilen dosya seçilir; içerik uçtan
+      uca doğrulanır (etiket/sürüm kontrolü + her kitap ve raf kaydının
+      tek tek doğrulanması — bozuk tek kayıt tüm dosyayı geçersiz kılar,
+      sessiz veri kaybı yok) ve kullanıcı kip seçer:
+      - **Birleştir**: mevcut kitaplar korunur; ISBN ya da başlık+yazar
+        eşleşmesi (Türkçe katlamayla: 'Dünya' = 'dunya') görenler
+        atlanır. Raf adları eşleşirse (büyük/küçük harf duyarsız) mevcut
+        raf aynen kullanılır ve kitabın raf alanı kanonik ada çekilir
+        ('roman' → 'Roman'); kimlik çakışmaları yeni kimlikle çözülür.
+      - **Üzerine yaz**: mevcut kitap ve raf tanımları silinip yedeğin
+        içeriği geri yüklenir; sürüyor olan taşıma planı sıfırlanır.
+        Kişisel tercihler (`settings_*`) her iki kipte de dokunulmaz.
+    - Doğrulama depoya yazmadan ÖNCE yapılır (başarısız içe aktarma
+      mevcut veriye dokunmaz); yazma başarılı olursa ana sayfa/Raflar
+      sekmesi anında yenilenir. Yedek dosyası tüm kitaplığı içerir;
+      alıcıyla paylaşırken dikkat edin.
 
 ## Sürüm notları
 
-`pubspec.yaml` sürümü `1.12.0+16`'ya yükseltildi. Kitaplık verisi
-(`books_v1`) değişmedi: mevcut kullanıcılar kitaplıklarını kaybetmez.
-Üç yeni ayar anahtarı eklendi (`settings_palette_id`,
-`settings_custom_seed`, `settings_text_scale`); bilinmeyen palet
-kimliği, aralık dışı ARGB ve geçersiz ölçek kademeleri açılışta
-savunmacı biçimde varsayılana düşer.
+**1.14.0:** `pubspec.yaml` sürümü `1.14.0+18`'e yükseltildi. Veri
+anahtarları (`books_v1`, `shelves_v1`, `organize_plan_v1`) ve biçimleri
+değişmedi: mevcut kullanıcılar kitaplıklarını kaybetmez. Yeni paketler:
+`share_plus` (sistem paylaşım menüsü — WhatsApp dahil) ve `file_picker`
+(yedek dosyası seçimi; tür filtresi bilinçli olarak serbest, doğrulama
+içerik üzerinden). Yedek zarfı (`kitapligim-yedek`, formatVersion 1)
+yalnız kitap + raf verisi taşır; taşıma planı ve tercihler cihazda
+kalır. "Üzerine yaz" eski taşıma planını sıfırlar; "Birleştir" plana
+dokunmaz (yeni kitaplar için "Yeniden planla" önerilir). Yeni testler:
+yedek zarfı ayrıştırma/ret, birleştirme/üzerine yazma kuralları, toplu
+yazma (addMany/replaceAll) ve denetleyici + ayarlar ekranı akışları;
+toplam 445 test.
 
-Dikkat: varsayılan palet, eski kahverengi tohumun yerine **mavi**
-tohumu kullanır — ilk açılışta renk değişikliği görülür; eski görünüm
-isteyen kullanıcı Ayarlar > Renk paleti > Özel yolundan kahverengi bir
-ton seçebilir. Yönelim kuralı: telefon en kısa kenarı 600 dp'nin altında
-olan cihazlarda dikeye kilitlenir, tabletlerde dört yön serbesttir.
-Yazı boyutu tercihi `TextScaler` ile tüm ekranlara koşulsuz sirayet
-eder; palet tercihi açık ve koyu temada ayrı ayrı türetilir. Okuma
-günlüğü (`readingLog`) eski kayıtlarda boş gelir ve ilk kayıttan
-itibaren derlenmeye başlar; ana sayfa bölümleri mevcut alanlardan
-(`addedAt`, `targetFinishDate`, `authors`, `shelf`, `finishedAt`)
-hesaplanır. "Bu ay bitirdiklerin" bölümü bitiş tarihi bilinen kayıtları
-sayar; bitiş tarihi girilmemiş eski kayıtlar bölüm ipucu kartıyla
-karşılanır.
+**1.13.0:** `pubspec.yaml` sürümü `1.13.0+17`'ye yükseltildi. Kitaplık verisi
+(`books_v1`) değişmedi: mevcut kullanıcılar kitaplıklarını kaybetmez.
+İki yeni anahtar eklendi: `shelves_v1` (raf tanımları: ad, kapasite,
+yer, sıra) ve `organize_plan_v1` (sürüyor olan taşıma planı; plan
+bitince/iptal edilince silinir). Bozuk kayıtlar açılışta savunmacı
+biçimde atlanır; bilinmeyen kriterli plan geçersiz sayılır.
+
+Raf düzeni asistanı tamamen kullanıcı kararıyla çalışır: grup modunda
+aynı yazar/yayınevi tek rafta birleşir ve yazarlar kitap sayısı çoktan
+azaya dizilir; en büyük raf kapasitesini aşan grubun artığı 'Karışık
+kitaplar' rafına gider. Akış modunda kitaplar kütüphane gibi dizilir.
+Taşıma planı evdeki işi emir emir anlatır: aynı kat tek turda, rafta
+önce çıkanlar alınır, tek elde en fazla 10 kitap taşınır. Ayarlar
+sayfasındaki sürüm satırı pubspec ile eşitlenerek 1.13.0'a getirildi
+(önceki sürümlerde 1.6.0'da kalmıştı). Okuma günlüğü (`readingLog`)
+eski kayıtlarda boş gelir ve ilk kayıttan itibaren derlenmeye başlar;
+ana sayfa bölümleri mevcut alanlardan (`addedAt`, `targetFinishDate`,
+`authors`, `shelf`, `finishedAt`) hesaplanır. "Bu ay bitirdiklerin"
+bölümü bitiş tarihi bilinen kayıtları sayar; bitiş tarihi girilmemiş
+eski kayıtlar bölüm ipucu kartıyla karşılanır.

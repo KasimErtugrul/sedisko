@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../controllers/backup_controller.dart';
 import '../controllers/settings_controller.dart';
 import '../widgets/appearance/palette_picker.dart';
 import '../widgets/appearance/text_scale_picker.dart';
@@ -100,6 +101,9 @@ class SettingsPage extends GetView<SettingsController> {
               subtitle: const Text('Tarama ve dokunuşlarda titreşim'),
             ),
           ),
+          const Divider(height: 24),
+          const _SectionHeader('Yedekleme ve aktarım'),
+          _BackupTiles(),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
             child: Text(
@@ -131,6 +135,42 @@ class _SectionHeader extends StatelessWidget {
               fontWeight: FontWeight.w600,
             ),
       ),
+    );
+  }
+}
+
+/// Yedekleme bölümü: paylaş + içe aktar.
+///
+/// Denetleyici BUILD sırasında aranmaz: Ayarlar sekmesi shell testlerinde
+/// denetleyicisi kayıtlı olmadan da kurulabilmelidir. Çözümleme dokunma
+/// anında yapılır; çift dokunma yine [BackupController.isBusy] ile engellenir.
+class _BackupTiles extends StatelessWidget {
+  const _BackupTiles();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        ListTile(
+          leading: const Icon(Icons.ios_share),
+          title: const Text('Yedeği paylaş (WhatsApp vb.)'),
+          subtitle: const Text(
+            'Tüm kitaplar ve raf tanımları tek dosyada. Paylaşım '
+            'menüsünden alıcıyı (örn. WhatsApp) seçin.',
+          ),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Get.find<BackupController>().exportAndShare(),
+        ),
+        ListTile(
+          leading: const Icon(Icons.download),
+          title: const Text('Yedeği içe aktar'),
+          subtitle: const Text(
+            'Başka cihazdan gönderilen yedek dosyasını (örn. WhatsApp\'tan '
+            'indirilen) seçin; birleştirin ya da üzerine yazın.',
+          ),
+          onTap: () => Get.find<BackupController>().pickBackupFile(),
+        ),
+      ],
     );
   }
 }

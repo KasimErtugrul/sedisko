@@ -8,7 +8,11 @@ import '../controllers/library_controller.dart';
 import '../controllers/scanner_controller.dart';
 import '../pages/book_detail_page.dart';
 import '../pages/book_form_page.dart';
+import '../pages/move_plan_page.dart';
+import '../pages/organize_preview_page.dart';
+import '../pages/organize_setup_page.dart';
 import '../pages/scanner_page.dart';
+import '../pages/shelf_editor_page.dart';
 import '../pages/shelf_page.dart';
 import '../pages/shell_page.dart';
 import 'app_routes.dart';
@@ -69,5 +73,13 @@ class AppPages {
         return const BookDetailPage();
       },
     ),
+    // Raf düzeni asistanı sayfaları; denetleyici InitialBinding'de kalıcıdır.
+    GetPage(name: Routes.shelfEditor, page: () => const ShelfEditorPage()),
+    GetPage(name: Routes.organizeSetup, page: () => const OrganizeSetupPage()),
+    GetPage(
+      name: Routes.organizePreview,
+      page: () => const OrganizePreviewPage(),
+    ),
+    GetPage(name: Routes.organizePlan, page: () => const MovePlanPage()),
   ];
 }

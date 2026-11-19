@@ -66,6 +66,25 @@ class BookLocalDataSource {
     });
   }
 
+  /// Yedek içe aktarmada kullanılır: verilen kitapları mevcut listeye
+  /// TEK okuma-yazma döngüsünde ekler (kitap başına liste yazmaz).
+  Future<void> addMany(List<BookModel> books) {
+    if (books.isEmpty) return Future<void>.value();
+    return _runSerialized(() async {
+      final all = getBooks()..addAll(books);
+      await _write(all);
+    });
+  }
+
+  /// "Üzerine yaz" içe aktarması: mevcut listeyi komple değiştirir.
+  ///
+  /// Yalnızca yedek dosyası uçtan uca doğrulandıktan ([BackupEnvelope.parse])
+  /// sonra çağrılmalıdır; hatalı veri varsa listeyi boşaltmak yerine
+  /// hiçbir şey yazmadan hata fırlatır.
+  Future<void> replaceAll(List<BookModel> books) {
+    return _runSerialized(() async => _write(books));
+  }
+
   Future<void> _runSerialized(Future<void> Function() action) {
     final previous = _lock ?? Future<void>.value();
     final task = previous.catchError((Object _) {}).then((_) => action());

@@ -2,21 +2,34 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../controllers/library_controller.dart';
+import '../controllers/shelf_organize_controller.dart';
 import '../routes/app_routes.dart';
 import '../routes/route_args.dart';
 
-/// 'Raflar' sekmesi: yatay raf kartları.
+/// 'Raflar' sekmesi: yatay raf kartları + düzenleme asistanı girişi.
 ///
 /// Raflar, ad + kitap sayısı gösteren yatay kaydırılabilir kartlar halinde.
 /// Karta dokununca o rafın kitapları ayrı bir sayfada açılır ([Routes.shelf]).
-/// Kitap arama ve ekleme ana sayfa sekmesindedir.
+/// Üstte taşıma planı sürüyorsa ilerleme bandı, yoksa "Otomatik düzenle"
+/// kartı gösterilir; uygulama çubuğundan raf düzenleyiciye gidilir.
 class ShelvesPage extends GetView<LibraryController> {
   const ShelvesPage({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Raflar')),
+      appBar: AppBar(
+        title: const Text('Raflar'),
+        actions: [
+          if (Get.isRegistered<ShelfOrganizeController>())
+            IconButton(
+              key: const ValueKey('shelves-open-editor'),
+              tooltip: 'Rafları düzenle',
+              icon: const Icon(Icons.edit_outlined),
+              onPressed: () => Get.toNamed(Routes.shelfEditor),
+            ),
+        ],
+      ),
       body: Obx(() {
         if (controller.isLoading.value) {
           return const Center(child: CircularProgressIndicator());
@@ -45,11 +58,13 @@ class ShelvesPage extends GetView<LibraryController> {
   }
 
   /// Yatay raf kartları: 'Tüm kitaplar' + dolu raflar + varsa 'Rafsız'.
-  /// Kartlar zengin özet taşır: kitap sayısı + okunuyor + bitti kırılımı.
+  /// Üstte asistan kartı: plan sürüyorsa ilerleme, değilse davet.
   Widget _shelfStrip(BuildContext context) {
     return ListView(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
       children: [
+        if (Get.isRegistered<ShelfOrganizeController>())
+          _OrganizeEntry(),
         SizedBox(
           height: 178,
           child: ListView.builder(
@@ -93,6 +108,74 @@ class ShelvesPage extends GetView<LibraryController> {
         ),
       ],
     );
+  }
+}
+
+/// Düzenleme asistanı girişi: plan sürüyorsa ilerleme bandı; yoksa davet
+/// kartı. Denetleyici test ortamında kayıtlı olmayabilir; o zaman kart
+/// hiç gösterilmez (mevcut testler etkilenmez).
+class _OrganizeEntry extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final controller = Get.find<ShelfOrganizeController>();
+    return Obx(() {
+      final plan = controller.plan.value;
+      final scheme = Theme.of(context).colorScheme;
+      return Card(
+        key: const ValueKey('organize-entry'),
+        margin: const EdgeInsets.only(bottom: 12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => Get.toNamed(
+            plan == null ? Routes.organizeSetup : Routes.organizePlan,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                Icon(
+                  plan == null ? Icons.auto_awesome : Icons.route,
+                  color: scheme.primary,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: plan == null
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Rafları otomatik düzenle',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            Text(
+                              'Yazara, yayınevine, ada ya da sayfa sayısına '
+                              'göre dağıt; taşma yok.',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ],
+                        )
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Taşıma planı sürüyor',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            Text(
+                              '${plan.completedCount}/${plan.turs.length} tur '
+                              'tamam — devam etmek için dokun.',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ],
+                        ),
+                ),
+                const Icon(Icons.chevron_right),
+              ],
+            ),
+          ),
+        ),
+      );
+    });
   }
 }
 

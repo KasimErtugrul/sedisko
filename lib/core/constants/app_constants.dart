@@ -11,13 +11,22 @@ class ApiConstants {
 class AppInfo {
   const AppInfo._();
 
-  static const String version = '1.6.0';
+  static const String version = '1.14.0';
 }
 
 class StorageKeys {
   const StorageKeys._();
 
   static const String books = 'books_v1';
+
+  /// Raf tanımları (ad + kapasite + yer + sıra). Kitapların raf ataması
+  /// hâlâ `books_v1` içindeki `shelf` alanında durur; burada yalnızca
+  /// fiziksel rafın tanımı tutulur.
+  static const String shelves = 'shelves_v1';
+
+  /// Sürüyor olan taşıma planı (turlar + tamamlananlar). Plan bitince
+  /// anahtar silinir.
+  static const String organizePlan = 'organize_plan_v1';
 }
 
 /// Ayarlar sayfasının kalıcı tercih anahtarları.
