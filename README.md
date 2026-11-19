@@ -801,7 +801,51 @@ flutter test
       ve kullanıcı yine de taşıyabilir. Kaynak raf tamamen boşalırsa
       Raflar sekmesine dönülür.
 
+58. **Yazar asla bölünmez (raf düzeni)** — kullanıcı kuralı (1.17.0):
+    "kesinlikle ama kesinlikle yazarlara göre talep edilmişse sırf favori
+    rafa sığmıyor diye başka raflara yazarları bölme. Favori rafa 35
+    kitap yazıldıysa ve yazarlar sığmıyorsa az olsun, 30 kitaba düşsün —
+    ama yine de yazarları bölme."
+    - **Yazara göre düzende her yazar ATOMİKTİR:** bir yazarın bütün
+      kitapları ya tek raftadır ya da hiçbir rafa sığmıyorsa bütün
+      halinde "Karışık kitaplar" rafındadır. "Sığan kadarı rafa, kalanı
+      Karışık'a" bölmesi tamamen kaldırıldı; yer yetmediğinde raf eksik
+      dolar (35'lik favori raf 30'da kalabilir), yazar ikiye asla
+      bölünmez.
+    - **Favori raf kuralı:** favori yazarların grupları favori rafa
+      bütün halinde konur (kullanıcının sırasıyla); favori rafa sığmayan
+      favori yazar bölünmez — grup tek parça olarak ilk sığan başka
+      rafa gider, hiçbir rafa sığmıyorsa Karışık kitaplar rafına.
+      Favori raf artık YALNIZCA favori yazarların kitaplarını tutar;
+      kalan boşluk diğer kitaplara açılmaz ve önizlemede uyarıyla
+      bildirilir (favori yazarların olası yeni kitapları için
+      ayrılıdır).
+    - **Kapsam:** bölme yasağı yalnız yazar kriteri ve favori
+      yerleştirmededir; yayınevi kriteri eski davranışını sürer
+      (taşan yayınevi grubu sığan kadarı rafa, artığı Karışık'a). Akış
+      kriterlerinde (kitap adı / sayfa sayısı) favori yazarlar yine
+      bütün gruplar halinde yerleşir; kitapların geri kalanı sırayla
+      dizilir.
+    - **Gerçek Karışık rafı yetmezse:** bütün yazar grubu Karışık
+      rafına da sığmıyorsa kitaplar mevcut yerlerinde bırakılır ve plan
+      dışı olduğu açıkça bildirilir (sessiz bölme yok).
+    - Önizleme uyarıları yenilendi: hangi yazarın neden eksik dolu
+      rafta ya da başka rafta olduğu, favori rafta ne kadar boşluk
+      rezerve edildiği metin metin anlatılır.
+
 ## Sürüm notları
+
+**1.17.0:** `pubspec.yaml` sürümü `1.17.0+21`'e yükseltildi. Veri
+anahtarları (`books_v1`, `shelves_v1`, `organize_plan_v1`) ve tercih
+anahtarları değişmedi; yeni anahtar eklenmedi. Davranış değişikliği:
+yazara göre düzende ve favori yerleştirmede yazar grupları artık asla
+iki rafa bölünmez — taşan yazar bütün halinde başka rafa ya da Karışık
+kitaplar rafına gider; favori raf yalnızca favori yazarların
+kitaplarını tutar ve gerekirse eksik dolar. Yayınevi kriterinin
+taşan-grup davranışı değişmedi. Plan çıktısı değiştiği için sürüyor
+olan taşıma planlarında "Yeniden planla" kullanılması önerilir.
+Planner testleri yeni kurallara göre genişletildi (kullanıcı örneği:
+35'lik favori raf 30'da kalır, yazar bölünmez); toplam 516 test yeşil.
 
 **1.16.0:** `pubspec.yaml` sürümü `1.16.0+20`'ye yükseltildi. Veri
 anahtarları (`books_v1`, `shelves_v1`, `organize_plan_v1`) ve mevcut

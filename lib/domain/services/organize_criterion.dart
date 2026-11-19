@@ -9,7 +9,9 @@ enum OrganizeCriterion {
   author(
     'Yazara göre',
     'Aynı yazarın kitapları tek rafta birleşir; yazarlar kitap sayısı '
-        'çoktan aza dizilir.',
+        'çoktan aza dizilir. Yazar ASLA ikiye bölünmez: sığmayan yazar '
+        'bütün halinde başka bir rafa ya da Karışık kitaplar rafına '
+        'gider.',
   ),
   publisher(
     'Yayınevine göre',

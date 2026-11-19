@@ -120,7 +120,9 @@ class _OrganizeSetupPageState extends State<OrganizeSetupPage> {
               const SizedBox(height: 4),
               Text(
                 'Favori yazarlarının kitapları favori rafına konur; '
-                'önizlemede orada görürsün. Kalan kitaplar seçtiğin '
+                'raf yalnızca onların kitaplarını tutar. Favori rafa '
+                'sığmayan favori yazar bölünmez: kitapları bütün '
+                'halinde başka bir rafa konur. Kalan kitaplar seçtiğin '
                 'kritere göre dağılır.',
                 style: Theme.of(context).textTheme.bodySmall,
               ),

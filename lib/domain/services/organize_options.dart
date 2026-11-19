@@ -8,9 +8,11 @@ import '../../core/utils/text_normalizer.dart';
 /// sığmıyor".
 ///
 /// - [favoriteShelfId] + [favoriteAuthors] birlikte anlamlıdır: favori
-///   yazarların kitapları planın EN BAŞINDA favori rafa yerleştirilir,
-///   kalan kitaplar seçilen kriterle dağıtılır. Yalnız biri seçildiyse
-///   favori planlamayı etkilemez (yarım tercih, sessizce yok sayılır).
+///   yazarların kitapları planın EN BAŞINDA favori rafa BÜTÜN halinde
+///   (yazar asla bölünmeden, 1.17.0) yerleştirilir; favori raf yalnızca
+///   favori yazarların kitaplarını tutar, kalan kitaplar seçilen
+///   kriterle dağıtılır. Yalnız biri seçildiyse favori planlamayı
+///   etkilemez (yarım tercih, sessizce yok sayılır).
 /// - [thicknessAware] açıksa kapasite kitap sayısı değil YER (birim)
 ///   cinsinden hesaplanır: her rafın kitap kapasitesi birim bütçesine
 ///   dönüşür, kitabın kapladığı yer sayfa sayısından gelir.

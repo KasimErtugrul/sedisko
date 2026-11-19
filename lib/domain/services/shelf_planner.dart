@@ -80,12 +80,21 @@ class ShelfArrangement {
 /// Hedef düzeni üreten saf servis.
 ///
 /// Kurallar (kullanıcı kararlarıyla sabitlendi):
-/// - **Favoriler (1.15.0):** favori raf + favori yazarlar birlikte
-///   seçildiyse plan favori yazarların kitaplarını EN ÖNCE favori rafa
-///   yerleştirir (yazarlar kullanıcının listediği sırayla, kitaplar
-///   adına göre; sığmayanlar normal dağıtıma kalır ve uyarılır). Kalan
-///   kitaplar seçilen kriterle, favori rafın kalan boşluğu da normal
-///   dağıtıma açıktır.
+/// - **Yazar asla bölünmez (1.17.0 — kullanıcı kuralı):** "kesinlikle ama
+///   kesinlikle yazarlara göre talep edilmişse sırf favori rafa sığmıyor
+///   diye başka raflara yazarları bölme; az olsun ama yazarları bölme."
+///   Yazara göre düzende her yazarın kitapları ATOMİKTİR: yazar ya tek
+///   rafa bütün halinde gider ya da hiçbir rafa sığmıyorsa bütün halinde
+///   "Karışık kitaplar" rafına. Yer yetmediğinde raf eksik dolar (örn.
+///   35'lik favori raf 30 kitapta kalır); yazar ikiye asla bölünmez.
+/// - **Favoriler (1.15.0, 1.17.0 ile sıkılaştırıldı):** favori raf +
+///   favori yazarlar birlikte seçildiyse favori yazarların grupları
+///   kullanıcının listediği sırayla favori rafa BÜTÜN halinde yerleşir.
+///   Favori rafa sığmayan favori yazar bölünmez: grup tek parça olarak
+///   ilk sığan başka rafa gider; hiçbir rafa sığmıyorsa Karışık
+///   kitaplar rafına. Favori raf YALNIZCA favori yazarların kitaplarını
+///   tutar; kalan boşluk diğer kitaplara açılmaz (favori yazarların
+///   olası yeni kitapları için ayrılıdır) ve uyarıyla bildirilir.
 /// - **Kalınlık (1.15.0):** kalınlık hesabı açıksa kapasite YER (birim)
 ///   cinsindendir: rafın kitap kapasitesi birim bütçesine dönüşür
 ///   (1 kitap kapasitesi = 1 birim ≈ 350 sayfa), kitap ise sayfa
@@ -93,20 +102,24 @@ class ShelfArrangement {
 ///   her kitap 1 birimdir — eski kitap sayısı davranışı birebir korunur.
 /// - **Grup modu (yazar / yayınevi):** gruplar kitap sayısı çoktan aza
 ///   sıralanır (eşitlikte Türkçe alfabe); her grup BÜTÜN halinde ilk
-///   sığan rafa yerleşir (first-fit). Aynı yazar/yayınevi mümkün olduğunca
-///   tek rafta kalır; grup asla ikiye bölünmez.
-/// - **Taşan grup:** grubun yeri en büyük raf bütçesini aşıyorsa, rafa
-///   sığan kadarı konur (kitap sırasıyla, sığmayan rafın kalanında
-///   bekletilmez); ARTIK "Karışık kitaplar" rafına gider.
+///   sığan rafa yerleşir (first-fit). Yazar grupları hiçbir koşulda
+///   bölünmez (yukarıdaki kural).
+/// - **Taşan yayınevi grubu:** grubun yeri en büyük raf bütçesini
+///   aşıyorsa rafa sığan kadarı konur (kitap sırasıyla), artık
+///   "Karışık kitaplar" rafına gider. Bu bölme YALNIZ yayınevi ve
+///   yazarsız kitaplar içindir; yazar gruplerine uygulanmaz (1.17.0).
+///   Raf alanı hiç kalmayan yayınevi grubu ise bütün halinde Karışık'a
+///   gider.
 /// - **Akış modu (kitap adı / sayfa sayısı):** kitaplar tek sıraya dizilir
 ///   (BookSorter: eksik bilgi sonda), raflar fiziksel sırayla baştan
 ///   doldurulur; sıradaki kitap artık sığmıyorsa sıradaki rafa geçilir —
 ///   fiziksel kitaplık gibi (sıra bozulmaz). Sığmayanlar "Karışık
 ///   kitaplar" rafına gider.
-/// - **Karışık raf:** artıklar için adı geçen gerçek raf varsa o raf
-///   kullanılır (bütçesine saygılı; sığmayan küçük kitaplar atlanmaz,
-///   sığan her kitap konur); yoksa plan sentetik bir "Karışık kitaplar"
-///   rafı ekler.
+/// - **Karışık raf:** artıklar için adı geçen gerçek raf varsa bütün
+///   yazar grupları TAMAMININ sığması koşuluyla konur (sığmayan yazar
+///   grubu olduğu yerde bırakılır ve plan dışı bildirilir); yazarı
+///   olmayan artıklar tek tek doldurulur. Gerçek raf yoksa plan sentetik
+///   bir "Karışık kitaplar" rafı ekler (kapasitesi tam artıklara eşittir).
 /// - **Kararlılık:** aynı girdiden her zaman aynı plan çıkar (tüm
 ///   eşitlik kırıcıları: Türkçe alfabe → kitap adı → id).
 abstract final class ShelfPlanner {
@@ -147,47 +160,78 @@ abstract final class ShelfPlanner {
     // kalibrasyonu) 1 kitap = 1 birim olacak şekilde bütçeye dönüşür.
     final remaining = [for (final shelf in ordered) shelf.capacity * 2];
 
-    // Kitap havuzu: favori rafa yerleşenler çıkarılır.
+    // Serbest artıklar (tek tek konabilir: yazarsız kitaplar, akış modu
+    // artıkları, yayınevi artıkları) ve ATOMİK artıklar (bütün yazar
+    // grupları — tamamı bir arada konur ya da hiç konmaz).
+    final freeLeftovers = <BookModel>[];
+    final atomicLeftovers = <_BookGroup>[];
+
+    // Kitap havuzu: favori yazarların yerleşen kitapları çıkarılır.
     var pool = books;
 
     // 1) Favori yazarlar → favori raf (kullanıcı isteği: "favori rafıma
-    //    favori yazarlarımı görebilsem"). Yalnız raf + yazarlar birlikte
-    //    seçildiyse devrededir.
+    //    favori yazarlarımı görebilsem"; 1.17.0 kuralı: yazar bölünmez,
+    //    favori raf yalnızca favori yazarların kitaplarını tutar).
     if (options.hasFavorites) {
       final favIndex =
           ordered.indexWhere((shelf) => shelf.id == options.favoriteShelfId);
       if (favIndex >= 0) {
-        final favorites =
-            _favoriteOrderedBooks(books, options.favoriteAuthors);
-        final placedFavorites = <BookModel>[];
-        var notFit = 0;
-        for (final book in favorites) {
-          final cost = BookThickness.costHalfUnits(
-            book.pageCount,
-            thicknessAware: thicknessAware,
-          );
-          if (remaining[favIndex] >= cost) {
-            buckets[favIndex].add(book);
-            remaining[favIndex] -= cost;
-            placedFavorites.add(book);
+        final favGroups =
+            _favoriteAuthorGroups(books, options.favoriteAuthors);
+        for (final group in favGroups) {
+          final weight = _weightOf(group.books, thicknessAware);
+          if (remaining[favIndex] >= weight) {
+            // Bütün grup favori rafa sığıyor.
+            buckets[favIndex].addAll(group.books);
+            remaining[favIndex] -= weight;
+            continue;
+          }
+          // Bütün grup favori rafa sığmıyor: yazar BÖLÜNMEZ. Grup tek
+          // parça olarak ilk sığan başka rafa gider; hiçbir rafa
+          // sığmıyorsa Karışık kitaplar rafına.
+          final target = remaining.indexWhere((space) => space >= weight);
+          if (target >= 0) {
+            buckets[target].addAll(group.books);
+            remaining[target] -= weight;
+            warnings.add(
+              '«${group.display}» yazarının ${group.books.length} kitabı '
+              'favori rafa bir bütün olarak sığmadı; yazar bölünmedi — '
+              'kitaplar ${ordered[target].name} rafına konuyor.',
+            );
           } else {
-            notFit++;
+            atomicLeftovers.add(group);
+            warnings.add(
+              '«${group.display}» yazarının ${group.books.length} kitabı '
+              'favori rafa bir bütün olarak sığmadı ve hiçbir rafta tek '
+              'parça yer kalmadı; "${ShelfModel.mixShelfName}" rafına '
+              'konuyor.',
+            );
           }
         }
-        if (notFit > 0) {
+        if (remaining[favIndex] > 0) {
+          final leftover = thicknessAware
+              ? '${BookThickness.formatHalf(remaining[favIndex])} birim'
+              : '${remaining[favIndex] ~/ 2} kitap';
           warnings.add(
-            'Favori yazarların $notFit kitabı favori rafa sığmadı; '
-            'diğer raflara dağıtılıyor.',
+            '${ordered[favIndex].name} rafı yalnızca favori yazarların '
+            'kitaplarını tutar; kalan $leftover yer favori yazarlar '
+            'dışındaki kitaplara açılmadı.',
           );
         }
-        // Yalnız GERÇEKTEN yerleşen favori kitaplar havuzdan çıkarılır;
-        // sığmayanlar kalan kitaplarla birlikte dağıtılır (kaybolmaz).
-        final placedIds = {for (final book in placedFavorites) book.id};
-        pool = books.where((book) => !placedIds.contains(book.id)).toList();
+        // Favori rafın kalan boşluğu rezerve edilir: genel dağıtım bu
+        // rafa hiçbir kitap koymaz.
+        remaining[favIndex] = 0;
+        // Favori yazarlara uyan TÜM kitaplar havuzdan çıkarılır: her
+        // biri favori aşamasında ya yerleşti ya bütün halinde bir
+        // artık listesine girdi; genel dağıtım bunlara dokunmaz
+        // (bölünme ve çift yerleşme olmaz).
+        final favoriteIds = <String>{
+          for (final group in favGroups)
+            for (final book in group.books) book.id,
+        };
+        pool = books.where((book) => !favoriteIds.contains(book.id)).toList();
       }
     }
-
-    final leftovers = <BookModel>[];
 
     if (criterion.isGrouped) {
       _placeByGroups(
@@ -197,7 +241,8 @@ abstract final class ShelfPlanner {
         remaining: remaining,
         thicknessAware: thicknessAware,
         buckets: buckets,
-        leftovers: leftovers,
+        freeLeftovers: freeLeftovers,
+        atomicLeftovers: atomicLeftovers,
         warnings: warnings,
       );
     } else {
@@ -208,7 +253,7 @@ abstract final class ShelfPlanner {
         remaining: remaining,
         thicknessAware: thicknessAware,
         buckets: buckets,
-        leftovers: leftovers,
+        freeLeftovers: freeLeftovers,
         warnings: warnings,
       );
     }
@@ -218,45 +263,48 @@ abstract final class ShelfPlanner {
       buckets: buckets,
       remaining: remaining,
       thicknessAware: thicknessAware,
-      leftovers: leftovers,
+      freeLeftovers: freeLeftovers,
+      atomicLeftovers: atomicLeftovers,
       warnings: warnings,
     );
   }
 
   // ---------- Favori yazarlar ----------
 
-  /// Favori yazarların kitaplarını yerleştirme sırasına dizer: yazarlar
-  /// kullanıcının listediği sırayla; her yazarın kitapları ada göre
-  /// (Türkçe alfabe, eşitlikte id). Bir kitap birden çok favori yazara
-  /// uyuyorsa İLK yazara verilir (tekrar yok).
-  static List<BookModel> _favoriteOrderedBooks(
+  /// Favori yazarların kitaplarını ATOMİK gruplar halinde döner: gruplar
+  /// kullanıcının listediği sıradadır; her grup tek bir yazarın bütün
+  /// kitaplarıdır (grup içi sıra kitap adı, eşitlikte id). Bir kitap
+  /// birden çok favori yazara uyuyorsa İLK yazara verilir (tekrar yok).
+  static List<_BookGroup> _favoriteAuthorGroups(
     List<BookModel> books,
     List<String> favoriteAuthors,
   ) {
-    final ordered = <BookModel>[];
+    final groups = <_BookGroup>[];
     final seen = <String>{};
     for (final raw in favoriteAuthors) {
-      final key = TextNormalizer.searchKey(raw.trim());
+      final name = raw.trim();
+      final key = TextNormalizer.searchKey(name);
       if (key.isEmpty) continue;
-      final forAuthor = <BookModel>[];
+      final group = _BookGroup(key: key, display: name);
       for (final book in books) {
         if (seen.contains(book.id)) continue;
         final matches = book.authors.any(
           (author) => TextNormalizer.searchKey(author.trim()) == key,
         );
-        if (matches) forAuthor.add(book);
+        if (matches) group.books.add(book);
       }
-      forAuthor.sort((a, b) {
+      if (group.books.isEmpty) continue;
+      group.books.sort((a, b) {
         final byTitle = TextNormalizer.compareTr(a.title, b.title);
         if (byTitle != 0) return byTitle;
         return a.id.compareTo(b.id);
       });
-      ordered.addAll(forAuthor);
-      for (final book in forAuthor) {
+      for (final book in group.books) {
         seen.add(book.id);
       }
+      groups.add(group);
     }
-    return ordered;
+    return groups;
   }
 
   // ---------- Grup modu ----------
@@ -268,17 +316,22 @@ abstract final class ShelfPlanner {
     required List<int> remaining,
     required bool thicknessAware,
     required List<List<BookModel>> buckets,
-    required List<BookModel> leftovers,
+    required List<BookModel> freeLeftovers,
+    required List<_BookGroup> atomicLeftovers,
     required List<String> warnings,
   }) {
     final groups = _groupsOf(books, criterion);
     final maxCapacity =
         ordered.map((shelf) => shelf.capacity).reduce(max);
+    final maxBudget = maxCapacity * 2;
+    final authorMode = criterion == OrganizeCriterion.author;
 
     for (final group in groups) {
       final size = group.books.length;
       final weight = _weightOf(group.books, thicknessAware);
-      final maxBudget = maxCapacity * 2;
+      // Yazar grupları atomiktir; yazarsız ve yayınevi grupları serbest
+      // davranır (1.17.0 kullanıcı kuralı yalnız yazarlar içindir).
+      final atomic = authorMode && group.key.isNotEmpty;
 
       // Bütün grup, fiziksel sıraya göre ilk sığan rafa yerleşir.
       if (weight <= maxBudget) {
@@ -289,19 +342,42 @@ abstract final class ShelfPlanner {
           continue;
         }
         // Raflarda toplam boşluk yetmiyor; grup bölünmez, Karışık'a.
-        warnings.add(
-          '"${group.display}" grubunun $size kitabı için raf alanı '
-          'kalmadı; "${ShelfModel.mixShelfName}" rafına konuyor.',
-        );
-        leftovers.addAll(group.books);
+        if (atomic) {
+          warnings.add(
+            '«${group.display}» yazarının $size kitabı için raf alanı '
+            'kalmadı; yazar bölünmedi — tüm kitaplar '
+            '"${ShelfModel.mixShelfName}" rafına konuyor.',
+          );
+          atomicLeftovers.add(group);
+        } else {
+          warnings.add(
+            '"${group.display}" grubunun $size kitabı için raf alanı '
+            'kalmadı; "${ShelfModel.mixShelfName}" rafına konuyor.',
+          );
+          freeLeftovers.addAll(group.books);
+        }
         continue;
       }
 
-      // Taşan grup: önce tamamen boş bir raf (sıra düzeninde ilk), o da
-      // yoksa en çok boşluğu olan raf; sığan kadarı buraya (kitap sırası
-      // korunur, sığmayan küçük kitap bekletilmez), artık Karışık'a
-      // gider. Grup ikiye "bölünmez" — sığmayan kısmın yeri tek ve
-      // bellidir.
+      // Grup hiçbir rafın bütçesine sığmıyor. Yazar bölünmez: bütün
+      // grup Karışık'a gider (1.17.0 kullanıcı kuralı). Yayınevi ve
+      // yazarsız gruplarda eski davranış sürer: sığan kadarı konur,
+      // artık Karışık'a gider.
+      if (atomic) {
+        warnings.add(
+          '«${group.display}» yazarının $size kitabı tek rafın '
+          'kapasitesini ($maxCapacity kitap) aşıyor; yazar bölünmedi — '
+          'tüm kitaplar "${ShelfModel.mixShelfName}" rafına konuyor.',
+        );
+        atomicLeftovers.add(group);
+        continue;
+      }
+
+      // Taşan yayınevi/yazarsız grup: önce tamamen boş bir raf (sıra
+      // düzeninde ilk), o da yoksa en çok boşluğu olan raf; sığan
+      // kadarı buraya (kitap sırası korunur, sığmayan küçük kitap
+      // bekletilmez), artık Karışık'a gider. Grup ikiye "bölünmez" —
+      // sığmayan kısmın yeri tek ve bellidir.
       final index = _widestIndex(remaining, ordered);
       var taken = 0;
       final rest = <BookModel>[];
@@ -318,7 +394,7 @@ abstract final class ShelfPlanner {
           rest.add(book);
         }
       }
-      leftovers.addAll(rest);
+      freeLeftovers.addAll(rest);
       if (thicknessAware) {
         warnings.add(
           '${group.display} grubunun $size kitabı ${BookThickness.formatHalf(weight)} '
@@ -410,7 +486,7 @@ abstract final class ShelfPlanner {
     required List<int> remaining,
     required bool thicknessAware,
     required List<List<BookModel>> buckets,
-    required List<BookModel> leftovers,
+    required List<BookModel> freeLeftovers,
     required List<String> warnings,
   }) {
     final sorted = [...books];
@@ -438,7 +514,7 @@ abstract final class ShelfPlanner {
       }
     }
     if (cursor < sorted.length) {
-      leftovers.addAll(sorted.getRange(cursor, sorted.length));
+      freeLeftovers.addAll(sorted.getRange(cursor, sorted.length));
       warnings.add(
         'Toplam raf kapasitesi yetmedi: ${sorted.length - cursor} kitap '
         '"${ShelfModel.mixShelfName}" rafına konuyor.',
@@ -453,7 +529,8 @@ abstract final class ShelfPlanner {
     required List<List<BookModel>> buckets,
     required List<int> remaining,
     required bool thicknessAware,
-    required List<BookModel> leftovers,
+    required List<BookModel> freeLeftovers,
+    required List<_BookGroup> atomicLeftovers,
     required List<String> warnings,
   }) {
     final planned = <PlannedShelf>[
@@ -465,11 +542,8 @@ abstract final class ShelfPlanner {
         ),
     ];
 
-    if (leftovers.isEmpty) {
-      return ShelfArrangement(
-        shelves: planned,
-        warnings: warnings,
-      );
+    if (freeLeftovers.isEmpty && atomicLeftovers.isEmpty) {
+      return ShelfArrangement(shelves: planned, warnings: warnings);
     }
 
     final mixKey = TextNormalizer.searchKey(ShelfModel.mixShelfName);
@@ -477,29 +551,44 @@ abstract final class ShelfPlanner {
         .indexWhere((shelf) => TextNormalizer.searchKey(shelf.name) == mixKey);
 
     if (existingIndex >= 0) {
-      // Kullanıcının gerçek "Karışık kitaplar" rafı: bütçesine saygılı
-      // doldurulur; sığmayanlar plan dışı kalır ve açıkça bildirilir.
+      // Kullanıcının gerçek "Karışık kitaplar" rafı.
+      final extra = <BookModel>[];
+      final unplaced = <BookModel>[];
+
+      // 1) Bütün yazar grupları: TAMAMI sığıyorsa konur; sığmıyorsa
+      //    grubun HİÇBİR kitabı konmaz (yazar bölünmez) ve kitaplar
+      //    mevcut yerlerinde bırakılarak açıkça bildirilir.
+      for (final group in atomicLeftovers) {
+        final weight = _weightOf(group.books, thicknessAware);
+        if (remaining[existingIndex] >= weight) {
+          extra.addAll(group.books);
+          remaining[existingIndex] -= weight;
+        } else {
+          unplaced.addAll(group.books);
+          warnings.add(
+            '«${group.display}» yazarının ${group.books.length} kitabı '
+            '"${ShelfModel.mixShelfName}" rafına da bir bütün olarak '
+            'sığmadı; kitaplar mevcut yerlerinde bırakıldı. Yeni raf '
+            'ekleyip yeniden planla.',
+          );
+        }
+      }
+
+      // 2) Yazarı olmayan serbest artıklar bütçeye saygılı tek tek
+      //    doldurulur; sığmayanlar plan dışı kalır.
       var space = remaining[existingIndex];
-      final placed = <BookModel>[];
       final rest = <BookModel>[];
-      for (final book in leftovers) {
+      for (final book in freeLeftovers) {
         final cost = BookThickness.costHalfUnits(
           book.pageCount,
           thicknessAware: thicknessAware,
         );
         if (space >= cost) {
-          placed.add(book);
+          extra.add(book);
           space -= cost;
         } else {
           rest.add(book);
         }
-      }
-      if (placed.isNotEmpty) {
-        planned[existingIndex] = PlannedShelf(
-          shelf: ordered[existingIndex],
-          books: [...buckets[existingIndex], ...placed],
-          thicknessAware: thicknessAware,
-        );
       }
       if (rest.isNotEmpty) {
         warnings.add(
@@ -507,22 +596,38 @@ abstract final class ShelfPlanner {
           'rafında da yer kalmadı; bu kitaplar plan dışı kaldı. '
           'Yeni raf ekleyip yeniden planla.',
         );
+        unplaced.addAll(rest);
+      }
+
+      if (extra.isNotEmpty) {
+        planned[existingIndex] = PlannedShelf(
+          shelf: ordered[existingIndex],
+          books: [...buckets[existingIndex], ...extra],
+          thicknessAware: thicknessAware,
+        );
+      }
+      if (unplaced.isNotEmpty) {
         return ShelfArrangement(
           shelves: planned,
           warnings: warnings,
-          unplaced: rest,
+          unplaced: unplaced,
         );
       }
       return ShelfArrangement(shelves: planned, warnings: warnings);
     }
 
     // Sentetik Karışık rafı: kapasitesi tam artıklara eşittir (kendisi
-    // hiçbir zaman taşmaz). Kalınlık modunda kapasite, artıkların toplam
-    // yerinin üst tam sayıya yuvarlanmışıdır.
-    final totalWeight = _weightOf(leftovers, thicknessAware);
+    // hiçbir zaman taşmaz; bütün yazar grupları da sığar). Kalınlık
+    // modunda kapasite, artıkların toplam yerinin üst tam sayıya
+    // yuvarlanmışıdır.
+    final allLeftovers = [
+      for (final group in atomicLeftovers) ...group.books,
+      ...freeLeftovers,
+    ];
+    final totalWeight = _weightOf(allLeftovers, thicknessAware);
     final syntheticCapacity = thicknessAware
         ? (totalWeight + 1) ~/ 2
-        : leftovers.length;
+        : allLeftovers.length;
     planned.add(PlannedShelf(
       shelf: ShelfModel(
         id: 'plan-karisik-kitaplar',
@@ -531,15 +636,15 @@ abstract final class ShelfPlanner {
         location: '',
         order: ordered.length,
       ),
-      books: leftovers,
+      books: allLeftovers,
       thicknessAware: thicknessAware,
     ));
     return ShelfArrangement(shelves: planned, warnings: warnings);
   }
 
-  /// Taşan grup için hedef raf: tamamen boş raf (sıra düzeninde ilk) ya
-  /// da en çok boşluğu olan raf. İkisi de yoksa ilk raf (kalan yer 0;
-  /// tüm kitaplar Karışık'a gider).
+  /// Taşan yayınevi/yazarsız grup için hedef raf: tamamen boş raf (sıra
+  /// düzeninde ilk) ya da en çok boşluğu olan raf. İkisi de yoksa ilk raf
+  /// (kalan yer 0; tüm kitaplar Karışık'a gider).
   static int _widestIndex(List<int> remaining, List<ShelfModel> ordered) {
     for (var i = 0; i < remaining.length; i++) {
       if (remaining[i] == ordered[i].capacity * 2 && remaining[i] > 0) {
