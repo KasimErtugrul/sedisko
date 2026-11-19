@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:get/get.dart';
 
 import '../../core/errors/app_exceptions.dart';
@@ -63,6 +64,10 @@ class BookFormController extends GetxController {
   final isFetching = false.obs;
   final isSaving = false.obs;
 
+  /// Formda kaydedilmemiş giriş var mı? Kullanıcı yazmaya başladıysa
+  /// geri tuşu onay diyaloğu sorar (1.16.0, kullanıcı isteği).
+  final isDirty = false.obs;
+
   late final bool isEdit;
   late final String _id;
   late final DateTime _addedAt;
@@ -72,7 +77,29 @@ class BookFormController extends GetxController {
   /// artık referans edilmeyen eski dosya diskten silinir.
   late final String? _originalCoverPath;
 
+  /// Açılış anındaki form görüntüsü; [isDirty] bu anlık görüntüyle
+  /// karşılaştırılarak hesaplanır.
+  final _initialTexts = <TextEditingController, String>{};
+  late ReadingStatus _initialStatus;
+  late DateTime? _initialStartedAt;
+  late DateTime? _initialFinishedAt;
+  late DateTime? _initialTargetDate;
+  late String? _initialCoverUrl;
+  late String? _initialCoverPath;
+  late bool _initialFavorite;
+
+  /// Metin alanı dinleyicileri; [onClose]'da ayrılır.
+  final List<VoidCallback> _textListeners = [];
+
+  /// Rx değişikliklerini izleyen GetX işçileri; [onClose]'da kapatılır.
+  final List<Worker> _workers = [];
+
   List<String> get shelves => _library.shelves;
+
+  /// Yazar önerisi havuzu: kitaplıkta daha önce geçmiş yazar adları
+  /// (görünen adlar, Türkçe sıralı). Otomatik tamamlama alanı besler
+  /// (1.16.0, kullanıcı isteği: "yazmaya başlayınca çıksın, zaman kazanır").
+  List<String> get authorSuggestions => _library.authors;
 
   @override
   void onInit() {
@@ -104,6 +131,112 @@ class BookFormController extends GetxController {
     coverPath.value = book.coverPath;
     _originalCoverPath = book.coverPath;
     isFavorite.value = book.isFavorite;
+
+    _captureInitialState();
+    _watchChanges();
+    _refreshDirty();
+  }
+
+  /// Açılış görüntüsünü yakalar: tüm metin alanları + durum/tarih/fotoğraf
+  /// ve favori seçimi. Karşılaştırma bunlara karşı yapılır.
+  void _captureInitialState() {
+    for (final ctrl in _textControllers) {
+      _initialTexts[ctrl] = ctrl.text;
+    }
+    _initialStatus = status.value;
+    _initialStartedAt = startedAt.value;
+    _initialFinishedAt = finishedAt.value;
+    _initialTargetDate = targetFinishDate.value;
+    _initialCoverUrl = coverUrl.value;
+    _initialCoverPath = coverPath.value;
+    _initialFavorite = isFavorite.value;
+  }
+
+  List<TextEditingController> get _textControllers => [
+        titleCtrl,
+        authorsCtrl,
+        isbnCtrl,
+        pagesCtrl,
+        publisherCtrl,
+        publishDateCtrl,
+        shelfCtrl,
+        currentPageCtrl,
+        notesCtrl,
+      ];
+
+  /// Her metin ve Rx değişikliğinde kirli durumunu yeniden hesaplar.
+  void _watchChanges() {
+    for (final ctrl in _textControllers) {
+      final listener = _refreshDirty;
+      ctrl.addListener(listener);
+      _textListeners.add(listener);
+    }
+    _workers.addAll([
+      ever(status, (_) => _refreshDirty()),
+      ever(startedAt, (_) => _refreshDirty()),
+      ever(finishedAt, (_) => _refreshDirty()),
+      ever(targetFinishDate, (_) => _refreshDirty()),
+      ever(coverUrl, (_) => _refreshDirty()),
+      ever(coverPath, (_) => _refreshDirty()),
+      ever(isFavorite, (_) => _refreshDirty()),
+    ]);
+  }
+
+  /// Kaydedilmemiş değişiklik var mı? Açılış görüntüsüyle karşılaştırır.
+  void _refreshDirty() {
+    isDirty.value = _computeDirty();
+  }
+
+  bool _computeDirty() {
+    for (final entry in _initialTexts.entries) {
+      if (entry.key.text != entry.value) return true;
+    }
+    return status.value != _initialStatus ||
+        startedAt.value != _initialStartedAt ||
+        finishedAt.value != _initialFinishedAt ||
+        targetFinishDate.value != _initialTargetDate ||
+        coverUrl.value != _initialCoverUrl ||
+        coverPath.value != _initialCoverPath ||
+        isFavorite.value != _initialFavorite;
+  }
+
+  /// Geri/çıkış isteğinde kaydedilmemiş değişiklik varsa kullanıcıya
+  /// sorulur: "Çıkmak istediğinden emin misin?" Onaylarsa sayfa açılır,
+  /// yazdıkları kaybolur; vazgeçerse form yerinde kalır.
+  Future<void> confirmDiscardChanges() async {
+    final leave = await Get.dialog<bool>(
+      AlertDialog(
+        title: const Text('Çıkmak istediğinden emin misin?'),
+        content: const Text(
+          'Yazdığın bilgiler kaydedilmedi.\n\n'
+          'Çıkarsan bu bilgiler kaybolur; vazgeçersen formda kalırsın.',
+        ),
+        actions: [
+          TextButton(
+            key: const ValueKey('discard-stay'),
+            onPressed: () => AppNav.pop<bool>(false),
+            child: const Text('Vazgeç'),
+          ),
+          FilledButton(
+            key: const ValueKey('discard-leave'),
+            onPressed: () => AppNav.pop<bool>(true),
+            child: const Text('Çık'),
+          ),
+        ],
+      ),
+    );
+    if (leave != true) return;
+    _closeForm();
+  }
+
+  /// Formu KAPATIR. PopScope canPop'ı [isDirty]'e bağlıdır; programatik
+  /// pop'un rotadan engellenmemesi için önce kirli bayrağı temizlenir,
+  /// sonra BİR kare beklenip pop edilir (rebuild bu karede tamamlanır).
+  /// Kaydet akışı da aynı yolu kullanır: kayıttan sonra form kapanmalı,
+  /// ama kirli formda PopScope pop'u yutar ve diyalog açardı.
+  void _closeForm() {
+    isDirty.value = false;
+    SchedulerBinding.instance.addPostFrameCallback((_) => AppNav.pop());
   }
 
   /// Formdaki "Favori" anahtarı; kayıtta [BookModel.isFavorite]'a yazılır.
@@ -115,8 +248,7 @@ class BookFormController extends GetxController {
   Future<void> takePhoto() => _attachPhoto(_photoPicker.takePhoto);
 
   /// Galeriden kitap fotoğrafı seçer ve kalıcı kopyayı forma ekler.
-  Future<void> pickFromGallery() =>
-      _attachPhoto(_photoPicker.pickFromGallery);
+  Future<void> pickFromGallery() => _attachPhoto(_photoPicker.pickFromGallery);
 
   Future<void> _attachPhoto(Future<String?> Function() source) async {
     if (isPhotoBusy.value) return;
@@ -251,7 +383,8 @@ class BookFormController extends GetxController {
     final today = DateTime(now.year, now.month, now.day);
     final picked = await showDatePicker(
       context: context,
-      initialDate: targetFinishDate.value ?? today.add(const Duration(days: 30)),
+      initialDate:
+          targetFinishDate.value ?? today.add(const Duration(days: 30)),
       firstDate: today,
       lastDate: today.add(const Duration(days: 365 * 10)),
       helpText: 'Bitirme hedefi seç',
@@ -322,9 +455,9 @@ class BookFormController extends GetxController {
       }
       // AppNav.pop: snackbar açıkken Get.back() pop yapmadan döndüğü için
       // (GetX 4.x snackbar uyumluluk davranışı) navigator doğrudan pop'lanır.
-      // Aksi halde beklenmedik bir bildirim açıkken Kaydet, sayfayı kapatmaz
-      // ve kullanıcı ikinci basışta ana sayfaya düşer.
-      AppNav.pop();
+      // PopScope ile uyumlu kapatma: kirli formda da güvenli (bkz.
+      // [_closeForm]).
+      _closeForm();
       Get.snackbar('Kaydedildi', book.title,
           snackPosition: SnackPosition.BOTTOM);
     } finally {
@@ -376,6 +509,12 @@ class BookFormController extends GetxController {
 
   @override
   void onClose() {
+    for (var i = 0; i < _textControllers.length; i++) {
+      _textControllers[i].removeListener(_textListeners[i]);
+    }
+    for (final worker in _workers) {
+      worker.dispose();
+    }
     titleCtrl.dispose();
     authorsCtrl.dispose();
     isbnCtrl.dispose();

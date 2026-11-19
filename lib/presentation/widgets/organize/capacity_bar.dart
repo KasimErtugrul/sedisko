@@ -5,12 +5,17 @@ import 'package:flutter/material.dart';
 /// Raf kartları, hedef düzen önizlemesi ve taşıma planı bu tek widget'ı
 /// paylaşır; taşan (count > capacity) durumlarda çubuk kırmızıya döner ki
 /// kullanıcı kapasite aşımını tek bakışta görsün.
+///
+/// Kalınlık modunda (1.15.0) göstergenin yerine birim metni konur:
+/// arayan taraf `valueText` ile '26,5/40 birim' gibi bir metin verir ve
+/// count/capacity'ye yarım-birim değerlerini geçirir (oran değişmez).
 class CapacityBar extends StatelessWidget {
   const CapacityBar({
     super.key,
     required this.count,
     required this.capacity,
     this.dense = false,
+    this.valueText,
   });
 
   final int count;
@@ -18,6 +23,10 @@ class CapacityBar extends StatelessWidget {
 
   /// true: kart içi kompakt görünüm (küçük yazı, ince çubuk).
   final bool dense;
+
+  /// Göstergede count/capacity yerine gösterilecek hazır metin
+  /// (ör. '26,5/40 birim'); null ise 'count/capacity' yazılır.
+  final String? valueText;
 
   @override
   Widget build(BuildContext context) {
@@ -41,11 +50,15 @@ class CapacityBar extends StatelessWidget {
           ),
         ),
         SizedBox(width: dense ? 8 : 12),
-        Text(
-          '$count/$capacity',
-          style: dense
-              ? Theme.of(context).textTheme.bodySmall
-              : Theme.of(context).textTheme.bodyMedium,
+        Flexible(
+          child: Text(
+            valueText ?? '$count/$capacity',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: dense
+                ? Theme.of(context).textTheme.bodySmall
+                : Theme.of(context).textTheme.bodyMedium,
+          ),
         ),
       ],
     );

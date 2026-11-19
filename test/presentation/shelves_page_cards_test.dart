@@ -162,4 +162,25 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('raf kartları grid görünümünde iki kolona yerleşir',
+      (tester) async {
+    // Kullanıcı isteği (1.16.0): "raflar bottom navigator'ünde rafları
+    // grid view ile görelim." Kartlar artık yatay şerit değil, grid
+    // hücreleridir: 'Tüm kitaplar' ve 'Roman' aynı satırda, 'Roman'
+    // ikinci kolondadır.
+    await pumpShelves(tester);
+
+    expect(find.byType(GridView), findsOneWidget);
+
+    final all = tester.getTopLeft(find.byKey(const ValueKey('shelf-card-all')));
+    final roman =
+        tester.getTopLeft(find.byKey(const ValueKey('shelf-card-Roman')));
+    final rafsiz =
+        tester.getTopLeft(find.byKey(const ValueKey('shelf-card-Rafsız')));
+
+    expect(roman.dy, all.dy, reason: 'ilk satırda iki kart yan yana');
+    expect(roman.dx, greaterThan(all.dx), reason: 'Roman ikinci kolonda');
+    expect(rafsiz.dy, greaterThan(all.dy), reason: 'Rafsız ikinci satırda');
+  });
 }

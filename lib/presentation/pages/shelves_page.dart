@@ -6,9 +6,10 @@ import '../controllers/shelf_organize_controller.dart';
 import '../routes/app_routes.dart';
 import '../routes/route_args.dart';
 
-/// 'Raflar' sekmesi: yatay raf kartları + düzenleme asistanı girişi.
+/// 'Raflar' sekmesi: iki kolonlu raf grid'i + düzenleme asistanı girişi.
 ///
-/// Raflar, ad + kitap sayısı gösteren yatay kaydırılabilir kartlar halinde.
+/// Kullanıcı isteği (1.16.0): raflar yatay kaydırmalı şerit yerine grid
+/// view ile görünsün — tüm raflar tek bakışta, dikey kaydırma doğal.
 /// Karta dokununca o rafın kitapları ayrı bir sayfada açılır ([Routes.shelf]).
 /// Üstte taşıma planı sürüyorsa ilerleme bandı, yoksa "Otomatik düzenle"
 /// kartı gösterilir; uygulama çubuğundan raf düzenleyiciye gidilir.
@@ -57,47 +58,53 @@ class ShelvesPage extends GetView<LibraryController> {
     );
   }
 
-  /// Yatay raf kartları: 'Tüm kitaplar' + dolu raflar + varsa 'Rafsız'.
+  /// Raf grid'i: 'Tüm kitaplar' + dolu raflar + varsa 'Rafsız'.
   /// Üstte asistan kartı: plan sürüyorsa ilerleme, değilse davet.
   Widget _shelfStrip(BuildContext context) {
     return ListView(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
       children: [
-        if (Get.isRegistered<ShelfOrganizeController>())
-          _OrganizeEntry(),
-        SizedBox(
-          height: 178,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: controller.shelfKeys.length + 1,
-            itemBuilder: (context, index) {
-              if (index == 0) {
-                return _ShelfCard(
-                  key: const ValueKey('shelf-card-all'),
-                  icon: Icons.auto_stories,
-                  name: 'Tüm kitaplar',
-                  count: controller.books.length,
-                  readingCount: controller.readingCount,
-                  finishedCount: controller.finishedCount,
-                  onTap: () =>
-                      Get.toNamed(Routes.shelf, arguments: const ShelfArgs()),
-                );
-              }
-              final key = controller.shelfKeys[index - 1];
-              return _ShelfCard(
-                key: ValueKey('shelf-card-$key'),
-                icon: key == 'Rafsız' ? Icons.folder_off_outlined : Icons.shelves,
-                name: key,
-                count: controller.shelfCount(key),
-                readingCount: controller.shelfReadingCount(key),
-                finishedCount: controller.shelfFinishedCount(key),
-                onTap: () => Get.toNamed(
-                  Routes.shelf,
-                  arguments: ShelfArgs(shelf: key),
-                ),
-              );
-            },
+        if (Get.isRegistered<ShelfOrganizeController>()) _OrganizeEntry(),
+        // Kullanıcı isteği (1.16.0): raflar grid view. Dikey kaydırmayı
+        // dış ListView sağlar; grid içi kaymaz (ana akışla aynı desen).
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          padding: EdgeInsets.zero,
+          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+            maxCrossAxisExtent: 240,
+            mainAxisSpacing: 10,
+            crossAxisSpacing: 10,
+            childAspectRatio: 1.05,
           ),
+          itemCount: controller.shelfKeys.length + 1,
+          itemBuilder: (context, index) {
+            if (index == 0) {
+              return _ShelfCard(
+                key: const ValueKey('shelf-card-all'),
+                icon: Icons.auto_stories,
+                name: 'Tüm kitaplar',
+                count: controller.books.length,
+                readingCount: controller.readingCount,
+                finishedCount: controller.finishedCount,
+                onTap: () =>
+                    Get.toNamed(Routes.shelf, arguments: const ShelfArgs()),
+              );
+            }
+            final key = controller.shelfKeys[index - 1];
+            return _ShelfCard(
+              key: ValueKey('shelf-card-$key'),
+              icon: key == 'Rafsız' ? Icons.folder_off_outlined : Icons.shelves,
+              name: key,
+              count: controller.shelfCount(key),
+              readingCount: controller.shelfReadingCount(key),
+              finishedCount: controller.shelfFinishedCount(key),
+              onTap: () => Get.toNamed(
+                Routes.shelf,
+                arguments: ShelfArgs(shelf: key),
+              ),
+            );
+          },
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 16),
@@ -179,7 +186,8 @@ class _OrganizeEntry extends StatelessWidget {
   }
 }
 
-/// Zengin yatay raf kartı: raf adı + kitap sayısı + okunuyor/bitti kırılımı.
+/// Zengin raf kartı (grid hücresi): raf adı + kitap sayısı +
+/// okunuyor/bitti kırılımı.
 class _ShelfCard extends StatelessWidget {
   const _ShelfCard({
     super.key,
@@ -202,43 +210,42 @@ class _ShelfCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final small = Theme.of(context).textTheme.bodySmall;
-    return Padding(
-      padding: const EdgeInsets.only(right: 12),
-      child: Card(
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: Container(
-            width: 158,
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(icon, color: scheme.primary),
-                const Spacer(),
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      margin: EdgeInsets.zero,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, color: scheme.primary),
+              const Spacer(),
+              Text(
+                name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context)
+                    .textTheme
+                    .titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 4),
+              Text('$count kitap', style: small),
+              // Kırılım satırı: okunuyor/bitti bilinen kadar gösterilir;
+              // ikisi de yoksa satır yer tutmaz.
+              if (readingCount > 0)
                 Text(
-                  name,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w600),
+                  '$readingCount okunuyor',
+                  style: small?.copyWith(color: Colors.orange.shade700),
                 ),
-                const SizedBox(height: 4),
-                Text('$count kitap', style: small),
-                // Kırılım satırı: okunuyor/bitti bilinen kadar gösterilir;
-                // ikisi de yoksa satır yer tutmaz.
-                if (readingCount > 0)
-                  Text(
-                    '$readingCount okunuyor',
-                    style: small?.copyWith(color: Colors.orange.shade700),
-                  ),
-                if (finishedCount > 0)
-                  Text(
-                    '$finishedCount bitti',
-                    style: small?.copyWith(color: Colors.green.shade700),
-                  ),
-              ],
-            ),
+              if (finishedCount > 0)
+                Text(
+                  '$finishedCount bitti',
+                  style: small?.copyWith(color: Colors.green.shade700),
+                ),
+            ],
           ),
         ),
       ),

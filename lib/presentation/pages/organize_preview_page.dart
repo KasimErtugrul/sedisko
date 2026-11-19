@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '../../data/models/book_model.dart';
 import '../../data/models/shelf_model.dart';
+import '../../domain/services/book_thickness.dart';
 import '../../domain/services/shelf_planner.dart';
 import '../controllers/shelf_organize_controller.dart';
 import '../routes/app_routes.dart';
@@ -13,6 +14,9 @@ import '../widgets/organize/capacity_bar.dart';
 /// Bu sayfa HİÇBİR ŞEY YAZMAZ; kullanıcı "Taşıma planını oluştur" düğmesine
 /// basana kadar kitapların raf ataması değişmez. Uyarılar (taşan grup,
 /// kapasite yetersizliği) en üstte turuncu bandla gösterilir.
+/// Favori raf (1.15.0) yıldız rozetiyle işaretlenir: kullanıcının
+/// "favori rafıma favori yazarlarımı görebilsem" isteği burada karşılık
+/// bulur — favori yazarların kitapları işaretli rafta listelenir.
 class OrganizePreviewPage extends StatelessWidget {
   const OrganizePreviewPage({super.key});
 
@@ -26,6 +30,8 @@ class OrganizePreviewPage extends StatelessWidget {
         if (arrangement == null) {
           return const Center(child: Text('Önizleme yok. Kuruluma dön.'));
         }
+        final favoriteShelfId =
+            controller.previewOptions.value?.favoriteShelfId;
 
         return Column(
           children: [
@@ -36,12 +42,21 @@ class OrganizePreviewPage extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
                 children: [
                   for (final planned in arrangement.shelves)
-                    _PlannedShelfCard(planned: planned),
+                    _PlannedShelfCard(
+                      key: ValueKey('planned-${planned.shelf.name}'),
+                      planned: planned,
+                      isFavorite: planned.shelf.id == favoriteShelfId,
+                    ),
                   if (arrangement.unplaced.isNotEmpty)
                     _UnplacedCard(books: arrangement.unplaced),
                   Text(
-                    'Kitap sırası, rafta fiziksel diziliş sırasıdır. '
-                    'Beğenmediysen geri dönüp kriteri değiştirebilirsin.',
+                    controller.previewOptions.value?.thicknessAware ?? false
+                        ? 'Kitap sırası, rafta fiziksel diziliş sırasıdır. '
+                            'Doluluk birim cinsindendir: ≈350 sayfa = 1 '
+                            'birim; kalın kitaplar daha çok yer kaplar. '
+                            'Beğenmediysen geri dönüp kriteri değiştirebilirsin.'
+                        : 'Kitap sırası, rafta fiziksel diziliş sırasıdır. '
+                            'Beğenmediysen geri dönüp kriteri değiştirebilirsin.',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
@@ -122,10 +137,18 @@ class _WarningsBanner extends StatelessWidget {
 }
 
 /// Tek rafın planı: başlık (ad + yer + doluluk) ve kitap listesi.
+/// Favori rafsa yıldız rozeti taşır.
 class _PlannedShelfCard extends StatelessWidget {
-  const _PlannedShelfCard({required this.planned});
+  const _PlannedShelfCard({
+    super.key,
+    required this.planned,
+    this.isFavorite = false,
+  });
 
   final PlannedShelf planned;
+
+  /// Bu raf, kullanıcının favori rafı mı?
+  final bool isFavorite;
 
   bool get _isMix =>
       planned.shelf.name == ShelfModel.mixShelfName;
@@ -133,8 +156,9 @@ class _PlannedShelfCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    // Anahtar üstteki _PlannedShelfCard'dadır; Card'a ikinci kez konursa
+    // testler 'aynı anahtarlı iki widget' bulur.
     return Card(
-      key: ValueKey('planned-${planned.shelf.name}'),
       margin: const EdgeInsets.only(bottom: 10),
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -144,7 +168,11 @@ class _PlannedShelfCard extends StatelessWidget {
             Row(
               children: [
                 Icon(
-                  _isMix ? Icons.folder_special_outlined : Icons.shelves,
+                  _isMix
+                      ? Icons.folder_special_outlined
+                      : isFavorite
+                          ? Icons.star
+                          : Icons.shelves,
                   color: _isMix ? scheme.tertiary : scheme.primary,
                 ),
                 const SizedBox(width: 8),
@@ -158,6 +186,14 @@ class _PlannedShelfCard extends StatelessWidget {
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
+                if (isFavorite)
+                  Text(
+                    'Favori raf',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: scheme.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
                 if (planned.shelf.location.isNotEmpty)
                   Flexible(
                     child: Text(
@@ -170,11 +206,21 @@ class _PlannedShelfCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            CapacityBar(
-              count: planned.count,
-              capacity: planned.shelf.capacity,
-              dense: true,
-            ),
+            if (planned.thicknessAware)
+              CapacityBar(
+                count: planned.usedHalfUnits,
+                capacity: planned.capacityHalfUnits,
+                dense: true,
+                valueText:
+                    '${BookThickness.formatHalf(planned.usedHalfUnits)}/'
+                    '${BookThickness.formatHalf(planned.capacityHalfUnits)} birim',
+              )
+            else
+              CapacityBar(
+                count: planned.count,
+                capacity: planned.shelf.capacity,
+                dense: true,
+              ),
             const Divider(height: 16),
             if (planned.books.isEmpty)
               Text(

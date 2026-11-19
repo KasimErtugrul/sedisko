@@ -4,18 +4,19 @@ import 'package:get/get.dart';
 import '../../domain/services/home_feed.dart';
 import '../controllers/library_controller.dart';
 import '../controllers/settings_controller.dart';
+import '../controllers/shelf_organize_controller.dart';
 import '../routes/app_routes.dart';
 import '../routes/route_args.dart';
 import '../utils/app_navigation.dart';
 import '../widgets/book_tile.dart';
 import '../widgets/home/author_strip.dart';
 import '../widgets/home/book_strip.dart';
+import '../widgets/home/favorite_author_strip.dart';
 import '../widgets/home/home_empty_state.dart';
 import '../widgets/home/home_section_header.dart';
 import '../widgets/home/home_summary_row.dart';
 import '../widgets/home/shelf_summary_grid.dart';
 import '../widgets/shelf_picker_sheet.dart';
-import '../widgets/sort_sheet.dart';
 import '../widgets/status_filter_row.dart';
 
 /// Ana sayfa sekmesi: kitap odaklı, zenginleştirilmiş özet akışı.
@@ -28,15 +29,18 @@ import '../widgets/status_filter_row.dart';
 /// 1. Özet satırı (toplam / okunuyor / bitti / favori)
 /// 2. "Devam eden kitaplar" — yatay şerit
 /// 3. "Favoriler" — yatay şerit
-/// 4. "Bitirme hedefleri" — geri sayımlı yatay şerit
-/// 5. "Son eklenenler" — eklenme tarihi azalan yatay şerit
-/// 6. "En çok sayfalı kitaplar" — yatay şerit
-/// 7. "En çok kitaba sahip yazarlar" — yatay yazar kartları; "Tümü"
+/// 4. "Favori yazarlar" — yıldız avatarlı yazar kartları (1.16.0); asistan
+///    kurulumunda seçilen favori yazarlar burada da görünür; "Tümü"
 ///    Yazarlar sekmesine geçirir
-/// 8. "Rafların" — iki kolonlu raf grid'i (gridview); "Tümü" Raflar
+/// 5. "Bitirme hedefleri" — geri sayımlı yatay şerit
+/// 6. "Son eklenenler" — eklenme tarihi azalan yatay şerit
+/// 7. "En çok sayfalı kitaplar" — yatay şerit
+/// 8. "En çok kitaba sahip yazarlar" — yatay yazar kartları; "Tümü"
+///    Yazarlar sekmesine geçirir
+/// 9. "Rafların" — iki kolonlu raf grid'i (gridview); "Tümü" Raflar
 ///    sekmesine geçirir
-/// 9. "Bu ay bitirdiklerin" — bu ay bitirilenler şeridi
-/// 10. "Not aldıkların" — notlu kitaplar şeridi
+/// 10. "Bu ay bitirdiklerin" — bu ay bitirilenler şeridi
+/// 11. "Not aldıkların" — notlu kitaplar şeridi
 ///
 /// Hiçbir bölüm veri yokken gizlenmez: her bölüm başlığı her koşulda
 /// görünür; veri olmayan bölümün yerinde kısa bir "Henüz ..." ipucu
@@ -61,22 +65,11 @@ class HomePage extends GetView<LibraryController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Kitaplığım'),
-        actions: [
-          // Arama sonuçlarını (ve raf sayfalarını) sıralar.
-          Obx(
-            () => IconButton(
-              tooltip: 'Sırala',
-              icon: Badge(
-                isLabelVisible: controller.hasCustomSort,
-                child: const Icon(Icons.sort),
-              ),
-              onPressed: () => showBookSortSheet(context),
-            ),
-          ),
-        ],
-      ),
+      // Kullanıcı isteği (1.16.0): ana sayfa uygulama çubuğunda sırala/
+      // filtre aksiyonu YOK — ana akış bölümleri sabit sırayla gelir,
+      // sıralamanın burada işi yoktur. Sıralama Raf sayfasındaki
+      // "Tüm kitaplar" listesinden yönetilir (bkz. ShelfPage).
+      appBar: AppBar(title: const Text('Kitaplığım')),
       body: Stack(
         children: [
           Column(
@@ -196,6 +189,7 @@ class HomePage extends GetView<LibraryController> {
     final topAuthors = HomeFeed.topAuthors(books);
     final finishedThisMonth = HomeFeed.finishedThisMonth(books, DateTime.now());
     final shelfSummaries = _shelfSummaries();
+    final favoriteAuthors = _favoriteAuthorSummaries();
 
     final sections = <_FeedSection>[
       _FeedSection(
@@ -213,6 +207,20 @@ class HomePage extends GetView<LibraryController> {
         emptyMessage: 'Henüz favori kitabın yok.\n'
             'Kitap detayındaki kalp ikonuyla favorilerine ekleyebilirsin.',
         emptyIcon: Icons.favorite_outline,
+      ),
+      // Favori yazarlar (1.16.0): asistan kurulumunda seçilen favori
+      // yazarlar ana sayfada da görünür. Denetleyici izole testlerde
+      // kayıtlı olmayabilir; o zaman bölüm boş ipucu kartıyla durur.
+      _FeedSection(
+        'Favori yazarlar',
+        FavoriteAuthorStrip(authors: favoriteAuthors),
+        isEmpty: favoriteAuthors.isEmpty,
+        emptyMessage: 'Henüz favori yazar seçmedin.\n'
+            'Raflar sekmesindeki düzen asistanında favori yazarlarını '
+            'seçebilirsin.',
+        emptyIcon: Icons.star_outline,
+        onSeeAll: onOpenAuthors,
+        actionKey: const ValueKey('see-all-favorite-authors'),
       ),
       _FeedSection(
         'Bitirme hedefleri',
@@ -276,7 +284,8 @@ class HomePage extends GetView<LibraryController> {
       ),
     ];
 
-    final itemCount = 1 + sections.length * 2; // özet + her bölüm (başlık+şerit)
+    final itemCount =
+        1 + sections.length * 2; // özet + her bölüm (başlık+şerit)
 
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
@@ -323,6 +332,19 @@ class HomePage extends GetView<LibraryController> {
           ),
         )
         .toList();
+  }
+
+  /// Kullanıcının favori yazarları; asistan denetleyicisinden okunur.
+  /// Denetleyici kayıtlı değilse boş liste: bölüm ipucu kartıyla durur.
+  List<AuthorSummary> _favoriteAuthorSummaries() {
+    if (!Get.isRegistered<ShelfOrganizeController>()) {
+      return const <AuthorSummary>[];
+    }
+    final organize = Get.find<ShelfOrganizeController>();
+    return HomeFeed.favoriteAuthorSummaries(
+      controller.books,
+      organize.favoriteAuthors.toList(),
+    );
   }
 
   void _openShelf(String key) =>

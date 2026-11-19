@@ -723,7 +723,112 @@ flutter test
       sekmesi anında yenilenir. Yedek dosyası tüm kitaplığı içerir;
       alıcıyla paylaşırken dikkat edin.
 
+56. **Favori raf + favori yazarlar + kalınlık duyarlı kapasite** —
+    kullanıcı isteği: "raf düzenleme işleminde keşke öncelikle bana favori
+    rafımı ve favori yazarlarımı sorsa; favori rafıma favori yazarlarımı
+    görebilsem" ve "sayfa sayısı da önemliymiş; 40 kitap diyoruz ama çok
+    kalın kitaplarla sığmıyor, 60 kitabın kapladığı yeri kaplıyor".
+    - **Favoriler önce sorulur:** kurulumun ilk kartı Favoriler'dir.
+      Favori raf ChoiceChip'lerle seçilir ('Yok' dahil), favori
+      yazarlar serbest metinle çip olarak eklenir/silinir; altında
+      kitaplıktaki yazarlardan en çok kitaplı 6 öneri çipi gelir
+      (Türkçe katlamayla tekilleştirir). Tercihler kalıcıdır
+      (`settings_favorite_shelf_id`, `settings_favorite_authors`,
+      `settings_thickness_aware` — mevcut anahtarlar DEĞİŞMEDİ).
+    - **Planlamada favoriler:** favori raf + favori yazarlar birlikte
+      seçildiyse plan favori yazarların kitaplarını EN ÖNCE favori
+      rafa dizer (yazarlar kullanıcının listediği sırayla, kitaplar
+      adına göre). Sığmayan favori kitap kaybolmaz; kalan kitaplarla
+      birlikte dağıtılır ve uyarılır. Favori rafın kalan boşluğu normal
+      dağıtıma açıktır. Önizlemede favori raf yıldız rozetiyle
+      işaretlenir; raf düzenleyicide favori rafın adının yanında
+      yıldız görünür. Yalnız raf YA DA yazar seçildiyse (yarım tercih)
+      plan değişmez.
+    - **Kalınlık (birim) hesabı:** 'Kalın kitaplar daha çok yer kaplar'
+      anahtarı (varsayılan AÇIK) kapasiteyi kitap sayısından YERE
+      çevirir: ≈350 sayfa = 1 birim, 0,5 birim duyarlılıkla yuvarlanır
+      (525 sayfa = 1,5 birim — kullanıcının "40 kalın = 60 normal"
+      gözlemiyle uyumlu); sayfa sayısı bilinmeyen kitap 1 birimdir.
+      Raf kapasitesi (kitap sayısı kalibrasyonu) birim bütçesine
+      dönüşür; grup modu, akış modu ve Karışık rafı bütçeyle çalışır.
+      Akış modunda sıradaki kitap artık sığmıyorsa sıradaki rafa geçilir
+      — fiziksel kitaplık gibi, sıra bozulmaz. Doluluk çubukları
+      kalınlık modunda '6 / 50 birim' biçiminde yazar; raf seçicideki
+      doluluk ve "Raf doluyor" uyarısı da birimdedir. Anahtar kapalıyken
+      davranış 1.14.0 ile birebir aynıdır (kitap sayısı).
+
+57. **Kolaylık güncellemeleri: favori yazarlar ana sayfada, form
+    iyileştirmeleri, raf grid'i ve raf toplu taşıma** — kullanıcı isteği:
+    "ana sayfada da favoriye alınmış yazarları görmek istiyoruz; manuel
+    eklemede kitap adı ve yayınevi de boşluktan sonra büyük harfe dönsün;
+    yazar yazmaya başlayınca önceki yazarlar önerilsin; yazarken geri
+    basınca yazdıklarım boşa gitmesin; ana sayfadaki filtre/sırala
+    aksiyonunun işi yok; Raflar sekmesinde rafları grid view ile görelim;
+    a rafındaki tüm kitapları b rafına aktarabilmeliyim."
+    - **Favori yazarlar ana sayfada:** düzen asistanında seçilen favori
+      yazarlar ana sayfanın "Favori yazarlar" şeridinde yıldız avatarlı
+      kartlarla görünür; karta dokununca yazarın kitapları açılır.
+      Kullanıcının kendi sırası korunur; kitabı olmayan favori yazar
+      "Kitaplıkta yok" etiketiyle listede kalır. Favori seçilmediyse
+      bölüm ipucu kartıyla yer tutar (bölümler kaymaz).
+    - **Büyük harf davranışı:** manuel eklemede Kitap adı ve Yayınevi
+      alanları artık yazar alanıyla aynı klavye davranışını alır
+      (TextCapitalization.words: her boşluktan sonra büyük harf).
+    - **Yazar önerileri:** yazar yazmaya başlayınca kitaplıkta daha önce
+      geçmiş yazarlar küçük listede çıkar; Türkçe katlamayla eşleşir
+      ("ahm" → "Ahmet Ümit", "ayse" → "Ayşe Kulin"). Öneri yalnız SON
+      virgülden sonraki aktif yazım için üretilir; seçilen ad alana
+      virgülle birlikte yazılır ve ikinci yazar hemen yazılabilir.
+      Tam yazılmış yazar kendisi önerilmez.
+    - **Yazarken çıkış onayı:** formda kaydedilmemiş giriş varken geri
+      (uygulama çubuğu ya da sistem tuşu) engellenir ve "Çıkmak
+      istediğinden emin misin?" diyaloğu çıkar: Vazgeç formda kalır,
+      Çık yazılanları bırakır. Temiz formda soru sormadan açılır; yazılan
+      geri alınırsa form yine temiz sayılır. Kaydet akışı diyaloğu
+      atlayıp sayfayı güvenle kapatır.
+    - **Ana sayfa uygulama çubuğu sadeleşti:** sırala/filtre aksiyonu
+      ana sayfadan kaldırıldı (ana akış bölümleri sabit sırayla gelir;
+      sıralamanın burada işi yok). Sıralama Raf sayfasındaki "Tüm
+      kitaplar" listesinden yönetilmeye devam eder.
+    - **Raflar sekmesi grid:** yatay kaydırmalı şerit yerine iki kolonlu
+      grid; tüm raflar tek bakışta. Kart bilgisi aynıdır (ad, kitap
+      sayısı, okunuyor/bitti kırılımı); 'Tüm kitaplar' ilk hücredir.
+    - **Raf toplu taşıma:** somut raf sayfasında (ve 'Rafsız') "Bu
+      raftaki tüm kitapları başka rafa taşı" aksiyonu eklendi: hedef
+      raf seçilir (Rafsız ya da yeni raf da olabilir), kitaplar tek tek
+      taşınır (okuma durumu/sayfa/günlük dokunulmaz). Hedef rafta yer
+      yoksa kalınlık modeline göre hesap gösterilir ("3 birim taşar")
+      ve kullanıcı yine de taşıyabilir. Kaynak raf tamamen boşalırsa
+      Raflar sekmesine dönülür.
+
 ## Sürüm notları
+
+**1.16.0:** `pubspec.yaml` sürümü `1.16.0+20`'ye yükseltildi. Veri
+anahtarları (`books_v1`, `shelves_v1`, `organize_plan_v1`) ve mevcut
+tercih anahtarları değişmedi; yeni anahtar eklenmedi — favori yazarlar
+1.15.0'daki `settings_favorite_authors` anahtarından okunur. Form
+kapatma davranışı değişti: kirli formda geri tuşu artık onay diyaloğu
+açar (Kaydet bu diyaloğu atlar). Yeni testler: favori yazar özet servisi
+ve ana sayfa bölümü, büyük harf ipuçları, yazar otomatik tamamlama
+(virgül sonrası aktif yazım dahil), çıkış onayı (temiz/kirli/Vazgeç/
+Çık/Kaydet yolları), Raflar grid yerleşimi ve raf toplu taşıma
+(sığan/taşan/vazgeçilen hedefler); 1.15.0'daki 482 testin tamamı
+korundu.
+
+**1.15.0:** `pubspec.yaml` sürümü `1.15.0+19`'a yükseltildi. Kitaplık
+verisi ve mevcut anahtarlar (`books_v1`, `shelves_v1`,
+`organize_plan_v1`) değişmedi; üç yeni tercih anahtarı eklendi
+(`settings_favorite_shelf_id`, `settings_favorite_authors`,
+`settings_thickness_aware`) — yedek zarfı bunları taşımaz, tercihler
+cihazın kullanıcısına aittir. Kalınlık hesabı varsayılan AÇIK gelir:
+aynı raf artık kalın kitaplarda daha az kitap alır (istediysen anahtarla
+eski kitap sayısı davranışına dönersin). Favoriler yarım seçilirse
+(yalnız raf ya da yalnız yazar) plan klasik kriterle çalışır. Plan
+üretimi aynı girdiden aynı sonucu verir (kararlılık testleri korundu).
+Yeni testler: kalınlık tablosu, birim bazlı grup/akış/Karışık rafı,
+favori yerleştirme sırası, sığmayan favori kitabın kaybolmadan
+dağıtılması, yarım tercih/bilinmeyen raf savunmaları, kalıcılık ve
+kurulum/önizleme ekran akışları; toplam 482 test.
 
 **1.14.0:** `pubspec.yaml` sürümü `1.14.0+18`'e yükseltildi. Veri
 anahtarları (`books_v1`, `shelves_v1`, `organize_plan_v1`) ve biçimleri

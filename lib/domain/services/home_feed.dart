@@ -56,8 +56,8 @@ class HomeFeed {
       ..sort((a, b) {
         final byCount = b.value.compareTo(a.value);
         if (byCount != 0) return byCount;
-        final byName = TextNormalizer.compareTr(nameByKey[a.key]!,
-            nameByKey[b.key]!);
+        final byName =
+            TextNormalizer.compareTr(nameByKey[a.key]!, nameByKey[b.key]!);
         if (byName != 0) return byName;
         return a.key.compareTo(b.key);
       });
@@ -72,6 +72,52 @@ class HomeFeed {
           ),
         )
         .toList();
+  }
+
+  /// Kullanıcının favori yazarları ("Favori yazarlar" şeridi, 1.16.0).
+  ///
+  /// Kurallar:
+  /// - [favoriteAuthors] KULLANICININ sıraladığı listedir; şerit o sırayı
+  ///   korur (kullanıcının önceliği kitap sayısından önemlidir).
+  /// - Aynı yazım çeşitleri [TextNormalizer.searchKey] ile tek grupta
+  ///   toplanır; görünen ad kitaplıktaki ilk yazımdır, kitaplıkta hiç
+  ///   kitabı yoksa kullanıcının yazdığı isimdir.
+  /// - Kitabı olmayan favori yazar da listede kalır (kitap sayısı 0):
+  ///   boş şerit yerine "kitaplıkta yok" kartı göstermek, favori tercihini
+  ///   görünür tutar.
+  /// - Yinelenen anahtarlar (örn. kullanıcı listesine iki yazım yazdıysa)
+  ///   tek kartta birleşir: ilk geçen kazanır.
+  static List<AuthorSummary> favoriteAuthorSummaries(
+    List<BookModel> books,
+    List<String> favoriteAuthors,
+  ) {
+    final nameByKey = <String, String>{};
+    final countByKey = <String, int>{};
+
+    for (final book in books) {
+      for (final raw in book.authors) {
+        final author = raw.trim();
+        if (author.isEmpty) continue;
+        final key = TextNormalizer.searchKey(author);
+        nameByKey.putIfAbsent(key, () => author);
+        countByKey[key] = (countByKey[key] ?? 0) + 1;
+      }
+    }
+
+    final summaries = <AuthorSummary>[];
+    final seen = <String>{};
+    for (final raw in favoriteAuthors) {
+      final author = raw.trim();
+      if (author.isEmpty) continue;
+      final key = TextNormalizer.searchKey(author);
+      if (!seen.add(key)) continue;
+      summaries.add(AuthorSummary(
+        key: key,
+        name: nameByKey[key] ?? author,
+        bookCount: countByKey[key] ?? 0,
+      ));
+    }
+    return summaries;
   }
 
   /// Son eklenen kitaplar ("Son eklenenler" şeridi).

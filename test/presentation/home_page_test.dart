@@ -113,9 +113,10 @@ void main() {
     expect(find.text('Toplam'), findsOneWidget);
     expect(find.text('Okunuyor'), findsOneWidget);
     expect(find.text('Bitti'), findsOneWidget);
-    // Dokuz bölüm de her koşulda görünür; boş olanlar ipucu kartı koyar.
+    // On bölüm de her koşulda görünür; boş olanlar ipucu kartı koyar.
     expect(find.text('Devam eden kitaplar'), findsOneWidget);
     expect(find.text('Favoriler'), findsOneWidget);
+    expect(find.text('Favori yazarlar'), findsOneWidget);
     expect(find.text('Bitirme hedefleri'), findsOneWidget);
     expect(find.text('Son eklenenler'), findsOneWidget);
     expect(find.text('En çok sayfalı kitaplar'), findsOneWidget);

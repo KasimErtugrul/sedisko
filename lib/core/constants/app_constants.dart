@@ -11,7 +11,7 @@ class ApiConstants {
 class AppInfo {
   const AppInfo._();
 
-  static const String version = '1.14.0';
+  static const String version = '1.16.0';
 }
 
 class StorageKeys {
@@ -48,4 +48,16 @@ class SettingsKeys {
 
   /// Yazı boyutu çarpanı (0.85 / 1.0 / 1.15 / 1.3).
   static const String textScale = 'settings_text_scale';
+
+  /// Favori rafın `shelves_v1` kimliği; raf silinirse geçersiz sayılır.
+  /// Raf düzeni asistanı favori yazarların kitaplarını bu rafa yerleştirir.
+  static const String favoriteShelfId = 'settings_favorite_shelf_id';
+
+  /// Favori yazarlar (kullanıcının sıraladığı liste).
+  static const String favoriteAuthors = 'settings_favorite_authors';
+
+  /// Kapasite kitap sayısı yerine yer (birim) cinsinden hesaplansın mı?
+  /// Kitabın yeri sayfa sayısından tahmin edilir (≈350 sayfa = 1 birim).
+  /// Varsayılan açıktır.
+  static const String thicknessAware = 'settings_thickness_aware';
 }

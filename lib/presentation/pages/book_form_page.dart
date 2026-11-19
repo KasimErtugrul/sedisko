@@ -7,6 +7,7 @@ import '../../core/utils/platform_support.dart';
 import '../../data/models/book_model.dart';
 import '../controllers/book_form_controller.dart';
 import '../controllers/settings_controller.dart';
+import '../widgets/author_autocomplete_field.dart';
 import '../widgets/cover_image.dart';
 import '../widgets/responsive/responsive_center.dart';
 
@@ -18,217 +19,248 @@ class BookFormPage extends GetView<BookFormController> {
   @override
   Widget build(BuildContext context) {
     final c = controller;
-    return Scaffold(
-      appBar: AppBar(title: Text(c.isEdit ? 'Kitabı düzenle' : 'Yeni kitap')),
-      body: Form(
-        key: c.formKey,
-        // Geniş ekranda form alanları iki uca dağılmasın: tavan genişlik.
-        child: ResponsiveCenter(child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            _isbnRow(c),
-            _coverSection(c),
-            TextFormField(
-              controller: c.titleCtrl,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(
-                labelText: 'Kitap adı *',
-                border: _border,
-              ),
-              validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'Kitap adı gerekli' : null,
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: c.authorsCtrl,
-              textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(
-                labelText: 'Yazar(lar)',
-                hintText: 'Birden fazlaysa virgülle ayır',
-                border: _border,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
+    // Kaydedilmemiş giriş varken geri (sistem ya da uygulama çubuğu)
+    // engellenir ve onay diyaloğu sorulur (1.16.0, kullanıcı isteği):
+    // "hoppp yazdıklarım boşa gitti" yaşanmasın. Temiz formda pop serbest.
+    return Obx(
+      () => PopScope(
+        canPop: !c.isDirty.value,
+        onPopInvokedWithResult: (didPop, result) {
+          if (didPop) return;
+          c.confirmDiscardChanges();
+        },
+        child: Scaffold(
+          appBar: AppBar(
+            title: Text(c.isEdit ? 'Kitabı düzenle' : 'Yeni kitap'),
+          ),
+          body: Form(
+            key: c.formKey,
+            // Geniş ekranda form alanları iki uca dağılmasın: tavan genişlik.
+            child: ResponsiveCenter(
+                child: ListView(
+              padding: const EdgeInsets.all(16),
               children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: c.pagesCtrl,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    decoration: const InputDecoration(
-                      labelText: 'Sayfa sayısı',
-                      border: _border,
-                    ),
-                    validator: (v) {
-                      final value = (v ?? '').trim();
-                      if (value.isEmpty) return null; // bilinmiyorsa boş kalabilir
-                      final pages = int.tryParse(value);
-                      if (pages == null || pages <= 0) {
-                        return 'Geçerli bir sayı gir';
-                      }
-                      return null;
-                    },
+                _isbnRow(c),
+                _coverSection(c),
+                TextFormField(
+                  controller: c.titleCtrl,
+                  // Kullanıcı isteği (1.16.0): kitap adı da yazar gibi her
+                  // boşluktan sonra büyük harfe dönsün (klavye davranışı).
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(
+                    labelText: 'Kitap adı *',
+                    border: _border,
+                  ),
+                  validator: (v) => (v == null || v.trim().isEmpty)
+                      ? 'Kitap adı gerekli'
+                      : null,
+                ),
+                const SizedBox(height: 12),
+                // Yazar önerileri: daha önce girilmiş yazarlar yazarken çıkar.
+                AuthorAutocompleteField(
+                  controller: c.authorsCtrl,
+                  options: c.authorSuggestions,
+                  decoration: const InputDecoration(
+                    labelText: 'Yazar(lar)',
+                    hintText: 'Birden fazlaysa virgülle ayır',
+                    border: _border,
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextFormField(
-                    controller: c.publishDateCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Basım yılı',
-                      hintText: 'örn. 2021',
-                      border: _border,
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: c.pagesCtrl,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly
+                        ],
+                        decoration: const InputDecoration(
+                          labelText: 'Sayfa sayısı',
+                          border: _border,
+                        ),
+                        validator: (v) {
+                          final value = (v ?? '').trim();
+                          if (value.isEmpty)
+                            return null; // bilinmiyorsa boş kalabilir
+                          final pages = int.tryParse(value);
+                          if (pages == null || pages <= 0) {
+                            return 'Geçerli bir sayı gir';
+                          }
+                          return null;
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextFormField(
+                        controller: c.publishDateCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Basım yılı',
+                          hintText: 'örn. 2021',
+                          border: _border,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: c.publisherCtrl,
+                  // Kullanıcı isteği (1.16.0): yayınevi de boşluktan sonra
+                  // büyük harfe dönsün.
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(
+                    labelText: 'Yayınevi',
+                    border: _border,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Text('Konum', style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: c.shelfCtrl,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: const InputDecoration(
+                    labelText: 'Raf *',
+                    hintText: 'örn. Salon - 2. raf',
+                    prefixIcon: Icon(Icons.shelves),
+                    border: _border,
+                  ),
+                  validator: (v) => (v == null || v.trim().isEmpty)
+                      ? 'Raf bilgisi gerekli'
+                      : null,
+                ),
+                if (c.shelves.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      for (final s in c.shelves)
+                        ActionChip(
+                          label: Text(s),
+                          onPressed: () => c.shelfCtrl.text = s,
+                        ),
+                    ],
+                  ),
+                ],
+                const SizedBox(height: 24),
+                Text('Okuma durumu',
+                    style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 8),
+                Obx(
+                  () => SegmentedButton<ReadingStatus>(
+                    showSelectedIcon: false,
+                    // Küçük ekranlarda Türkçe etiketler taşmayacak şekilde sığdır.
+                    style: const ButtonStyle(
+                      visualDensity: VisualDensity(horizontal: -3),
+                      textStyle:
+                          WidgetStatePropertyAll(TextStyle(fontSize: 13)),
+                    ),
+                    segments: [
+                      for (final s in ReadingStatus.values)
+                        ButtonSegment(
+                          value: s,
+                          label: Text(
+                            s.label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                    ],
+                    selected: {c.status.value},
+                    onSelectionChanged: (set) => c.setStatus(set.first),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Obx(() {
+                  final s = c.status.value;
+                  return Column(
+                    children: [
+                      if (s != ReadingStatus.notStarted) ...[
+                        TextFormField(
+                          controller: c.currentPageCtrl,
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly
+                          ],
+                          decoration: const InputDecoration(
+                            labelText: 'Kaldığın sayfa',
+                            border: _border,
+                          ),
+                          validator: (v) {
+                            final p = int.tryParse((v ?? '').trim());
+                            if (p == null) return 'Geçerli bir sayfa gir';
+                            final total =
+                                int.tryParse(c.pagesCtrl.text.trim()) ?? 0;
+                            if (total > 0 && p > total) {
+                              return 'Toplam sayfadan büyük olamaz';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        _dateField(context, 'Başlangıç tarihi', c.startedAt),
+                      ],
+                      if (s == ReadingStatus.finished) ...[
+                        const SizedBox(height: 12),
+                        _dateField(context, 'Bitiş tarihi', c.finishedAt),
+                      ],
+                    ],
+                  );
+                }),
+                const SizedBox(height: 12),
+                _targetDateField(context, c),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: c.notesCtrl,
+                  maxLines: 3,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: const InputDecoration(
+                    labelText: 'Not',
+                    alignLabelWithHint: true,
+                    border: _border,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Obx(
+                  () => SwitchListTile(
+                    value: c.isFavorite.value,
+                    onChanged: c.setFavorite,
+                    contentPadding: EdgeInsets.zero,
+                    secondary: Icon(
+                      c.isFavorite.value
+                          ? Icons.favorite
+                          : Icons.favorite_outline,
+                      color: c.isFavorite.value ? Colors.redAccent : null,
+                    ),
+                    title: const Text('Favori'),
+                    subtitle: const Text(
+                      'Ana sayfadaki favoriler bölümünde gösterilir',
                     ),
                   ),
                 ),
+                const SizedBox(height: 24),
+                Obx(
+                  () => FilledButton.icon(
+                    onPressed: c.isSaving.value ? null : c.save,
+                    icon: c.isSaving.value
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.save),
+                    label: const Text('Kaydet'),
+                  ),
+                ),
+                const SizedBox(height: 24),
               ],
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: c.publisherCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Yayınevi',
-                border: _border,
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text('Konum', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: c.shelfCtrl,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(
-                labelText: 'Raf *',
-                hintText: 'örn. Salon - 2. raf',
-                prefixIcon: Icon(Icons.shelves),
-                border: _border,
-              ),
-              validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'Raf bilgisi gerekli' : null,
-            ),
-            if (c.shelves.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 4,
-                children: [
-                  for (final s in c.shelves)
-                    ActionChip(
-                      label: Text(s),
-                      onPressed: () => c.shelfCtrl.text = s,
-                    ),
-                ],
-              ),
-            ],
-            const SizedBox(height: 24),
-            Text('Okuma durumu', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            Obx(
-              () => SegmentedButton<ReadingStatus>(
-                showSelectedIcon: false,
-                // Küçük ekranlarda Türkçe etiketler taşmayacak şekilde sığdır.
-                style: const ButtonStyle(
-                  visualDensity: VisualDensity(horizontal: -3),
-                  textStyle: WidgetStatePropertyAll(TextStyle(fontSize: 13)),
-                ),
-                segments: [
-                  for (final s in ReadingStatus.values)
-                    ButtonSegment(
-                      value: s,
-                      label: Text(
-                        s.label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                ],
-                selected: {c.status.value},
-                onSelectionChanged: (set) => c.setStatus(set.first),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Obx(() {
-              final s = c.status.value;
-              return Column(
-                children: [
-                  if (s != ReadingStatus.notStarted) ...[
-                    TextFormField(
-                      controller: c.currentPageCtrl,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      decoration: const InputDecoration(
-                        labelText: 'Kaldığın sayfa',
-                        border: _border,
-                      ),
-                      validator: (v) {
-                        final p = int.tryParse((v ?? '').trim());
-                        if (p == null) return 'Geçerli bir sayfa gir';
-                        final total = int.tryParse(c.pagesCtrl.text.trim()) ?? 0;
-                        if (total > 0 && p > total) {
-                          return 'Toplam sayfadan büyük olamaz';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    _dateField(context, 'Başlangıç tarihi', c.startedAt),
-                  ],
-                  if (s == ReadingStatus.finished) ...[
-                    const SizedBox(height: 12),
-                    _dateField(context, 'Bitiş tarihi', c.finishedAt),
-                  ],
-                ],
-              );
-            }),
-            const SizedBox(height: 12),
-            _targetDateField(context, c),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: c.notesCtrl,
-              maxLines: 3,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(
-                labelText: 'Not',
-                alignLabelWithHint: true,
-                border: _border,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Obx(
-              () => SwitchListTile(
-                value: c.isFavorite.value,
-                onChanged: c.setFavorite,
-                contentPadding: EdgeInsets.zero,
-                secondary: Icon(
-                  c.isFavorite.value
-                      ? Icons.favorite
-                      : Icons.favorite_outline,
-                  color: c.isFavorite.value ? Colors.redAccent : null,
-                ),
-                title: const Text('Favori'),
-                subtitle: const Text(
-                  'Ana sayfadaki favoriler bölümünde gösterilir',
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            Obx(
-              () => FilledButton.icon(
-                onPressed: c.isSaving.value ? null : c.save,
-                icon: c.isSaving.value
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.save),
-                label: const Text('Kaydet'),
-              ),
-            ),
-            const SizedBox(height: 24),
-          ],
-        )),
+            )),
+          ),
+        ),
       ),
     );
   }
@@ -249,7 +281,8 @@ class BookFormPage extends GetView<BookFormController> {
             children: [
               if (hasVisual) ...[
                 Center(
-                  child: CoverImage(path: path, url: url, width: 110, height: 160),
+                  child:
+                      CoverImage(path: path, url: url, width: 110, height: 160),
                 ),
                 const SizedBox(height: 8),
               ],
@@ -383,9 +416,7 @@ class BookFormPage extends GetView<BookFormController> {
                     ),
             ),
             child: Text(
-              target == null
-                  ? 'Tarih seç'
-                  : formatDate(target),
+              target == null ? 'Tarih seç' : formatDate(target),
             ),
           ),
         );

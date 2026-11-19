@@ -5,8 +5,10 @@ import '../../data/datasources/shelf_local_datasource.dart';
 import '../../data/models/book_model.dart';
 import '../../data/models/organize_plan_model.dart';
 import '../../data/models/shelf_model.dart';
+import '../../domain/services/book_thickness.dart';
 import '../../domain/services/move_plan_builder.dart';
 import '../../domain/services/organize_criterion.dart';
+import '../../domain/services/organize_options.dart';
 import '../../domain/services/shelf_planner.dart';
 import 'library_controller.dart';
 
@@ -38,6 +40,21 @@ class ShelfOrganizeController extends GetxController {
   final preview = Rxn<ShelfArrangement>();
   final previewCriterion = Rxn<OrganizeCriterion>();
 
+  /// Önizlemenin üretildiği opsiyonlar (favoriler + kalınlık); önizleme
+  /// sayfası favori rozetini ve birim gösterimini buradan bilir.
+  final previewOptions = Rxn<OrganizeOptions>();
+
+  /// Favori raf kimliği ('Yok' seçiminde null). Düzen asistanı favori
+  /// yazarların kitaplarını bu rafa yerleştirir.
+  final favoriteShelfId = Rxn<String>();
+
+  /// Favori yazarlar (kullanıcının sıraladığı liste).
+  final favoriteAuthors = <String>[].obs;
+
+  /// Kapasite yer (birim) cinsinden hesaplansın mı? Varsayılan açık:
+  /// kalın kitapların sığmadığı gözlemi varsayılan davranışı değiştirdi.
+  final thicknessAware = true.obs;
+
   static const int defaultCapacity = 50;
   static const int carryLimit = MovePlanBuilder.defaultCarryLimit;
 
@@ -50,15 +67,43 @@ class ShelfOrganizeController extends GetxController {
   int get totalCapacity =>
       shelves.fold(0, (sum, shelf) => sum + shelf.capacity);
 
-  /// Kapasite toplamı kitap sayısının altındaysa plan taşan kitapları
+  /// Kitapların toplam kapladığı yer (yarım birim): kalınlık hesabı
+  /// açıksa sayfa sayısından, kapalıysa her kitaba 1 birim.
+  int get totalBookHalfUnits => books.fold(
+        0,
+        (sum, book) => sum + BookThickness.costHalfUnits(
+              book.pageCount,
+              thicknessAware: thicknessAware.value,
+            ),
+      );
+
+  /// Rafların toplam yer bütçesi (yarım birim).
+  int get totalCapacityHalfUnits => totalCapacity * 2;
+
+  /// Yer toplamı kitapların toplam yerinin altındaysa plan taşan kitapları
   /// Karışık rafına itecektir; kurulum ekranında uyarı olarak gösterilir.
-  bool get needsMoreCapacity => bookCount > totalCapacity;
+  bool get needsMoreCapacity =>
+      totalBookHalfUnits > totalCapacityHalfUnits;
+
+  /// Taşan yer (yarım birim); taşma yoksa 0.
+  int get overflowHalfUnits =>
+      needsMoreCapacity ? totalBookHalfUnits - totalCapacityHalfUnits : 0;
+
+  /// Kapasite metni: kalınlık modunda birim cinsinden ('38,5/100 birim'),
+  /// kapalıyken kitap sayısı ('38/100').
+  String totalOccupancyText() => thicknessAware.value
+      ? '${BookThickness.formatHalf(totalBookHalfUnits)} / '
+          '${BookThickness.formatHalf(totalCapacityHalfUnits)} birim'
+      : '$bookCount/$totalCapacity';
 
   @override
   void onInit() {
     super.onInit();
     shelves.assignAll(_shelfStore.getShelves());
     plan.value = _shelfStore.getPlan();
+    favoriteShelfId.value = _shelfStore.getFavoriteShelfId();
+    favoriteAuthors.assignAll(_shelfStore.getFavoriteAuthors());
+    thicknessAware.value = _shelfStore.getThicknessAware();
   }
 
   /// Depodan rafları ve planı yeniden okur; yedek içe aktarması depoya
@@ -222,6 +267,83 @@ class ShelfOrganizeController extends GetxController {
     }
   }
 
+  // ---------- Favoriler ve kalınlık (1.15.0) ----------
+
+  /// Favori raf; tanım silinmişse (id raflarda yok) `null` döner —
+  /// yarım tercih planı etkilemez.
+  ShelfModel? get effectiveFavoriteShelf {
+    final id = favoriteShelfId.value;
+    if (id == null || id.isEmpty) return null;
+    for (final shelf in shelves) {
+      if (shelf.id == id) return shelf;
+    }
+    return null;
+  }
+
+  /// Favori rafı seçer/temizler. Raf tanımlı değilse reddedilir.
+  Future<void> setFavoriteShelf(String? id) async {
+    if (id != null && shelves.every((shelf) => shelf.id != id)) return;
+    favoriteShelfId.value = id;
+    await _shelfStore.saveFavoriteShelfId(id);
+  }
+
+  /// Favori yazar ekler: boş ad reddedilir, yinelenenler (Türkçe katlamayla)
+  /// sessizce yok sayılır. Eklendiyse `true` döner.
+  Future<bool> addFavoriteAuthor(String raw) async {
+    final name = raw.trim();
+    if (name.isEmpty) return false;
+    final key = TextNormalizer.searchKey(name);
+    final exists = favoriteAuthors.any(
+      (author) => TextNormalizer.searchKey(author) == key,
+    );
+    if (exists) return false;
+    favoriteAuthors.add(name);
+    await _shelfStore.saveFavoriteAuthors(favoriteAuthors.toList());
+    return true;
+  }
+
+  /// Favori yazarı listeden çıkarır.
+  Future<void> removeFavoriteAuthor(String name) async {
+    favoriteAuthors.remove(name);
+    await _shelfStore.saveFavoriteAuthors(favoriteAuthors.toList());
+  }
+
+  /// Kitaplıkta en çok kitabı olan yazarlar; favori önerileri için.
+  /// Zaten favori olanlar listede yer almaz.
+  List<String> favoriteAuthorSuggestions({int limit = 6}) {
+    final counts = <String, int>{};
+    final display = <String, String>{};
+    for (final book in books) {
+      for (final raw in book.authors) {
+        final author = raw.trim();
+        if (author.isEmpty) continue;
+        final key = TextNormalizer.searchKey(author);
+        counts[key] = (counts[key] ?? 0) + 1;
+        display[key] ??= author;
+      }
+    }
+    final favoriteKeys = {
+      for (final author in favoriteAuthors) TextNormalizer.searchKey(author),
+    };
+    final entries = counts.entries
+        .where((entry) => !favoriteKeys.contains(entry.key))
+        .toList();
+    entries.sort((a, b) {
+      final byCount = b.value.compareTo(a.value);
+      if (byCount != 0) return byCount;
+      return TextNormalizer.compareTr(display[a.key]!, display[b.key]!);
+    });
+    return [
+      for (final entry in entries.take(limit)) display[entry.key]!,
+    ];
+  }
+
+  /// Kalınlık hesabını açar/kapatır.
+  Future<void> setThicknessAware(bool value) async {
+    thicknessAware.value = value;
+    await _shelfStore.saveThicknessAware(value);
+  }
+
   // ---------- Sorgular ----------
 
   /// [shelfName] rafındaki (kitap kayıtlarındaki) kitap sayısı.
@@ -229,6 +351,27 @@ class ShelfOrganizeController extends GetxController {
       .where((b) => TextNormalizer.searchKey(b.shelf.trim()) ==
           TextNormalizer.searchKey(shelfName.trim()))
       .length;
+
+  /// [shelfName] rafındaki kitapların kapladığı yer (yarım birim):
+  /// kalınlık hesabı açıksa sayfa sayısından, kapalıysa kitap sayısıdır.
+  int shelfHalfUnits(String shelfName) => books
+      .where((b) => TextNormalizer.searchKey(b.shelf.trim()) ==
+          TextNormalizer.searchKey(shelfName.trim()))
+      .fold(
+        0,
+        (sum, book) => sum + BookThickness.costHalfUnits(
+              book.pageCount,
+              thicknessAware: thicknessAware.value,
+            ),
+      );
+
+  /// Raf kartlarındaki canlı doluluk metni: kalınlık modunda birim
+  /// ('18/40 birim'), kapalıyken kitap sayısı ('18/40').
+  String shelfOccupancyText(String shelfName, int capacity) =>
+      thicknessAware.value
+          ? '${BookThickness.formatHalf(shelfHalfUnits(shelfName))}/'
+              '${BookThickness.formatHalf(capacity * 2)} birim'
+          : '${shelfCount(shelfName)}/$capacity';
 
   /// [shelfName] için tanımlı raf; yoksa `null` (tanımsız raf).
   ShelfModel? shelfByName(String shelfName) {
@@ -242,16 +385,28 @@ class ShelfOrganizeController extends GetxController {
   // ---------- Önizleme ve plan ----------
 
   /// [criterion] için hedef düzeni üretir; HİÇBİR ŞEY yazmaz — kullanıcı
-  /// önizleme sayfasında onaylayana kadar bekler.
+  /// önizleme sayfasında onaylayana kadar bekler. Favoriler ve kalınlık
+  /// tercihi kurulumdaki anlık duruma göre uygulanır.
   void buildPreview(OrganizeCriterion criterion) {
+    final options = _currentOptions();
     previewCriterion.value = criterion;
-    preview.value = ShelfPlanner.arrange(books, shelves, criterion);
+    previewOptions.value = options;
+    preview.value = ShelfPlanner.arrange(books, shelves, criterion,
+        options: options);
   }
 
   void clearPreview() {
     preview.value = null;
     previewCriterion.value = null;
+    previewOptions.value = null;
   }
+
+  /// Kurulumun anlık tercihlerinden planlama opsiyonu üretir.
+  OrganizeOptions _currentOptions() => OrganizeOptions(
+        favoriteShelfId: effectiveFavoriteShelf?.id,
+        favoriteAuthors: favoriteAuthors.toList(),
+        thicknessAware: thicknessAware.value,
+      );
 
   /// Önizlemeden taşıma planı üretir ve kalıcıya yazar. Taşınacak kitap
   /// yoksa plan `null` kalır (UI bilgi gösterir).
@@ -329,14 +484,17 @@ class ShelfOrganizeController extends GetxController {
   }
 
   /// Kalan işi MEVCUT gerçek durumdan yeniden hesaplar (kullanıcı arada
-  /// elle oynadıysa ya da yarım kaldıysa). Kriter korunur.
+  /// elle oynadıysa ya da yarım kaldıysa). Kriter ve opsiyonlar korunur.
   Future<void> replan() async {
     final criterion = plan.value?.criterion ?? previewCriterion.value;
     if (criterion == null) return;
     plan.value = null;
     preview.value = null;
-    preview.value = ShelfPlanner.arrange(books, shelves, criterion);
+    final options = _currentOptions();
+    preview.value = ShelfPlanner.arrange(books, shelves, criterion,
+        options: options);
     previewCriterion.value = criterion;
+    previewOptions.value = options;
     await createPlan();
   }
 

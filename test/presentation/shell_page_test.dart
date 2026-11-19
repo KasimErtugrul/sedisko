@@ -136,15 +136,17 @@ void main() {
     expect(find.text('Görünüm').hitTestable(), findsNothing);
   });
 
-  testWidgets('Raflar sekmesinde yatay raf kartları vardır', (tester) async {
+  testWidgets('Raflar sekmesinde raf kartları grid görünümündedir',
+      (tester) async {
     await pumpShell(tester);
 
     await tester.tap(find.text('Raflar').hitTestable());
     await tester.pumpAndSettle();
 
-    // Raflar sekmesi: 'Tüm kitaplar' ve raflar, ad + kitap sayısı kartları.
-    // Ana sayfanın "Rafların" gridi de "2 kitap" yazar; offstage olduğu için
-    // hitTestable ile yalnız ekrandaki kart sayılır.
+    // Raflar sekmesi (1.16.0): 'Tüm kitaplar' ve raflar, ad + kitap sayısı
+    // kartları grid içinde. Ana sayfanın "Rafların" gridi de "2 kitap"
+    // yazar; offstage olduğu için hitTestable ile yalnız ekrandaki kart
+    // sayılır.
     expect(find.byKey(const ValueKey('shelf-card-all')), findsOneWidget);
     expect(find.byKey(const ValueKey('shelf-card-Roman')), findsOneWidget);
     expect(find.byKey(const ValueKey('shelf-card-Rafsız')), findsOneWidget);

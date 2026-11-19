@@ -325,4 +325,125 @@ void main() {
       expect(store2.getPlan(), isNull);
     });
   });
+
+  group('favoriler ve kalınlık (1.15.0)', () {
+    test('favori tercihleri kalıcıya yazılır ve yeni denetleyicide geri yüklenir',
+        () async {
+      await controller.quickSetup(10);
+      final raf1 = controller.shelves.firstWhere((s) => s.name == 'Raf 1');
+      await controller.setFavoriteShelf(raf1.id);
+      await controller.addFavoriteAuthor('Ece Temelkuran');
+      await controller.setThicknessAware(false);
+
+      final reloaded = ShelfOrganizeController(shelfStore: shelfStore);
+      reloaded.onInit();
+      expect(reloaded.favoriteShelfId.value, raf1.id);
+      expect(reloaded.favoriteAuthors.toList(), ['Ece Temelkuran']);
+      expect(reloaded.thicknessAware.value, isFalse);
+    });
+
+    test('boş/yinelenen yazar adları reddedilir (Türkçe katlamayla)', () async {
+      expect(await controller.addFavoriteAuthor('   '), isFalse);
+      expect(await controller.addFavoriteAuthor('Ece Temelkuran'), isTrue);
+      expect(await controller.addFavoriteAuthor('Ece Temelkuran'), isFalse);
+      // Aksan/büyük-küçük farkı da yinelen sayılır.
+      expect(await controller.addFavoriteAuthor('  ECE TEMELKURAN '),
+          isFalse);
+      expect(controller.favoriteAuthors.length, 1);
+    });
+
+    test('favori yazar silinir', () async {
+      await controller.addFavoriteAuthor('Ece Temelkuran');
+      await controller.addFavoriteAuthor('Ahmet Ümit');
+      await controller.removeFavoriteAuthor('Ece Temelkuran');
+      expect(controller.favoriteAuthors.toList(), ['Ahmet Ümit']);
+    });
+
+    test('tanımsız raf favori olarak seçilemez; raf silinince tercih geçersizleşir',
+        () async {
+      await controller.quickSetup(2);
+      final raf1 = controller.shelves.firstWhere((s) => s.name == 'Raf 1');
+      await controller.setFavoriteShelf('olmayan-id');
+      expect(controller.favoriteShelfId.value, isNull);
+
+      await controller.setFavoriteShelf(raf1.id);
+      expect(controller.effectiveFavoriteShelf?.id, raf1.id);
+
+      await controller.removeShelf(raf1.id);
+      expect(controller.effectiveFavoriteShelf, isNull);
+    });
+
+    test('öneriler kitap sayısı çoktan aza dizilir; favoriler listeden çıkar',
+        () {
+      // Depo: Ece ×2, Ahmet ×1, yazarı yok ×1.
+      expect(controller.favoriteAuthorSuggestions(),
+          ['Ece Temelkuran', 'Ahmet Ümit']);
+
+      // SetUp'taki raflar yokken de çalışır (yalnız kitaplara bakar).
+    });
+
+    test('öneriler favori eklenince güncellenir', () async {
+      await controller.addFavoriteAuthor('Ece Temelkuran');
+      expect(controller.favoriteAuthorSuggestions(), ['Ahmet Ümit']);
+    });
+
+    test('önizleme favori rafı ve yazarları plana uygular', () async {
+      await controller.quickSetup(2);
+      final raf2 = controller.shelves.firstWhere((s) => s.name == 'Raf 2');
+      await controller.setFavoriteShelf(raf2.id);
+      await controller.addFavoriteAuthor('Ece Temelkuran');
+
+      controller.buildPreview(OrganizeCriterion.author);
+
+      final arrangement = controller.preview.value!;
+      expect(controller.previewOptions.value?.favoriteShelfId, raf2.id);
+      // Favori raf (Raf 2) Ece'nin iki kitabıyla başlar.
+      expect(arrangement.shelves[1].books.take(2).map((b) => b.id),
+          ['e1', 'e2']);
+      // Kalan kitaplar (Ahmet + yazarsız) Raf 1'e dağılır.
+      expect(arrangement.shelves[0].books.map((b) => b.id),
+          containsAll(['a1', 'x1']));
+    });
+
+    test('kalınlık hesabı toplam yeri değiştirir; metinler birlimle yazar',
+        () async {
+      await controller.quickSetup(50);
+      // 4 kitap (bilinmeyen sayfa = 1 birim) + 1 kalın kitap (2 birim).
+      await Get.find<LibraryController>().saveBook(
+        BookModel(
+          id: 'kalin1',
+          title: 'Kalın Kitap',
+          pageCount: 700,
+          addedAt: DateTime(2026, 1, 1),
+        ),
+        deriveLog: false,
+      );
+
+      expect(controller.thicknessAware.value, isTrue);
+      expect(controller.totalBookHalfUnits, 12); // 4×2 + 4
+      expect(controller.totalOccupancyText(), '6 / 50 birim');
+
+      await controller.setThicknessAware(false);
+      expect(controller.totalBookHalfUnits, 10); // 5×2 (kitap sayısı)
+      expect(controller.totalOccupancyText(), '5/50');
+    });
+
+    test('raf doluluk metni kalınlık modunda birim cinsindendir', () async {
+      await controller.quickSetup(50);
+      await Get.find<LibraryController>().saveBook(
+        BookModel(
+          id: 'kalin1',
+          title: 'Kalın Kitap',
+          pageCount: 700,
+          shelf: 'Raf 1',
+          addedAt: DateTime(2026, 1, 1),
+        ),
+        deriveLog: false,
+      );
+
+      expect(controller.shelfOccupancyText('Raf 1', 50), '2/50 birim');
+      await controller.setThicknessAware(false);
+      expect(controller.shelfOccupancyText('Raf 1', 50), '1/50');
+    });
+  });
 }

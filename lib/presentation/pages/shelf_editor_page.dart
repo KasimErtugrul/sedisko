@@ -34,6 +34,8 @@ class ShelfEditorPage extends StatelessWidget {
         if (controller.shelves.isEmpty) {
           return const _EmptyEditor();
         }
+        // Kalınlık tercihi değişirse kartlar da yenilensin (bağımlılık).
+        final thicknessAware = controller.thicknessAware.value;
         return ListView(
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 88),
           children: [
@@ -45,7 +47,7 @@ class ShelfEditorPage extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             for (final shelf in controller.shelves)
-              _ShelfCard(shelf: shelf),
+              _ShelfCard(shelf: shelf, thicknessAware: thicknessAware),
           ],
         );
       }),
@@ -137,21 +139,38 @@ class _EmptyEditor extends StatelessWidget {
 
 /// Tek raf kartı: ad, kapasite, yer, doluluk ve sıra düzenleme.
 class _ShelfCard extends StatelessWidget {
-  const _ShelfCard({required this.shelf});
+  const _ShelfCard({required this.shelf, required this.thicknessAware});
 
   final ShelfModel shelf;
+
+  /// Kalınlık hesabı açıkken doluluk birim cinsinden gösterilir.
+  final bool thicknessAware;
 
   @override
   Widget build(BuildContext context) {
     final controller = Get.find<ShelfOrganizeController>();
+    final isFavorite = controller.effectiveFavoriteShelf?.id == shelf.id;
     return Card(
       key: ValueKey('shelf-row-${shelf.id}'),
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
-        title: Text(
-          shelf.name,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                shelf.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (isFavorite)
+              Icon(
+                Icons.star,
+                size: 18,
+                color: Theme.of(context).colorScheme.primary,
+                semanticLabel: 'Favori raf',
+              ),
+          ],
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -159,12 +178,21 @@ class _ShelfCard extends StatelessWidget {
             if (shelf.location.isNotEmpty)
               Text('Yer: ${shelf.location}', maxLines: 1),
             const SizedBox(height: 6),
-            CapacityBar(
-              key: ValueKey('shelf-bar-${shelf.id}'),
-              count: controller.shelfCount(shelf.name),
-              capacity: shelf.capacity,
-              dense: true,
-            ),
+            if (thicknessAware)
+              CapacityBar(
+                key: ValueKey('shelf-bar-${shelf.id}'),
+                count: controller.shelfHalfUnits(shelf.name),
+                capacity: shelf.capacity * 2,
+                dense: true,
+                valueText: controller.shelfOccupancyText(shelf.name, shelf.capacity),
+              )
+            else
+              CapacityBar(
+                key: ValueKey('shelf-bar-${shelf.id}'),
+                count: controller.shelfCount(shelf.name),
+                capacity: shelf.capacity,
+                dense: true,
+              ),
           ],
         ),
         trailing: Row(

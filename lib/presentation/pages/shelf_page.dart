@@ -8,6 +8,7 @@ import '../utils/app_navigation.dart';
 import '../widgets/author_rename_dialog.dart';
 import '../widgets/book_tile.dart';
 import '../widgets/responsive/responsive_center.dart';
+import '../widgets/shelf_bulk_move.dart';
 import '../widgets/shelf_picker_sheet.dart';
 import '../widgets/sort_sheet.dart';
 import '../widgets/status_filter_row.dart';
@@ -75,6 +76,17 @@ class _ShelfPageState extends State<ShelfPage> {
               onPressed: () => showBookSortSheet(context),
             );
           }),
+          // Kullanıcı isteği (1.16.0): "a rafındaki tüm kitapları b
+          // rafına aktarabiliyormuyum" — somut raf sayfalarında tüm
+          // kitapları toplu taşıma. 'Tüm kitaplar' görünümünde yok: tüm
+          // kitaplığı tek rafa toplamak kaza riski taşır.
+          if (widget.shelf != null)
+            IconButton(
+              key: const ValueKey('shelf-bulk-move'),
+              tooltip: 'Bu raftaki tüm kitapları başka rafa taşı',
+              icon: const Icon(Icons.drive_file_move_outline),
+              onPressed: () => moveWholeShelf(context, widget.shelf!),
+            ),
           Obx(() {
             final active = _controller.authorFilter.value != null;
             return IconButton(
@@ -93,7 +105,9 @@ class _ShelfPageState extends State<ShelfPage> {
             }
             return IconButton(
               tooltip: 'Bu yazarın kitaplarını bir rafa topla',
-              icon: const Icon(Icons.drive_file_move_outline),
+              // drive_file_move artık "tüm rafı taşı" aksiyonunun ikonu;
+              // yazar toplama ayrışsın diye klasör ikonu kullanılır.
+              icon: const Icon(Icons.folder_special_outlined),
               onPressed: () => _collectAuthorToShelf(context),
             );
           }),
@@ -135,8 +149,7 @@ class _ShelfPageState extends State<ShelfPage> {
                             book: book,
                             onTap: () =>
                                 Get.toNamed(Routes.detail, arguments: book.id),
-                            onLongPress: () =>
-                                pickShelfAndMove(context, book),
+                            onLongPress: () => pickShelfAndMove(context, book),
                           );
                         },
                       ),
@@ -201,8 +214,7 @@ class _ShelfPageState extends State<ShelfPage> {
                 ListTile(
                   leading: const Icon(Icons.clear_all),
                   title: const Text('Tümü (filtre yok)'),
-                  trailing:
-                      selected == null ? const Icon(Icons.check) : null,
+                  trailing: selected == null ? const Icon(Icons.check) : null,
                   onTap: () {
                     _controller.authorFilter.value = null;
                     Navigator.pop(sheetContext);
@@ -212,10 +224,9 @@ class _ShelfPageState extends State<ShelfPage> {
                   ListTile(
                     leading: const Icon(Icons.person_outline),
                     title: Text(author),
-                    trailing:
-                        selected == TextNormalizer.searchKey(author)
-                            ? const Icon(Icons.check)
-                            : null,
+                    trailing: selected == TextNormalizer.searchKey(author)
+                        ? const Icon(Icons.check)
+                        : null,
                     onTap: () {
                       _controller.authorFilter.value =
                           TextNormalizer.searchKey(author);
@@ -283,8 +294,7 @@ class _ShelfPageState extends State<ShelfPage> {
     }
 
     final display = shelf.trim().isEmpty ? 'Rafsız' : shelf.trim();
-    final suffix =
-        moved < total ? ' (${total - moved} kitap taşınmadı)' : '';
+    final suffix = moved < total ? ' (${total - moved} kitap taşınmadı)' : '';
     Get.snackbar(
       'Taşındı',
       '$moved kitap "$display" rafına toplandı$suffix.',
@@ -325,9 +335,7 @@ class _EmptyListMessage extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              shelfEmpty
-                  ? 'Bu rafta kitap yok.'
-                  : 'Filtrelere uyan kitap yok.',
+              shelfEmpty ? 'Bu rafta kitap yok.' : 'Filtrelere uyan kitap yok.',
               textAlign: TextAlign.center,
             ),
             if (!shelfEmpty) ...[

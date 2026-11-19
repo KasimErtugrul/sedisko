@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kitaplik/data/models/book_model.dart';
 import 'package:kitaplik/data/models/shelf_model.dart';
 import 'package:kitaplik/domain/services/organize_criterion.dart';
+import 'package:kitaplik/domain/services/organize_options.dart';
 import 'package:kitaplik/domain/services/shelf_planner.dart';
 
 /// Hedef düzen planlayıcısı: çoktan aza gruplama, grup bütünlüğü,
@@ -321,6 +322,270 @@ void main() {
       expect(signature(first), signature(second));
       // order'a göre Raf A önce gelir.
       expect(first.shelves.first.shelf.name, 'A');
+    });
+  });
+
+  group('kalınlık duyarlı kapasite (birim, 1.15.0)', () {
+    test('kalın kitaplar sayı kapasitesinden önce yer kapasitesini doldurur',
+        () {
+      // 700 sayfa = 2 birim = 4 yarım birim. Raf kapasitesi 4 kitap
+      // kalibrasyonu → bütçe 4 birim. 5 kalın kitaptan yalnız 2'si sığar.
+      final books = [
+        for (var i = 1; i <= 5; i++) book('k$i', authors: ['Yazar'], pages: 700),
+      ];
+      final arrangement = ShelfPlanner.arrange(
+        books,
+        [shelf('A', 4)],
+        OrganizeCriterion.author,
+        options: const OrganizeOptions(thicknessAware: true),
+      );
+
+      expect(arrangement.shelves[0].count, 2);
+      final mix = arrangement.shelves
+          .firstWhere((p) => p.shelf.name == ShelfModel.mixShelfName);
+      expect(mix.count, 3);
+      // Hiçbir raf YER bütçesini aşmaz.
+      for (final planned in arrangement.shelves) {
+        expect(planned.usedHalfUnits,
+            lessThanOrEqualTo(planned.capacityHalfUnits));
+      }
+      expect(arrangement.warnings.join(' '), contains('birim'));
+    });
+
+    test('kalınlık kapalıyken davranış değişmez (kitap sayısı)', () {
+      final books = [
+        for (var i = 1; i <= 5; i++) book('k$i', authors: ['Yazar'], pages: 700),
+      ];
+      final arrangement = ShelfPlanner.arrange(
+        books,
+        [shelf('A', 4)],
+        OrganizeCriterion.author,
+      );
+
+      expect(arrangement.shelves[0].count, 4);
+      final mix = arrangement.shelves
+          .firstWhere((p) => p.shelf.name == ShelfModel.mixShelfName);
+      expect(mix.count, 1);
+    });
+
+    test('akış modunda sıradaki kitap sığmazsa sıradaki rafa geçilir', () {
+      // b1 1000 sayfa (3 birim), b2 525 (1,5), b3 100 (0,5).
+      // Raf A bütçesi 4 birim: b1 sığar (1 kalan), b2 (1,5) sığmaz →
+      // sıra BOZULMAZ, b2 raf B'den başlar.
+      final books = [
+        book('b1', title: 'A Kitabı', pages: 1000),
+        book('b2', title: 'B Kitabı', pages: 525),
+        book('b3', title: 'C Kitabı', pages: 100),
+      ];
+      final arrangement = ShelfPlanner.arrange(
+        books,
+        [shelf('A', 4, order: 0), shelf('B', 4, order: 1)],
+        OrganizeCriterion.title,
+        options: const OrganizeOptions(thicknessAware: true),
+      );
+
+      expect(arrangement.shelves[0].books.map((b) => b.id), ['b1']);
+      expect(arrangement.shelves[1].books.map((b) => b.id), ['b2', 'b3']);
+    });
+
+    test('bilinmeyen sayfalı kitaplar 1 birim sayılır', () {
+      final books = [for (var i = 1; i <= 5; i++) book('b$i')];
+      final arrangement = ShelfPlanner.arrange(
+        books,
+        [shelf('A', 4)],
+        OrganizeCriterion.title,
+        options: const OrganizeOptions(thicknessAware: true),
+      );
+      expect(arrangement.shelves[0].count, 4);
+      final mix = arrangement.shelves
+          .firstWhere((p) => p.shelf.name == ShelfModel.mixShelfName);
+      expect(mix.count, 1);
+    });
+
+    test('karışık kitaplar rafı birim bütçesine saygılıdır', () {
+      // Kalın 3 kitap (2 birim), gerçek Karışık rafı kapasitesi 4 kitap
+      // (4 birim): 2 tanesi sığar, 1'i plan dışı kalır.
+      final books = [
+        for (var i = 1; i <= 3; i++) book('b$i', pages: 700),
+      ];
+      final arrangement = ShelfPlanner.arrange(
+        books,
+        [shelf('Karışık kitaplar', 4)],
+        OrganizeCriterion.title,
+        options: const OrganizeOptions(thicknessAware: true),
+      );
+      expect(arrangement.shelves.single.count, 2);
+      expect(arrangement.unplaced.length, 1);
+    });
+  });
+
+  group('favori raf ve favori yazarlar (1.15.0)', () {
+    test('favori yazarların kitapları favori rafa konur', () {
+      final books = [
+        book('e1', authors: ['Ece Temelkuran']),
+        book('e2', authors: ['Ece Temelkuran']),
+        for (var i = 1; i <= 3; i++) book('a$i', authors: ['Ahmet Ümit']),
+      ];
+      // Raf A kapasitesi 4 kitap (8 yarım birim): e1+e2 = 4 yarım birim
+      // yer kaplar, kalan 4 yarım birim Ahmet grubuna (6 yarım birim)
+      // yetmez → Ahmet raf B'ye gider. Favori rafın başında favori
+      // yazarın kitapları durur.
+      final arrangement = ShelfPlanner.arrange(
+        books,
+        [shelf('A', 4, order: 0), shelf('B', 10, order: 1)],
+        OrganizeCriterion.author,
+        options: const OrganizeOptions(
+          favoriteShelfId: 'shelf-A',
+          favoriteAuthors: ['Ece Temelkuran'],
+        ),
+      );
+
+      expect(arrangement.shelves[0].books.map((b) => b.id), ['e1', 'e2']);
+      expect(arrangement.shelves[1].books.map((b) => b.id),
+          ['a1', 'a2', 'a3']);
+      expect(arrangement.warnings, isEmpty);
+    });
+
+    test('favori yazarlar kullanıcının listediği sırayla yerleşir', () {
+      final books = [
+        book('e1', authors: ['Ece Temelkuran']),
+        book('a1', authors: ['Ahmet Ümit']),
+      ];
+      final arrangement = ShelfPlanner.arrange(
+        books,
+        [shelf('A', 10)],
+        OrganizeCriterion.author,
+        options: const OrganizeOptions(
+          favoriteShelfId: 'shelf-A',
+          // Alfabe tersi liste: Ahmet önceliklidir.
+          favoriteAuthors: ['Ahmet Ümit', 'Ece Temelkuran'],
+        ),
+      );
+      expect(arrangement.shelves[0].books.map((b) => b.id), ['a1', 'e1']);
+    });
+
+    test('favori rafına sığmayan favori kitaplar dağıtılır ve uyarılır', () {
+      final books = [
+        for (var i = 1; i <= 3; i++) book('e$i', authors: ['Ece Temelkuran']),
+        for (var i = 1; i <= 2; i++) book('a$i', authors: ['Ahmet Ümit']),
+      ];
+      final arrangement = ShelfPlanner.arrange(
+        books,
+        [shelf('A', 2, order: 0), shelf('B', 10, order: 1)],
+        OrganizeCriterion.author,
+        options: const OrganizeOptions(
+          favoriteShelfId: 'shelf-A',
+          favoriteAuthors: ['Ece Temelkuran'],
+        ),
+      );
+
+      // Favori raf 2 kitap alır; 3. kitap normal dağıtıma kalır.
+      expect(arrangement.shelves[0].books.map((b) => b.id), ['e1', 'e2']);
+      expect(arrangement.shelves[1].books.map((b) => b.id), contains('e3'));
+      expect(arrangement.warnings.join(' '), contains('sığmadı'));
+    });
+
+    test('yarım tercih (yalnız raf) planı etkilemez', () {
+      final books = [
+        book('e1', authors: ['Ece Temelkuran']),
+        book('a1', authors: ['Ahmet Ümit']),
+      ];
+      final withoutFavorites = ShelfPlanner.arrange(
+        books, [shelf('A', 10)], OrganizeCriterion.author,
+      );
+      final halfPreference = ShelfPlanner.arrange(
+        books,
+        [shelf('A', 10)],
+        OrganizeCriterion.author,
+        options: const OrganizeOptions(favoriteShelfId: 'shelf-A'),
+      );
+
+      String signature(ShelfArrangement a) => [
+            for (final planned in a.shelves)
+              '${planned.shelf.name}:${planned.books.map((b) => b.id).join(",")}',
+          ].join('|');
+      expect(signature(halfPreference), signature(withoutFavorites));
+    });
+
+    test('kitaplıkta olmayan favori yazar sorun yaratmaz', () {
+      final books = [
+        book('a1', authors: ['Ahmet Ümit']),
+      ];
+      final arrangement = ShelfPlanner.arrange(
+        books,
+        [shelf('A', 10)],
+        OrganizeCriterion.author,
+        options: const OrganizeOptions(
+          favoriteShelfId: 'shelf-A',
+          favoriteAuthors: ['Var Olmayan Yazar'],
+        ),
+      );
+      expect(arrangement.shelves[0].books.map((b) => b.id), ['a1']);
+      expect(arrangement.warnings, isEmpty);
+    });
+
+    test('bilinmeyen favori raf kimliği yok sayılır', () {
+      final books = [
+        book('e1', authors: ['Ece Temelkuran']),
+        book('a1', authors: ['Ahmet Ümit']),
+      ];
+      final arrangement = ShelfPlanner.arrange(
+        books,
+        [shelf('A', 10)],
+        OrganizeCriterion.author,
+        options: const OrganizeOptions(
+          favoriteShelfId: 'shelf-yok',
+          favoriteAuthors: ['Ece Temelkuran'],
+        ),
+      );
+      // Normal kriter planı: grup eşit, alfabe Ahmet'i önce koyar.
+      expect(arrangement.shelves[0].books.map((b) => b.id), ['a1', 'e1']);
+    });
+
+    test('çok yazarlı kitap favori yazara uyar', () {
+      final books = [
+        book('m1', authors: ['Ayşe Kulin', 'Ece Temelkuran']),
+        book('a1', authors: ['Ahmet Ümit']),
+      ];
+      final arrangement = ShelfPlanner.arrange(
+        books,
+        [shelf('A', 10)],
+        OrganizeCriterion.author,
+        options: const OrganizeOptions(
+          favoriteShelfId: 'shelf-A',
+          favoriteAuthors: ['Ece Temelkuran'],
+        ),
+      );
+      expect(arrangement.shelves[0].books.map((b) => b.id), ['m1', 'a1']);
+    });
+
+    test('favorilerle plan kararlıdır', () {
+      final books = [
+        for (var i = 1; i <= 3; i++) book('e$i', authors: ['Ece Temelkuran']),
+        for (var i = 1; i <= 2; i++) book('a$i', authors: ['Ahmet Ümit']),
+      ];
+      final shelves = [shelf('B', 5, order: 1), shelf('A', 3, order: 0)];
+      final options = const OrganizeOptions(
+        favoriteShelfId: 'shelf-A',
+        favoriteAuthors: ['Ece Temelkuran'],
+      );
+      final first = ShelfPlanner.arrange(
+        books, shelves, OrganizeCriterion.author, options: options,
+      );
+      final second = ShelfPlanner.arrange(
+        books, shelves, OrganizeCriterion.author, options: options,
+      );
+
+      String signature(ShelfArrangement a) => [
+            for (final planned in a.shelves)
+              '${planned.shelf.name}:${planned.books.map((b) => b.id).join(",")}',
+          ].join('|');
+      expect(signature(first), signature(second));
+      expect(first.shelves.first.shelf.name, 'A');
+      expect(
+        first.shelves.first.books.map((b) => b.id),
+        ['e1', 'e2', 'e3'],
+      );
     });
   });
 }

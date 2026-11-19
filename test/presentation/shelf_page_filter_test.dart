@@ -161,7 +161,7 @@ void main() {
     await openAllBooks(tester);
     await pickAuthor(tester, 'Orhan Pamuk');
 
-    await tester.tap(find.byIcon(Icons.drive_file_move_outline));
+    await tester.tap(find.byIcon(Icons.folder_special_outlined));
     await tester.pumpAndSettle();
 
     // Raf seçicide 'Yeni raf...' ile hedef oluştur.
@@ -212,7 +212,7 @@ void main() {
     expect(find.text('Dönüşüm'), findsNothing);
 
     // Orhan Pamuk'un kitabını 'Tarih' rafına topla.
-    await tester.tap(find.byIcon(Icons.drive_file_move_outline));
+    await tester.tap(find.byIcon(Icons.folder_special_outlined));
     await tester.pumpAndSettle();
     await tester.tap(
       find.descendant(of: find.byType(ListTile), matching: find.text('Tarih')),
