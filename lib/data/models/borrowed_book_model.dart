@@ -8,6 +8,11 @@ import 'book_model.dart';
 /// Kayıt tamamen bağımsızdır: başlık, yazarlar, kitabın sahibi, not,
 /// alım tarihi ve dönüş tarihi (varsa) tutar. `returnedAt` `null` ise
 /// kitap hâlâ kullanıcıda demektir ([isActive]).
+///
+/// Keşke 35 (1.26.0): `remindAt` isteğe bağlı 'sahibine geri ver'
+/// hatırlatma günüdür — "Komşunun kitabı altı aydır bende. Uygulamada
+/// kaydı var; kimse beni uyarmıyor." Tarihi gelen sürüyor kayıt için
+/// yerel bildirim kurulur (bkz. `LoanController`).
 const Object _unset = Object();
 
 class BorrowedBookModel extends Equatable {
@@ -19,6 +24,7 @@ class BorrowedBookModel extends Equatable {
     this.note,
     required this.borrowedAt,
     this.returnedAt,
+    this.remindAt,
   });
 
   final String id;
@@ -39,6 +45,10 @@ class BorrowedBookModel extends Equatable {
   /// Geri verildiği tarih; `null` ise kitap hâlâ kullanıcıda.
   final DateTime? returnedAt;
 
+  /// 'Sahibine geri ver' hatırlatması günü (keşke 35, 1.26.0);
+  /// `null` = hatırlatma yok.
+  final DateTime? remindAt;
+
   bool get isActive => returnedAt == null;
 
   /// Kart ve diyaloğun beklediği virgüllü düz metin ('A, B').
@@ -54,6 +64,7 @@ class BorrowedBookModel extends Equatable {
     Object? note = _unset,
     DateTime? borrowedAt,
     Object? returnedAt = _unset,
+    Object? remindAt = _unset,
   }) {
     return BorrowedBookModel(
       id: id ?? this.id,
@@ -65,6 +76,8 @@ class BorrowedBookModel extends Equatable {
       returnedAt: identical(returnedAt, _unset)
           ? this.returnedAt
           : returnedAt as DateTime?,
+      remindAt:
+          identical(remindAt, _unset) ? this.remindAt : remindAt as DateTime?,
     );
   }
 
@@ -76,6 +89,7 @@ class BorrowedBookModel extends Equatable {
         'note': note,
         'borrowedAt': borrowedAt.toIso8601String(),
         'returnedAt': returnedAt?.toIso8601String(),
+        'remindAt': remindAt?.toIso8601String(),
       };
 
   /// Depolamadan gelen tek kaydı savunmacı biçimde ayrıştırır:
@@ -109,6 +123,9 @@ class BorrowedBookModel extends Equatable {
       note: note is String && note.isNotEmpty ? note : null,
       borrowedAt: borrowedAt,
       returnedAt: returnedAt,
+      // Bozuk tarih yalnız hatırlatmayı düşürür; kayıt korunur (eski
+      // yedeklerde alan hiç yoktur).
+      remindAt: _parseDate(json['remindAt']),
     );
   }
 
@@ -139,5 +156,5 @@ class BorrowedBookModel extends Equatable {
 
   @override
   List<Object?> get props =>
-      [id, title, authors, owner, note, borrowedAt, returnedAt];
+      [id, title, authors, owner, note, borrowedAt, returnedAt, remindAt];
 }

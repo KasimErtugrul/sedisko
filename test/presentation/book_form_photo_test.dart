@@ -139,12 +139,27 @@ void main() {
     BookModel? book,
     bool isEdit = false,
   }) async {
+    // Form uzadı (keşke 7: 'Diğer bilgiler' bölümü eklendi): fotoğraf
+    // düğmelerinin ListView tembel kurulumuna takılmaması için tek ekrana
+    // sığacak kadar yüksek yüzey kullanılır (öteki form testlerindeki
+    // gibi).
+    tester.view.physicalSize = const Size(400, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
     await pumpApp(tester);
     Get.toNamed(
       Routes.form,
       arguments: BookFormArgs(book: book, isEdit: isEdit),
     );
     await tester.pumpAndSettle();
+    // Keşke 7 (1.26.0): kapak/fotoğraf bölümü 'Diğer bilgiler' katlanabilir
+    // bölümüne taşındı; temiz yeni kitapta kapalı gelir, açılır. Açık
+    // olduğunu göstergesi bölüm içi 'Okuma durumu' başlığıdır (düzenleme
+    // ve getirilen veride bölüm kendiliğinden açılır).
+    if (find.text('Okuma durumu').evaluate().isEmpty) {
+      await tester.tap(find.text('Diğer bilgiler (isteğe bağlı)'));
+      await tester.pumpAndSettle();
+    }
   }
 
   /// Snackbar'ın 3 sn'lik kapanma zamanlayıcısını sahte saatte tüketir.

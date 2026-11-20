@@ -107,13 +107,17 @@ class HomePage extends GetView<LibraryController> {
                     // Keşke 3 + 4 (1.23.0): boş durum yönlendirmesi yazı
                     // değil düğmedir — ekle menüsünü açar (FAB'la aynı iş,
                     // aynı ad). Barkod kullanılamıyorsa metin "elle" der.
+                    // Keşke 2 (1.26.0): ikinci yol — yardım sayfası.
                     return HomeEmptyState(
                       hasBooks: false,
                       onAdd: () => _showAddSheet(context),
+                      onHelp: () => Get.toNamed(Routes.help),
                     );
                   }
                   final searching = controller.query.value.trim().isNotEmpty;
-                  return searching ? _searchResults() : _homeFeed();
+                  return searching
+                      ? _searchResults(context)
+                      : _homeFeed();
                 }),
               ),
             ],
@@ -177,11 +181,28 @@ class HomePage extends GetView<LibraryController> {
   }
 
   /// Arama yazılırken durum filtresi + sonuç listesi gösterilir.
-  Widget _searchResults() {
+  ///
+  /// Keşke 20 (1.26.0): sonuçların üstünde sayı satırı durur —
+  /// "Sonuçlar liste halinde geldi; kaç tanesi bulundu, bilmiyorum.
+  /// Aramanın bittiğini yazarak anlıyorum, sayı görmeden."
+  Widget _searchResults(BuildContext context) {
     final items = controller.filteredBooks();
     return Column(
       children: [
         const StatusFilterRow(),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 6, 16, 2),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              items.isEmpty
+                  ? 'Arama bitti.'
+                  : '${items.length} kitap bulundu',
+              key: const ValueKey('search-result-count'),
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+        ),
         Expanded(
           child: items.isEmpty
               ? const HomeEmptyState(hasBooks: true)
@@ -506,9 +527,14 @@ class HomePage extends GetView<LibraryController> {
               ),
             ListTile(
               leading: const Icon(Icons.travel_explore),
-              title: const Text('İsim/yazarla ara'),
+              // Keşke 6 (1.26.0): "İkisi de 'ara' dediği için önce kitabın
+              // adını üstteki kutuya yazdım; 'yok' dedi." Ekle menüsünün
+              // internet yolu artık adında INTERNET diyor; kendi kitaplığı
+              // yalnız üstteki arama kutusuyla aranır.
+              title: const Text('İnternette ara'),
               subtitle: const Text(
-                "Open Library'de kitap adı veya yazarla ara",
+                "Kitap adı ya da yazara göre Open Library'de arar; "
+                'internet gerekir',
               ),
               onTap: () {
                 AppNav.pop();

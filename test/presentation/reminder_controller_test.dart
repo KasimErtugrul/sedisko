@@ -30,10 +30,26 @@ class _ScheduleCall {
   final int minute;
 }
 
+/// Tek seferlik kurulum kaydı (keşke 34/35, 1.26.0): ödünç hatırlatmaları.
+class _OnceCall {
+  _OnceCall({
+    required this.id,
+    required this.title,
+    required this.body,
+    required this.at,
+  });
+
+  final int id;
+  final String title;
+  final String body;
+  final DateTime at;
+}
+
 /// Çağrıları kaydeden sahte zamanlayıcı; [result] kurulum sonucunu belirler.
 class _FakeReminderScheduler implements ReminderScheduler {
   bool result = true;
   final List<_ScheduleCall> scheduleCalls = <_ScheduleCall>[];
+  final List<_OnceCall> onceCalls = <_OnceCall>[];
   final List<int> cancelCalls = <int>[];
 
   @override
@@ -51,6 +67,17 @@ class _FakeReminderScheduler implements ReminderScheduler {
       hour: hour,
       minute: minute,
     ));
+    return result;
+  }
+
+  @override
+  Future<bool> scheduleOnce({
+    required int id,
+    required String title,
+    required String body,
+    required DateTime at,
+  }) async {
+    onceCalls.add(_OnceCall(id: id, title: title, body: body, at: at));
     return result;
   }
 

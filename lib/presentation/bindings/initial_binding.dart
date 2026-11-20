@@ -53,8 +53,17 @@ class InitialBinding extends Bindings {
       LoanLocalDataSource(_prefs),
       permanent: true,
     );
+    // Bildirim zamanlayıcı keşke 34/35'ten (1.26.0) beri iki işi paylaşır:
+    // günlük okuma hatırlatıcısı + ödünç iade/geri verme hatırlatmaları.
+    Get.put<ReminderScheduler>(
+      FlutterReminderScheduler(),
+      permanent: true,
+    );
     Get.put<LoanController>(
-      LoanController(store: Get.find<LoanLocalDataSource>()),
+      LoanController(
+        store: Get.find<LoanLocalDataSource>(),
+        reminderScheduler: Get.find<ReminderScheduler>(),
+      ),
       permanent: true,
     );
     // Satın alınacaklar deposu (wishlist_v1).
@@ -68,10 +77,6 @@ class InitialBinding extends Bindings {
     );
     // Günlük okuma hatırlatıcısı: gerçek zamanlayıcı yalnız cihazda;
     // açılışta denetleyici onInit ile alarmı yeniden kurar.
-    Get.put<ReminderScheduler>(
-      FlutterReminderScheduler(),
-      permanent: true,
-    );
     Get.put<ReadingReminderService>(
       ReadingReminderService(
         prefs: _prefs,

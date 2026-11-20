@@ -17,6 +17,13 @@ Widget host(BookModel book) => MaterialApp(
       ),
     );
 
+/// Keşke 33 (1.26.0): panel katlanabilir; varsayılan KAPALI gelir.
+/// İçerik testleri başlığa dokunup bölümü açar.
+Future<void> openStats(WidgetTester tester) async {
+  await tester.tap(find.text('Okuma İstatistikleri'));
+  await tester.pumpAndSettle();
+}
+
 BookModel bookWithLog() {
   final now = fixedNow;
   return BookModel(
@@ -43,6 +50,7 @@ void main() {
     );
 
     await tester.pumpWidget(host(book));
+    await openStats(tester);
 
     expect(find.text('Okuma İstatistikleri'), findsOneWidget);
     expect(find.textContaining('burada birikir'), findsOneWidget);
@@ -52,6 +60,7 @@ void main() {
 
   testWidgets('İstatistik kutuları doğru değerleri gösterir', (tester) async {
     await tester.pumpWidget(host(bookWithLog()));
+    await openStats(tester);
 
     // Toplam okunan ve son 7 gün: 95.
     expect(find.text('95'), findsNWidgets(2));
@@ -92,6 +101,7 @@ void main() {
         ),
       ),
     ));
+    await openStats(tester);
 
     expect(find.text('10.6'), findsOneWidget);
     expect(find.text('9.5'), findsNothing);
@@ -99,6 +109,7 @@ void main() {
 
   testWidgets('Mini grafik 14 günlük bar üretir', (tester) async {
     await tester.pumpWidget(host(bookWithLog()));
+    await openStats(tester);
 
     for (var i = 0; i < 14; i++) {
       expect(find.byKey(ValueKey('daily-bar-$i')), findsOneWidget);
@@ -107,6 +118,7 @@ void main() {
 
   testWidgets('Son kayıtlar ilerleme miktarıyla listelenir', (tester) async {
     await tester.pumpWidget(host(bookWithLog()));
+    await openStats(tester);
 
     expect(find.text('Son kayıtlar'), findsOneWidget);
     expect(find.text('Sayfa 95'), findsOneWidget);

@@ -29,36 +29,41 @@ class ReadingStatsPanel extends StatelessWidget {
     final clock = now ?? DateTime.now();
     final stats = ReadingStats.calculate(book.readingLog, now: clock);
 
+    // Keşke 33 (1.26.0): kart artık katlanabilir — "Kitabı okuyan biri
+    // için güzel; benim için aşağıda yer kaplıyor." Başlık tek bakışta
+    // görünür kalır; ayrıntılar isteyene açılır (varsayılan KAPALI).
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      clipBehavior: Clip.antiAlias,
+      child: Theme(
+        data: theme.copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          key: const ValueKey('stats-tile'),
+          tilePadding: const EdgeInsets.symmetric(horizontal: 16),
+          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          initiallyExpanded: false,
+          leading: Icon(
+            Icons.insights,
+            size: 20,
+            color: theme.colorScheme.primary,
+          ),
+          // Expanded: dar ekranlarda başlık taşmadan kırpılır.
+          title: Text(
+            'Okuma İstatistikleri',
+            style: theme.textTheme.titleMedium,
+            overflow: TextOverflow.ellipsis,
+          ),
           children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.insights,
-                  size: 20,
-                  color: theme.colorScheme.primary,
-                ),
-                const SizedBox(width: 8),
-                // Expanded: dar ekranlarda başlık taşmadan kırpılır.
-                Expanded(
+            if (stats.events.isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Align(
+                  alignment: Alignment.centerLeft,
                   child: Text(
-                    'Okuma İstatistikleri',
-                    style: theme.textTheme.titleMedium,
-                    overflow: TextOverflow.ellipsis,
+                    'Okumaya başlayıp konumunu güncelledikçe günlük okunan '
+                    'sayfa burada birikir.',
+                    style: theme.textTheme.bodySmall,
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            if (stats.events.isEmpty)
-              Text(
-                'Okumaya başlayıp konumunu güncelledikçe günlük okunan '
-                'sayfa burada birikir.',
-                style: theme.textTheme.bodySmall,
               )
             else ...[
               _StatGrid(stats: stats),

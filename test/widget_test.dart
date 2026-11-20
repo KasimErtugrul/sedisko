@@ -98,6 +98,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Yeni kitap'), findsOneWidget);
+    // Keşke 7 (1.26.0): ayrıntılar tek katlanabilir bölümde; temiz yeni
+    // kitapta kapalı gelir. İçindeki alan için bölüm açılır.
+    await tester.tap(find.text('Diğer bilgiler (isteğe bağlı)'));
+    await tester.pumpAndSettle();
     expect(find.text('Bitirme hedefi (isteğe bağlı)'), findsOneWidget);
 
     await tester.tap(find.text('Kaydet'));

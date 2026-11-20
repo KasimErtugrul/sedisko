@@ -15,11 +15,16 @@ import '../../controllers/settings_controller.dart';
 /// "Bana bir yeri söylüyorsanız, o yere götüren düğmeyi de koyun".
 /// Düğme FAB'ın açtığı ekle menüsünü açar ve aynı adı taşır: aynı iş,
 /// aynı ad (keşke 21'in dersi).
+///
+/// Keşke 2 (1.26.0): boş kitaplıkta ikinci yol da görünür — 'Nasıl
+/// kullanılır?' düğmesi yardım sayfasını açar (Hasan'ın ilk deneyimi:
+/// "Takıldığım her yerde deneme yanılma ile ilerledim").
 class HomeEmptyState extends StatelessWidget {
   const HomeEmptyState({
     super.key,
     required this.hasBooks,
     this.onAdd,
+    this.onHelp,
   });
 
   final bool hasBooks;
@@ -28,6 +33,10 @@ class HomeEmptyState extends StatelessWidget {
   /// menünün aynısı). Verilmezse düğme çizilmez (arama boşluğunda
   /// ek eylem gerekmez; arama alanı hemen üsttedir).
   final VoidCallback? onAdd;
+
+  /// Boş kitaplıkta 'Nasıl kullanılır?' düğmesinin aksiyonu (keşke 2,
+  /// 1.26.0). Arama boşluğunda çizilmez.
+  final VoidCallback? onHelp;
 
   /// Barkod kullanılabiliyorsa orijinal vaat aynen durur; yoksa dürüst
   /// alternatif gösterilir. Denetleyici kayıtlıyken tercihe abone olur:
@@ -91,6 +100,16 @@ class HomeEmptyState extends StatelessWidget {
                 onPressed: onAdd,
                 icon: const Icon(Icons.add),
                 label: const Text('Kitap ekle'),
+              ),
+            ],
+            // Keşke 2 (1.26.0): ikinci yol — yardım sayfası.
+            if (!hasBooks && onHelp != null) ...[
+              const SizedBox(height: 8),
+              TextButton.icon(
+                key: const ValueKey('empty-open-help'),
+                onPressed: onHelp,
+                icon: const Icon(Icons.help_outline, size: 18),
+                label: const Text('Nasıl kullanılır?'),
               ),
             ],
           ],

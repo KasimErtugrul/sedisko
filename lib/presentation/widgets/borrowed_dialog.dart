@@ -1,24 +1,32 @@
 import 'package:flutter/material.dart';
 
 import '../../data/models/borrowed_book_model.dart';
+import 'reminder_date_row.dart';
 
 /// "Ödünç alınan kitap" girişi diyalogu (1.18.0).
 ///
 /// Kitap adı ve sahip zorunludur; yazarlar virgülle ayrılmış düz metin
-/// olarak girilir, kayıtta listeye ayrıştırılır. [existing] verilirse
-/// alanlar kayıttan doldurulur ve başlık "Ödünç düzenle" olur; düzenleme
-/// sonucu [BorrowedBookModel] kimliğiyle güncellenir (bkz.
+/// olarak girilir, kayıtta listeye ayrıştırılır. Keşke 35 (1.26.0):
+/// 'sahibine geri ver' hatırlatma günü isteğe bağlı seçilir. [existing]
+/// verilirse alanlar kayıttan doldurulur ve başlık "Ödünç düzenle" olur;
+/// düzenleme sonucu [BorrowedBookModel] kimliğiyle güncellenir (bkz.
 /// `LoanController.updateBorrowed`).
 ///
-/// Dönen değer: onaylanırsa `(başlık, yazarlar, sahip, not)` — yazarlar
-/// ve not boşsa boş string gelir, çağıran kırpıp temizler; vazgeçilirse
-/// `null`.
-Future<(String title, String authors, String owner, String note)?>
-    showBorrowedDialog(
+/// Dönen değer: onaylanırsa `(başlık, yazarlar, sahip, not, gün)` — yazarlar
+/// ve not boşsa boş string gelir, çağıran kırpıp temizler; gün `null`
+/// hatırlatmasız kayıt demektir; vazgeçilirse `null`.
+Future<
+    (
+      String title,
+      String authors,
+      String owner,
+      String note,
+      DateTime? remindAt,
+    )?> showBorrowedDialog(
   BuildContext context, {
   BorrowedBookModel? existing,
 }) {
-  return showDialog<(String, String, String, String)>(
+  return showDialog<(String, String, String, String, DateTime?)>(
     context: context,
     builder: (dialogContext) => _BorrowedDialog(existing: existing),
   );
@@ -42,6 +50,14 @@ class _BorrowedDialogState extends State<_BorrowedDialog> {
       TextEditingController(text: widget.existing?.owner ?? '');
   late final TextEditingController _noteCtrl =
       TextEditingController(text: widget.existing?.note ?? '');
+
+  DateTime? _remindAt;
+
+  @override
+  void initState() {
+    super.initState();
+    _remindAt = widget.existing?.remindAt;
+  }
 
   String? _titleError;
   String? _ownerError;
@@ -76,6 +92,7 @@ class _BorrowedDialogState extends State<_BorrowedDialog> {
         _authorsCtrl.text.trim(),
         _ownerCtrl.text.trim(),
         _noteCtrl.text.trim(),
+        _remindAt,
       ),
     );
   }
@@ -84,10 +101,11 @@ class _BorrowedDialogState extends State<_BorrowedDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       title: Text(_isEditing ? 'Ödünç düzenle' : 'Ödünç al'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
           TextField(
             key: const Key('borrowed-title-field'),
             controller: _titleCtrl,
@@ -137,7 +155,16 @@ class _BorrowedDialogState extends State<_BorrowedDialog> {
               labelText: 'Not (isteğe bağlı)',
             ),
           ),
-        ],
+          const SizedBox(height: 16),
+          // Keşke 35 (1.26.0): 'sahibine geri ver' hatırlatması — komşunun
+          // kitabı altı ayda bende kalmasın.
+          ReminderDateRow(
+            label: 'Sahibine geri ver hatırlatması (isteğe bağlı)',
+            selected: _remindAt,
+            onChanged: (value) => setState(() => _remindAt = value),
+          ),
+          ],
+        ),
       ),
       actions: [
         TextButton(

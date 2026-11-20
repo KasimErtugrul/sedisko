@@ -36,6 +36,17 @@ abstract class ReminderScheduler {
     required int minute,
   });
 
+  /// Tek seferlik bildirim kurar (keşke 34/35, 1.26.0): ödünç iadesi ve
+  /// 'sahibine geri ver' hatırlatmaları verilen GÜNDE bir kez çalar.
+  /// Geçmiş bir tarih verilirse kurulum yapmaz ve false döner. İzin/
+  /// timezone kurulamadıysa false.
+  Future<bool> scheduleOnce({
+    required int id,
+    required String title,
+    required String body,
+    required DateTime at,
+  });
+
   /// Verilen kimlikteki planlı bildirimi iptal eder.
   Future<void> cancel(int id);
 }
@@ -75,6 +86,42 @@ class FlutterReminderScheduler implements ReminderScheduler {
     }
   }
 
+  /// Bildirim izni (Android 13+ POST_NOTIFICATIONS, iOS uyarı/ses/rozet).
+  /// Verilmediyse false; günlük ve tek seferlik kurulum aynı kapıdan geçer.
+  Future<bool> _ensurePermission() async {
+    if (Platform.isAndroid) {
+      final android = _plugin?.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      if (android == null) return false;
+      final granted = await android.requestNotificationsPermission();
+      if (granted == false) return false;
+    } else if (Platform.isIOS) {
+      final ios = _plugin?.resolvePlatformSpecificImplementation<
+          IOSFlutterLocalNotificationsPlugin>();
+      if (ios == null) return false;
+      final granted = await ios.requestPermissions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+      if (granted == false) return false;
+    }
+    return true;
+  }
+
+  /// Kuruluma ortak giriş: masaüstü/web'te bildirim anlamlı değildir ama
+  /// tercih akışı bozulmasın diye başarı döner; mobilde izin + plugin
+  /// hazırlığı yapılır.
+  Future<bool> _prepare() async {
+    if (kIsWeb || !(Platform.isAndroid || Platform.isIOS)) return true;
+    try {
+      if (!await _ensureInitialized()) return false;
+      return await _ensurePermission();
+    } catch (_) {
+      return false;
+    }
+  }
+
   @override
   Future<bool> scheduleDaily({
     required int id,
@@ -83,33 +130,8 @@ class FlutterReminderScheduler implements ReminderScheduler {
     required int hour,
     required int minute,
   }) async {
-    if (kIsWeb || !(Platform.isAndroid || Platform.isIOS)) {
-      // Web/masaüstünde yerel bildirim anlamlı değildir; kurulum yapılmaz
-      // ama tercih akışı bozulmasın diye başarı döner.
-      return true;
-    }
+    if (!await _prepare()) return false;
     try {
-      if (!await _ensureInitialized()) return false;
-
-      // İzinler: Android 13+ POST_NOTIFICATIONS, iOS uyarı/ses/rozet.
-      if (Platform.isAndroid) {
-        final android = _plugin?.resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>();
-        if (android == null) return false;
-        final granted = await android.requestNotificationsPermission();
-        if (granted == false) return false;
-      } else if (Platform.isIOS) {
-        final ios = _plugin?.resolvePlatformSpecificImplementation<
-            IOSFlutterLocalNotificationsPlugin>();
-        if (ios == null) return false;
-        final granted = await ios.requestPermissions(
-          alert: true,
-          badge: true,
-          sound: true,
-        );
-        if (granted == false) return false;
-      }
-
       // Sıradaki hour:minute yerel zamanı: bugün geçtiyse yarın.
       final now = tz.TZDateTime.now(tz.local);
       var scheduledDate = tz.TZDateTime(
@@ -144,6 +166,47 @@ class FlutterReminderScheduler implements ReminderScheduler {
         ),
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
         matchDateTimeComponents: DateTimeComponents.time,
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  @override
+  Future<bool> scheduleOnce({
+    required int id,
+    required String title,
+    required String body,
+    required DateTime at,
+  }) async {
+    // Geçmiş saat: alarm zaten kaçtı; kurulum yapmaz, çağıran taraf
+    // sessizce yoluna gider (uygulama açılış yeniden kurulumunda eski
+    // tarihli kayıtlar böyle elenir).
+    if (at.isBefore(DateTime.now())) return false;
+    if (!await _prepare()) return false;
+    try {
+      await _plugin!.zonedSchedule(
+        id: id,
+        title: title,
+        body: body,
+        // DateTime → yerel TZDateTime: aynı duvar saatine kurulur.
+        scheduledDate: tz.TZDateTime.from(at, tz.local),
+        notificationDetails: const NotificationDetails(
+          android: AndroidNotificationDetails(
+            _channelId,
+            _channelName,
+            channelDescription: _channelDescription,
+            importance: Importance.defaultImportance,
+            priority: Priority.defaultPriority,
+          ),
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentSound: true,
+          ),
+        ),
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        // matchDateTimeComponents VERİLMEZ: tek seferlik alarm.
       );
       return true;
     } catch (_) {

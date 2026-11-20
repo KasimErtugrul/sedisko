@@ -1,30 +1,42 @@
 import 'package:flutter/material.dart';
 
+import 'reminder_date_row.dart';
+
 /// "Ödünç ver" girişi diyalogu (1.18.0).
 ///
-/// Kişi adı zorunludur; not isteğe bağlıdır. Tarih denetleyici tarafından
-/// eklenir (diyalog tarih sormaz). Dönen değer: onaylanırsa
-/// `(kişi, not)` — not boşsa boş string gelir, çağıran kırpıp
-/// temizler; vazgeçilirse `null`.
-Future<(String person, String note)?> showLendDialog(
+/// Kişi adı zorunludur; not ve iade hatırlatma günü isteğe bağlıdır (keşke
+/// 34, 1.26.0: "ne zaman geri isteyeceğim benim aklımda kalıyor" — hızlı
+/// çiplerle ya da takvimden gün seçilir; seçilmezse davranış eskisi gibidir).
+/// Tarih denetleyici tarafından eklenir (diyalog tarih sormaz). Dönen değer:
+/// onaylanırsa `(kişi, not, iade günü)` — not boşsa boş string gelir,
+/// çağıran kırpıp temizler; gün `null` ise hatırlatma kurulmaz;
+/// vazgeçilirse `null`.
+Future<(String person, String note, DateTime? dueAt)?> showLendDialog(
   BuildContext context, {
   String? initialPerson,
   String? note,
+  DateTime? initialDueAt,
 }) {
-  return showDialog<(String, String)>(
+  return showDialog<(String, String, DateTime?)>(
     context: context,
     builder: (dialogContext) => _LendDialog(
       initialPerson: initialPerson,
       initialNote: note,
+      initialDueAt: initialDueAt,
     ),
   );
 }
 
 class _LendDialog extends StatefulWidget {
-  const _LendDialog({this.initialPerson, this.initialNote});
+  const _LendDialog({
+    this.initialPerson,
+    this.initialNote,
+    this.initialDueAt,
+  });
 
   final String? initialPerson;
   final String? initialNote;
+  final DateTime? initialDueAt;
 
   @override
   State<_LendDialog> createState() => _LendDialogState();
@@ -35,6 +47,14 @@ class _LendDialogState extends State<_LendDialog> {
       TextEditingController(text: widget.initialPerson ?? '');
   late final TextEditingController _noteCtrl =
       TextEditingController(text: widget.initialNote ?? '');
+
+  DateTime? _dueAt;
+
+  @override
+  void initState() {
+    super.initState();
+    _dueAt = widget.initialDueAt;
+  }
 
   String? _error;
 
@@ -58,7 +78,7 @@ class _LendDialogState extends State<_LendDialog> {
     }
     Navigator.pop(
       context,
-      (_personCtrl.text.trim(), _noteCtrl.text.trim()),
+      (_personCtrl.text.trim(), _noteCtrl.text.trim(), _dueAt),
     );
   }
 
@@ -66,10 +86,11 @@ class _LendDialogState extends State<_LendDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       title: const Text('Ödünç ver'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
           TextField(
             key: const Key('lend-person-field'),
             controller: _personCtrl,
@@ -95,7 +116,16 @@ class _LendDialogState extends State<_LendDialog> {
               labelText: 'Not (isteğe bağlı)',
             ),
           ),
-        ],
+          const SizedBox(height: 16),
+          // Keşke 34 (1.26.0): iade hatırlatması — çiplerle ya da takvimden
+          // gün seçilir; seçilmeyen kayıt hatırlatmasız yaşar (eski davranış).
+          ReminderDateRow(
+            label: 'İade hatırlatması (isteğe bağlı)',
+            selected: _dueAt,
+            onChanged: (value) => setState(() => _dueAt = value),
+          ),
+          ],
+        ),
       ),
       actions: [
         TextButton(

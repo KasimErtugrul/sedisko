@@ -21,6 +21,9 @@ class Routes {
   /// Open Library başlık/yazar araması (1.18.0).
   static const String search = '/search';
 
+  /// 'Uygulama nasıl kullanılır?' yardım sayfası (keşke 2, 1.26.0).
+  static const String help = '/help';
+
   /// Satın alınacaklar listesi (1.18.0).
   static const String wishlist = '/wishlist';
 

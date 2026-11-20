@@ -11,6 +11,7 @@ import '../controllers/scanner_controller.dart';
 import '../pages/book_detail_page.dart';
 import '../pages/book_form_page.dart';
 import '../pages/borrowed_page.dart';
+import '../pages/help_page.dart';
 import '../pages/loans_page.dart';
 import '../pages/move_plan_page.dart';
 import '../pages/organize_preview_page.dart';
@@ -104,6 +105,9 @@ class AppPages {
         );
       }),
     ),
+    // 'Uygulama nasıl kullanılır?' (keşke 2, 1.26.0): statik yardım
+    // sayfası; denetleyicisi yoktur.
+    GetPage(name: Routes.help, page: () => const HelpPage()),
     // Satın alınacaklar; denetleyici InitialBinding'de kalıcıdır.
     GetPage(name: Routes.wishlist, page: () => const WishlistPage()),
     // Ödünç verilenler / ödünç aldıklarım; denetleyici kalıcıdır.

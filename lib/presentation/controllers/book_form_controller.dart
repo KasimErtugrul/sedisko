@@ -74,6 +74,13 @@ class BookFormController extends GetxController {
   late final DateTime _addedAt;
   late bool _isManual;
 
+  /// Keşke 7 (1.26.0): formun 'Diğer bilgiler' bölümü açılışta açık mı?
+  /// İlk kez kitap ekleyen kullanıcıya adı ve raftaki yeri yeter; bölüm
+  /// KAPALI gelir. Düzenleme ya da Open Library getirmesi gibi bölümde
+  /// veri varsa (sayfa sayısı, yayınevi, durum, fotoğraf...) kendiliğinden
+  /// açılır: getirilen veri görünmez kalmasın.
+  late final bool detailsOpenInitially;
+
   /// Form açıldığında kitabın kayıtlı fotoğrafı. Kaydetme başarılı olursa
   /// artık referans edilmeyen eski dosya diskten silinir.
   late final String? _originalCoverPath;
@@ -136,6 +143,24 @@ class BookFormController extends GetxController {
     _captureInitialState();
     _watchChanges();
     _refreshDirty();
+    _computeDetailsOpenInitially(book);
+  }
+
+  /// Keşke 7 (1.26.0): 'Diğer bilgiler' bölümünün açılış kararını verir.
+  /// Düzenleme ya da bölümde dolu alan varsa açık; temiz yeni kitapta kapalı.
+  void _computeDetailsOpenInitially(BookModel book) {
+    detailsOpenInitially = isEdit ||
+        (book.coverUrl != null && book.coverUrl!.isNotEmpty) ||
+        book.coverPath != null ||
+        book.pageCount > 0 ||
+        book.publisher != null ||
+        book.publishDate != null ||
+        book.status != ReadingStatus.notStarted ||
+        book.startedAt != null ||
+        book.finishedAt != null ||
+        book.targetFinishDate != null ||
+        book.notes != null ||
+        book.isFavorite;
   }
 
   /// Açılış görüntüsünü yakalar: tüm metin alanları + durum/tarih/fotoğraf
@@ -461,13 +486,29 @@ class BookFormController extends GetxController {
       _closeForm();
       // Keşke 44 (1.25.0): 'Kaydedildi' balonla değil, ekranda kalan
       // şeritle söylenir — "balon gittiğinde ne olduğunu bilmiyorum".
-      haberSeridiGoster(baslik: 'Kaydedildi', mesaj: book.title);
+      // Keşke 10 (1.26.0): yeni kayıtta şerit kitabın GİTTİĞİ YERİ de
+      // söyler — "Kitabım ana sayfada göze çarpmadı; Raflar sekmesindeki
+      // 'Tüm kitaplar' kartının içinde olduğunu sonra fark ettim."
+      haberSeridiGoster(baslik: 'Kaydedildi', mesaj: _savedMessage(book));
     } finally {
       isSaving.value = false;
     }
   }
 
   // ---------- Yardımcılar ----------
+
+  /// Keşke 10 (1.26.0): 'Kaydedildi' şeridinin mesajı. YENİ kitapta
+  /// kitabın nereye gittiği söylenir (raf adı varsa onunla); düzenlemede
+  /// yalnız kitabın adı (nereye gittiği zaten biliniyor).
+  String _savedMessage(BookModel book) {
+    if (isEdit) return book.title;
+    final shelf = book.shelf;
+    return shelf.isEmpty
+        ? '"${book.title}" kitaplığa girdi (rafsız). Bütün kitaplar '
+            'Raflar sekmesinde.'
+        : '"${book.title}" "$shelf" rafında. Bütün kitaplar '
+            'Raflar sekmesinde.';
+  }
 
   /// Aynı ISBN kayıtlıyken kaydet tuşuna basıldıysa: "farklı kopya olarak
   /// kaydet" onayı. `true` → kayda devam; `false` → vazgeç.

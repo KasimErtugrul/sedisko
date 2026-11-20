@@ -4,6 +4,8 @@ import 'package:get/get.dart';
 import '../../core/constants/app_constants.dart';
 import '../controllers/backup_controller.dart';
 import '../controllers/settings_controller.dart';
+import '../routes/app_routes.dart';
+import '../utils/haber_seridi.dart';
 import '../widgets/appearance/palette_picker.dart';
 import '../widgets/appearance/text_scale_picker.dart';
 import '../widgets/reminder/reading_reminder_section.dart';
@@ -89,7 +91,19 @@ class SettingsPage extends GetView<SettingsController> {
           Obx(
             () => SwitchListTile(
               value: controller.showScanActions.value,
-              onChanged: controller.setShowScanActions,
+              // Keşke 42 (1.26.0): "Anahtarı kapattım, unuttum. Sonra barkod
+              // düğmelerinin nereye gittiğini aradım." Anahtar değişince
+              // sonuç ekranda kalan şeritle söylenir (keşke 44'ün yardımcısı).
+              onChanged: (value) {
+                controller.setShowScanActions(value);
+                haberSeridiGoster(
+                  baslik: value ? 'Barkod tarama açıldı' : 'Barkod tarama kapandı',
+                  mesaj: value
+                      ? '"Barkod tara" düğmeleri geri geldi.'
+                      : '"Barkod tara" düğmeleri artık hiçbir yerde '
+                          'görünmeyecek. Geri açmak için bu anahtarı kullan.',
+                );
+              },
               title: const Text('Barkod tarama'),
               subtitle: const Text('"Barkod tara" düğmelerini göster'),
             ),
@@ -106,6 +120,21 @@ class SettingsPage extends GetView<SettingsController> {
           // Günlük okuma hatırlatıcısı (1.18.0); denetleyicisi kayıtsızken
           // bölüm kendini boş bırakır (izole testler bozulmaz).
           const ReadingReminderSection(),
+          const Divider(height: 24),
+          // Keşke 2 (1.26.0): "Ayarlar'da bile uygulamanın nasıl
+          // kullanılacağına dair bir açıklama yok" — yardım sayfası girişi.
+          const _SectionHeader('Yardım'),
+          ListTile(
+            key: const Key('settings-help-tile'),
+            leading: const Icon(Icons.help_outline),
+            title: const Text('Uygulama nasıl kullanılır?'),
+            subtitle: const Text(
+              'Kitap ekleme, raflar, otomatik düzenleme, ödünç ve yedek: '
+              'kısaca yol yol',
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Get.toNamed(Routes.help),
+          ),
           const Divider(height: 24),
           const _SectionHeader('Yedekleme ve aktarım'),
           _BackupTiles(),

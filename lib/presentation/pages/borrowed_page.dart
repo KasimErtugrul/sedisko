@@ -60,6 +60,8 @@ class BorrowedPage extends StatelessWidget {
       authors: _splitAuthors(result.$2),
       owner: result.$3,
       note: result.$4,
+      // Keşke 35 (1.26.0): 'sahibine geri ver' hatırlatma günü.
+      remindAt: result.$5,
     );
   }
 
@@ -118,6 +120,7 @@ class _BorrowedCard extends StatelessWidget {
     final theme = Theme.of(context);
     final subtitle = isActive
         ? 'Sahibi: ${item.owner} • alındı: ${formatDate(item.borrowedAt)}'
+            '${item.remindAt != null ? ' • hatırlatma: ${formatDate(item.remindAt)}' : ''}'
         : 'Sahibi: ${item.owner} • geri verildi: ${formatDate(item.returnedAt)}';
 
     return Card(
@@ -189,6 +192,9 @@ class _BorrowedCard extends StatelessWidget {
         owner: result.$3,
         // Diyalog boş string döndürürse not temizlenir (null → alan silinir).
         note: result.$4.isEmpty ? null : result.$4,
+        // Keşke 35 (1.26.0): hatırlatma günü düzenlenebilir; null
+        // (temizlenmiş) gün alarmı iptal eder.
+        remindAt: result.$5,
       ),
     );
   }

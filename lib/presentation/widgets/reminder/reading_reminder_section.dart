@@ -40,6 +40,26 @@ class ReadingReminderSection extends StatelessWidget {
                 'Seçtiğin saatte günlük sayfa hedefini bildirir',
               ),
             ),
+            // Keşke 39 (1.26.0): anahtar açılamadıysa (izin yok) satır,
+            // cihaz ayarlarını açan yazılı düğme taşır — "O ayarı bulmak
+            // benim için bir macera; düğme olsaydı direkt giderdim."
+            if (controller.showPermissionHint.value)
+              ListTile(
+                key: const Key('reminder-permission-row'),
+                leading: Icon(
+                  Icons.notifications_off_outlined,
+                  color: Theme.of(context).colorScheme.error,
+                ),
+                title: const Text('Bildirim izni verilmedi'),
+                subtitle: const Text(
+                  'Cihaz ayarlarında bu uygulamanın bildirimlerine izin ver.',
+                ),
+                trailing: TextButton(
+                  key: const Key('reminder-open-settings'),
+                  onPressed: controller.openDeviceSettings,
+                  child: const Text('Ayarlara git'),
+                ),
+              ),
             if (enabled) ...[
               ListTile(
                 leading: const Icon(Icons.schedule_outlined),

@@ -28,6 +28,33 @@ class SearchPage extends GetView<OpenLibrarySearchController> {
       appBar: AppBar(title: const Text("Open Library'de ara")),
       body: Column(
         children: [
+          // Keşke 6 (1.26.0): "İkisi de 'ara' dediği için önce kitabın
+          // adını üstteki kutuya yazdım; 'yok' dedi." Sayfa açılırken yeri
+          // açıkça söylenir: burada İNTERNET aranır, kendi kitaplık yalnız
+          // ana sayfanın üstündeki arama kutusuyla aranır.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: Row(
+              key: const ValueKey('search-internet-hint'),
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.wifi,
+                  size: 18,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Bu arama internette (Open Library) yapılır. '
+                    'Kendi kitaplarını ana sayfanın üstündeki arama '
+                    'kutusuyla ararsın.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
+              ],
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
             child: Column(

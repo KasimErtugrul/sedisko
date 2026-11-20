@@ -114,6 +114,7 @@ class _LoanCard extends StatelessWidget {
 
     final subtitle = isActive
         ? '${loan.person} • verildi: ${formatDate(loan.lentAt)}'
+            '${loan.dueAt != null ? ' • iade: ${formatDate(loan.dueAt)}' : ''}'
         : '${loan.person} • geri alındı: ${formatDate(loan.returnedAt)}';
 
     return Card(

@@ -11,6 +11,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:permission_handler/permission_handler.dart' as ph;
 
 import '../../data/services/reading_reminder_service.dart';
 
@@ -18,12 +19,44 @@ import '../../data/services/reading_reminder_service.dart';
 class ReadingReminderController extends GetxController {
   ReadingReminderController({
     required ReadingReminderService service,
+    Future<void> Function()? onOpenDeviceSettings,
     void Function(String title, String message)? onNotify,
   })  : _service = service,
+        _openDeviceSettings = onOpenDeviceSettings ?? _defaultOpenSettings,
         _notify = onNotify ?? _defaultNotify;
 
   final ReadingReminderService _service;
+
+  /// Cihaz ayarlarını açan yol (keşke 39, 1.26.0). Gerçekte
+  /// permission_handler'ın openAppSettings'i çağrılır; testler sahte
+  /// kaydedici enjekte eder. Çağrı başarısız olsa da uygulama akışı
+  /// bozulmaz (eksik plugin sessizce yok sayılır).
+  final Future<void> Function() _openDeviceSettings;
+
   final void Function(String title, String message) _notify;
+
+  /// Anahtar açılamadıysa (izin yok) doğruya döner: ayarlar bölümü
+  /// 'Ayarlara git' düğmeli izin satırını gösterir. Başarılı açılışta
+  /// temizlenir.
+  final showPermissionHint = false.obs;
+
+  static void _defaultNotify(String title, String message) {
+    Get.snackbar(title, message, snackPosition: SnackPosition.BOTTOM);
+  }
+
+  /// Keşke 39 (1.26.0): varsayılan açılış — cihazın uygulama ayarları.
+  /// Eklenti olmayan platformda MissingPluginException olabilir; akışı
+  /// bozmamak için sessizce yutulur.
+  static Future<void> _defaultOpenSettings() async {
+    try {
+      await ph.openAppSettings();
+    } catch (_) {
+      // Ayarlar açılamadı; kullanıcı satırı zaten yol söylüyor.
+    }
+  }
+
+  /// 'Ayarlara git' düğmesinin aksiyonu; testlerde sahteyle değiştirilir.
+  Future<void> openDeviceSettings() => _openDeviceSettings();
 
   /// Hatırlatıcı açık mı?
   final enabled = false.obs;
@@ -39,10 +72,6 @@ class ReadingReminderController extends GetxController {
 
   /// Aç/kapat akışı sürerken true: çift dokunuşla çift kurulum engellenir.
   final busy = false.obs;
-
-  static void _defaultNotify(String title, String message) {
-    Get.snackbar(title, message, snackPosition: SnackPosition.BOTTOM);
-  }
 
   @override
   void onInit() {
@@ -61,7 +90,10 @@ class ReadingReminderController extends GetxController {
   /// Anahtarı açar/kapatır.
   ///
   /// `true` gelirse bildirim kurulur; kurulum başarısızsa (örn. izin
-  /// verilmedi) kullanıcı bilgilendirilir ve hatırlatıcı kapalı kalır.
+  /// verilmedi) kullanıcı bilgilendirilir, hatırlatıcı kapalı kalır ve
+  /// 'Ayarlara git' düğmeli izin satırı görünür (keşke 39, 1.26.0:
+  /// "O ayarı bulmak benim için bir macera; düğme olsaydı direkt
+  /// giderdim"). Başarılı açılışta satır kaybolur.
   Future<void> toggle(bool value) async {
     if (busy.value) return;
     busy.value = true;
@@ -74,8 +106,10 @@ class ReadingReminderController extends GetxController {
         );
         if (ok) {
           enabled.value = true;
+          showPermissionHint.value = false;
         } else {
           enabled.value = false;
+          showPermissionHint.value = true;
           _notify(
             'Bildirim izni verilmedi',
             'Cihaz ayarlarından bildirimlere izin verin.',

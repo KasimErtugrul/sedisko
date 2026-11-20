@@ -53,6 +53,18 @@ class _FakeReminderScheduler implements ReminderScheduler {
   }
 
   @override
+  Future<bool> scheduleOnce({
+    required int id,
+    required String title,
+    required String body,
+    required DateTime at,
+  }) async {
+    // Gerçek kurulum gibi davranır: geçmiş saat kurulum reddedilir.
+    if (at.isBefore(DateTime.now())) return false;
+    return result;
+  }
+
+  @override
   Future<void> cancel(int id) async {
     cancelCalls.add(id);
   }

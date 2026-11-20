@@ -9,6 +9,12 @@ import 'book_model.dart';
 /// kayıt anlamlı kalır. `returnedAt` `null` ise ödünç hâlâ sürüyor
 /// demektir ([isActive]). Kayıtlar bağımsızdır: aynı kitap birden çok
 /// kişiye sırayla ya da üst üste verilebilir; her ödünç kendi kaydıdır.
+///
+/// Keşke 34 (1.26.0): `dueAt` isteğe bağlı iade hatırlatma günüdür —
+/// "Kitabı kimin aldığını uygulama biliyor; ama ne zaman geri
+/// isteyeceğim benim aklımda kalıyor." Tarihi gelen sürüyor kayıt için
+/// yerel bildirim kurulur (bkz. `LoanController`); alan `null` ise
+/// hiçbir hatırlatma kurulmaz (eski kayıtlar böyle kalır).
 const Object _unset = Object();
 
 class LoanModel extends Equatable {
@@ -20,6 +26,7 @@ class LoanModel extends Equatable {
     this.note,
     required this.lentAt,
     this.returnedAt,
+    this.dueAt,
   });
 
   final String id;
@@ -44,6 +51,9 @@ class LoanModel extends Equatable {
   /// Geri alındığı tarih; `null` ise ödünç sürüyor.
   final DateTime? returnedAt;
 
+  /// İade hatırlatması günü (keşke 34, 1.26.0); `null` = hatırlatma yok.
+  final DateTime? dueAt;
+
   bool get isActive => returnedAt == null;
 
   /// [note] ve [returnedAt] için `null` verilirse alan temizlenir,
@@ -56,6 +66,7 @@ class LoanModel extends Equatable {
     Object? note = _unset,
     DateTime? lentAt,
     Object? returnedAt = _unset,
+    Object? dueAt = _unset,
   }) {
     return LoanModel(
       id: id ?? this.id,
@@ -67,6 +78,7 @@ class LoanModel extends Equatable {
       returnedAt: identical(returnedAt, _unset)
           ? this.returnedAt
           : returnedAt as DateTime?,
+      dueAt: identical(dueAt, _unset) ? this.dueAt : dueAt as DateTime?,
     );
   }
 
@@ -78,6 +90,7 @@ class LoanModel extends Equatable {
         'note': note,
         'lentAt': lentAt.toIso8601String(),
         'returnedAt': returnedAt?.toIso8601String(),
+        'dueAt': dueAt?.toIso8601String(),
       };
 
   /// Depolamadan gelen tek kaydı savunmacı biçimde ayrıştırır:
@@ -113,6 +126,9 @@ class LoanModel extends Equatable {
       note: note is String && note.isNotEmpty ? note : null,
       lentAt: lentAt,
       returnedAt: returnedAt,
+      // Bozuk tarih hatırlatmayı düşürür ama kaydı ATMAMAZ: eski
+      // yedeklerde alan hiç yoktur, olmayan alan `null` kalır.
+      dueAt: _parseDate(json['dueAt']),
     );
   }
 
@@ -134,5 +150,5 @@ class LoanModel extends Equatable {
 
   @override
   List<Object?> get props =>
-      [id, bookId, bookTitle, person, note, lentAt, returnedAt];
+      [id, bookId, bookTitle, person, note, lentAt, returnedAt, dueAt];
 }

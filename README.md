@@ -1097,7 +1097,158 @@ flutter test
       gelmez (1.3 kademesinde taşma testiyle savunulur). Veri anahtarları
       ve saklanan veriler değişmez; ekran HİÇBİR ŞEY YAZMAZ.
 
+66. **Keşke notları FAZ 7 — not defterini kapatmak (1.26.0)** — ilk
+    altı fazın kapatamadığı kalan TÜM keşkeler tek fazda kapandı: artık
+    Hasan'ın 45 keşkesinin 44'ü kapalı (keşke 1'in "tek net yol"
+    yönü 1.23.0'daki tek yollu boş ekranla zaten kapanmıştı). Bu fazın
+    on iki değişikliği:
+
+    - **Keşke 2 — "Uygulama nasıl kullanılır?" sayfası:** "Takıldığım
+      her yerde deneme yanılma ile ilerledim; Ayarlar'da bile açıklama
+      yok." Günlük dilde dokuz bölüm (ilk kitap, raflar, otomatik
+      düzenleme, yanlış raf, okuma takibi, ödünç, satın alma, yedek,
+      terslik anı); Ayarlar'daki 'Yardım' satırı ve boş kitaplıktaki
+      'Nasıl kullanılır?' düğmesi açar.
+    - **Keşke 6 — iki 'ara' ayrışır:** ekle menüsünde 'İnternette ara'
+      (alt yazı: "internet gerekir"); arama sayfası açılırken "Bu arama
+      internette (Open Library) yapılır. Kendi kitaplarını ana sayfanın
+      üstündeki arama kutusuyla ararsın." der.
+    - **Keşke 7 — form kısaldı:** temel alanlar (ISBN, ad, yazar, raf)
+      üstte; öteki alanlar 'Diğer bilgiler (isteğe bağlı)' katlanabilir
+      bölümünde — temiz yeni kitapta KAPALI gelir, düzenlemede ve
+      getirilen veride kendiliğinden açılır. Kaydet artık ekranın
+      altındaki DAIMI çubukta: "Kaydet'i aramak" bitti.
+    - **Keşke 10 — 'Kaydedildi' yeri söyler:** yeni kayıtta şerit
+      '"Kitap" "Raf" rafında. Bütün kitaplar Raflar sekmesinde.' der;
+      rafsızsa 'rafsız' yazar. Düzenlemede yalnız ad.
+    - **Keşke 18 — Yazarlar araması:** sayfa kendi arama kutusunu
+      taşır; aksan/büyük-küçük katlamasıyla (Kasim ↔ Kasım) süzer,
+      boş sonuçta 'Aramana uyan yazar yok.' der.
+    - **Keşke 20 — sonuç sayısı:** ana sayfa araması '23 kitap
+      bulundu' satırı yazar; boşta 'Arama bitti.' der.
+    - **Keşke 32 — hızlı adım:** 'Kaçıncı sayfadasın?' diyaloğunda
+      −10 / −1 / +1 / +10 düğmeleri; toplam sayfayı aşan adım kırpılır.
+    - **Keşke 33 — katlanabilir istatistikler:** okuma istatistikleri
+      kartı varsayılan KAPALI gelir; başlığa dokunana açılır.
+    - **Keşke 34 — iade hatırlatması:** ödünç ver diyaloğu '+1 hafta /
+      +2 hafta / +1 ay / Tarih seç' çipleriyle iade günü alır; o gün
+      'İade günü' bildirimi çalar. Kitap geri alınınca, kayıt silinince
+      ya da gün temizlenince alarm iptal edilir; cihaz yeniden başlayınca
+      açılışta gelecek alarmlar yeniden kurulur. Çiplere dokunmayan
+      kayıt hatırlatmasız yaşar (eski davranış aynen). Veri anahtarı
+      loans_v1 DEĞİŞMEDİ: dueAt isteğe bağlı yeni alandır, eski yedekler
+      aynen okunur.
+    - **Keşke 35 — 'sahibine geri ver' hatırlatması:** ödünç al
+      diyaloğu aynı çiplerle 'geri verme günü' alır; 'Geri verme günü'
+      bildirimi çalar; düzenlemede gün temizlenirse alarm kapanır.
+      borrowed_v1 DEĞİŞMEDİ (remindAt isteğe bağlı alan).
+    - **Keşke 39 — 'Ayarlara git' düğmesi:** bildirim izni verilmezse
+      hatırlatıcı satırının altında 'Bildirim izni verilmedi —
+      Ayarlara git' çıkar; düğme cihazın uygulama ayarlarını açar
+      (permission_handler.openAppSettings). Başarılı açılışta satır
+      kaybolur.
+    - **Keşke 42 — barkod anahtarı haber verir:** anahtar kapatılınca
+      'Barkod tarama kapandı — "Barkod tara" düğmeleri artık hiçbir
+      yerde görünmeyecek' şeridi ekranda KALIR (keşke 44'ün şeridi);
+      açılınca 'Barkod tarama açıldı — düğmeleri geri geldi.' der.
+
+    Uzun basma yolları, 'Geri Al' teklifi, form çıkış onayı, hızlı
+    kurulum, kopya sorusu ve dokunmayın listesi korunur. Yeni testler:
+    ödünç hatırlatma modeli/zamanlama/iptal/reboot kurtarması,
+    diyalog çipleri, izin satırı + Ayarlara git, barkod şeridi,
+    yazar araması, sonuç sayısı, internet araması açıklaması, yardım
+    sayfası + iki giriş, form katlama kararları + alt bar + şerit
+    mesajları, hızlı adımlar + katlanabilir istatistikler. Güncellenen
+    testler: form ayrıntı alanlarına dokunan testler bölümü açar,
+    istatistik içerik testleri kartı açar. Veri anahtarları değişmez
+    (books_v1, shelves_v1, organize_plan_v1, loans_v1, borrowed_v1,
+    wishlist_v1, settings_*).
+
 ## Sürüm notları
+
+**1.26.0:** `pubspec.yaml` sürümü `1.26.0+34`'e yükseltildi. Keşke
+notlarının FAZ 7'si — "not defterini kapatmak": ilk altı fazın kapatamadığı
+kalan on iki keşkenin TAMAMI (2, 6, 7, 10, 18, 20, 32, 33, 34, 35, 39, 42)
+tek fazda kapandı. On iki değişiklik:
+
+- **Keşke 2 — yardım sayfası:** [HelpPage] günlük dilde dokuz bölüm
+  taşır (İlk kitabını ekle / Raflarını hazırla / Kitapları otomatik
+  diz / Kitabı yanlış rafa koydum / Okuma takibi / Ödünç ver-al /
+  Satın alacakların / Yedek / Bir terslik olursa). Girişler: Ayarlar >
+  'Uygulama nasıl kullanılır?' satırı ve boş kitaplıktaki 'Nasıl
+  kullanılır?' düğmesi ([HomeEmptyState] onHelp).
+- **Keşke 6 — iki 'ara' ayrışır:** ekle menüsü 'İnternette ara' der
+  (alt yazı internet şartını söyler); [SearchPage] üstünde wifi ikonlu
+  açıklama: "Bu arama internette (Open Library) yapılır. Kendi
+  kitaplarını ana sayfanın üstündeki arama kutusuyla ararsın."
+- **Keşke 7 — form progressive:** temel alanlar (ISBN + getir/tara,
+  Kitap adı, Yazar, Raf + çipler) üstte; kapak, sayfa sayısı, basım
+  yılı, yayınevi, okuma durumu + tarihler, bitirme hedefi, not ve
+  favori [ExpansionTile] 'Diğer bilgiler (isteğe bağlı)' içinde.
+  Açılış kararı [BookFormController.detailsOpenInitially]: temiz yeni
+  kitap KAPALI; düzenleme ya da bölümde dolu alan (getirilen veri)
+  AÇIK. Kaydet Scaffold.bottomNavigationBar'da DAIMA görünür
+  ('form-save' anahtarı).
+- **Keşke 10 — şerit yeri söyler:** yeni kayıtta mesaj '"<ad>"
+  "<raf>" rafında. Bütün kitaplar Raflar sekmesinde.'; rafsızda
+  '(rafsız)'. Düzenlemede yalnız ad (1.25.0 davranışı).
+- **Keşke 18 — yazar araması:** [AuthorsPage] arama alanı
+  ('authors-search-field') ekler; süzme [TextNormalizer.searchKey]
+  içerme kurallarıyla; boş sorguda liste eskisi gibi, uymayan sorguda
+  'Aramana uyan yazar yok.'
+- **Keşke 20 — sonuç sayısı:** ana sayfa aramasının üstünde 'N kitap
+  bulundu' satırı ('search-result-count'); boşta 'Arama bitti.'
+- **Keşke 32 — hızlı adım:** [_UpdatePageDialog] −10 / −1 / +1 / +10
+  düğmeleri ('page-step-N'); 0 ile toplam sayfa arasında kırpılır;
+  "237 yazmak yerine '+10' basmak" dönemi bitti.
+- **Keşke 33 — katlanabilir istatistikler:** [ReadingStatsPanel]
+  ExpansionTile'a dönüştü; varsayılan KAPALI, başlıkta ikon + 'Okuma
+  İstatistikleri' tek bakışta durur; içerik ('stats-tile' açıldığında
+  kutular, grafik, son kayıtlar) isteyene.
+- **Keşke 34 — iade hatırlatması:** [LoanModel.dueAt] (isteğe bağlı),
+  [ReminderDateRow] çipleri (+1 hafta / +2 hafta / +1 ay / Tarih seç;
+  seçilen gün sabah 09:00'a kurulur, geçmişe kayarsa ertesi sabah),
+  [LoanController.lendBook(dueAt:)]. Planlama
+  [ReminderScheduler.scheduleOnce] (tek seferlik; geçmiş saat reddedilir,
+  izin akışı günlük kurulumla aynı kapıdan geçer). Bildirim: 'İade
+  günü — "<kitap>" kitabını bugün <kişi> kişiden geri isteyebilirsin.'
+  Kimlik [LoanController.reminderId] (kayıt kimliğinden türetilir:
+  yeniden kurulum aynı alarmı değiştirir, iptal tam doğru alarmı
+  kapatır). markReturned / removeLoan / gün temizleme alarmları
+  iptal eder; load() açılışta gelecek alarmları yeniden kurar (reboot
+  kurtarması). Kurulum başarısızsa kayıt yaşar, 'Hatırlatma
+  kurulamadı' haberilir. loans_v1 anahtarı değişmedi: dueAt eksik/
+  bozuk eskiler null okunur, kayıt ATMAMAZ.
+- **Keşke 35 — geri verme hatırlatması:** [BorrowedBookModel.remindAt]
+  + [LoanController.addBorrowed(remindAt:)] / updateBorrowed
+  (temizlenen gün alarmı kapatır). Bildirim: 'Geri verme günü —
+  "<kitap>" kitabını bugün <sahip> kişiye geri verebilirsin.'
+  borrowed_v1 anahtarı değişmedi.
+- **Keşke 39 — Ayarlara git:** [ReadingReminderController] izin
+  akışında başarısızlıkta [showPermissionHint] kurar;
+  [ReadingReminderSection] 'Bildirim izni verilmedi' satırı + 'Ayarlara
+  git' düğmesi ('reminder-open-settings') gösterir. Varsayılan yol
+  permission_handler.openAppSettings (try-catch ile: eksik plugin akışı
+  bozmaz); testlerde enjekte edilir. Başarılı açılışta satır temizlenir.
+- **Keşke 42 — barkod anahtarı şeridi:** [SettingsPage] anahtarı
+  kapatınca 'Barkod tarama kapandı — "Barkod tara" düğmeleri artık
+  hiçbir yerde görünmeyecek' haber şeridi (ekranda kalır); açınca
+  'Barkod tarama açıldı — düğmeleri geri geldi.'
+
+Uzun basma yolları, 'Geri Al' teklifi, form çıkış onayı, hızlı kurulum,
+kopya sorusu ve dokunmayın listesi korunur. Yeni bağımlılık:
+permission_handler (yalnız 'Ayarlara git' için). Yeni testler:
+ödünç hatırlatma (model turu, zamanlama, iptal, reboot kurtarması,
+zamanlayıcısız akış), diyalog çipleri (seç/temizle/öndoldurma, gün→09:00
+dönüşümü), izin satırı + Ayarlara git + açılınca kaybolma, barkod şeridi
+iki yön, yazar araması (süzme/boşluk/temizle), sonuç sayısı (dolu/tek/
+boş), internet araması açıklaması, yardım sayfası + Ayarlar girişi + boş
+kitaplık düğmesi, form katlama kararları + alt bar + üç şerit mesajı,
+hızlı adımlar (+10 kaydeder, +1/−1, kırpma), katlanabilir istatistikler
+(varsayılan kapalı, açılır). Güncellenen testler: form ayrıntı alanlarına
+dokunan dokuz test bölümü açarak sürer, istatistik içerik testleri kartı
+açarak sürer, hatırlatıcı sahteleri scheduleOnce uygular. analyze temiz,
+818 test yeşil.
 
 **1.25.0:** `pubspec.yaml` sürümü `1.25.0+33`'e yükseltildi. Keşke
 notlarının FAZ 6'sı — "kelimeleri yumuşat" (belge kapanışının dördüncü

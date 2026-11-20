@@ -20,10 +20,30 @@ import '../widgets/author_rename_dialog.dart';
 ///   ("Kasim" ↔ "Kasım") tek isimde birleştirilir. Basılı tutma yolu
 ///   da aynı işi yapmaya devam eder.
 ///
+/// Keşke 18 (1.26.0): sayfa kendi arama kutusunu taşır — "Yazar sayısı
+/// artınca kaydırarak aramak eziyet oldu." Arama aksan/büyük-küçük
+/// katlamasıyla ([TextNormalizer.searchKey]) yapılır; ana sayfanın kitap
+/// aramasıyla aynı kurallar. Boş sorguda liste eskisi gibidir.
+///
 /// Yazarlar, aksan/büyük-küçük farkı katlanarak tek kartta toplanır
 /// ([LibraryController.authors]); kartta kitap sayısı gösterilir.
-class AuthorsPage extends GetView<LibraryController> {
+class AuthorsPage extends StatefulWidget {
   const AuthorsPage({super.key});
+
+  @override
+  State<AuthorsPage> createState() => _AuthorsPageState();
+}
+
+class _AuthorsPageState extends State<AuthorsPage> {
+  LibraryController get controller => Get.find<LibraryController>();
+
+  final _queryCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _queryCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,45 +59,76 @@ class AuthorsPage extends GetView<LibraryController> {
             message: 'Kitaplığın boş.\nİlk kitabını ana sayfadan ekle.',
           );
         }
-        final authors = controller.authors;
-        if (authors.isEmpty) {
-          return const _MessageView(
-            icon: Icons.person_off_outlined,
-            message: 'Kitaplıkta yazar bilgisi yok.',
-          );
-        }
+        final query = TextNormalizer.searchKey(_queryCtrl.text);
+        final authors = query.isEmpty
+            ? controller.authors
+            : [
+                for (final author in controller.authors)
+                  if (TextNormalizer.searchKey(author).contains(query)) author,
+              ];
         return Column(
           children: [
-            Expanded(
-              child: GridView.builder(
-                padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-                gridDelegate:
-                    const SliverGridDelegateWithMaxCrossAxisExtent(
-                  maxCrossAxisExtent: 160,
-                  mainAxisSpacing: 8,
-                  crossAxisSpacing: 8,
-                  // Dar ekranda (360-400 dp) kart yüksekliği baş harf + iki
-                  // satır ad + kitap sayısına yetmeli; 0.9'da 13 px taşma
-                  // olurdu (400 dp test yüzeyinde doğrulandı).
-                  childAspectRatio: 0.8,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+              child: TextField(
+                key: const Key('authors-search-field'),
+                controller: _queryCtrl,
+                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(Icons.search),
+                  hintText: 'Yazar ara',
+                  border: const OutlineInputBorder(),
+                  isDense: true,
+                  suffixIcon: _queryCtrl.text.isEmpty
+                      ? const SizedBox.shrink()
+                      : IconButton(
+                          tooltip: 'Aramayı temizle',
+                          icon: const Icon(Icons.close),
+                          onPressed: () {
+                            _queryCtrl.clear();
+                            setState(() {});
+                          },
+                        ),
                 ),
-                itemCount: authors.length,
-                itemBuilder: (context, index) {
-                  final author = authors[index];
-                  final key = TextNormalizer.searchKey(author);
-                  return _AuthorCard(
-                    key: ValueKey('author-card-$key'),
-                    name: author,
-                    bookCount: controller.authorBookCount(key),
-                    onTap: () => Get.toNamed(
-                      Routes.shelf,
-                      arguments: ShelfArgs(authorKey: key),
-                    ),
-                    onLongPress: () =>
-                        _showRenameDialog(context, key, author),
-                  );
-                },
               ),
+            ),
+            Expanded(
+              child: authors.isEmpty
+                  ? _MessageView(
+                      icon: Icons.person_search_outlined,
+                      message: query.isEmpty
+                          ? 'Kitaplıkta yazar bilgisi yok.'
+                          : 'Aramana uyan yazar yok.',
+                    )
+                  : GridView.builder(
+                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                      gridDelegate:
+                          const SliverGridDelegateWithMaxCrossAxisExtent(
+                        maxCrossAxisExtent: 160,
+                        mainAxisSpacing: 8,
+                        crossAxisSpacing: 8,
+                        // Dar ekranda (360-400 dp) kart yüksekliği baş harf + iki
+                        // satır ad + kitap sayısına yetmeli; 0.9'da 13 px taşma
+                        // olurdu (400 dp test yüzeyinde doğrulandı).
+                        childAspectRatio: 0.8,
+                      ),
+                      itemCount: authors.length,
+                      itemBuilder: (context, index) {
+                        final author = authors[index];
+                        final key = TextNormalizer.searchKey(author);
+                        return _AuthorCard(
+                          key: ValueKey('author-card-$key'),
+                          name: author,
+                          bookCount: controller.authorBookCount(key),
+                          onTap: () => Get.toNamed(
+                            Routes.shelf,
+                            arguments: ShelfArgs(authorKey: key),
+                          ),
+                          onLongPress: () =>
+                              _showRenameDialog(context, key, author),
+                        );
+                      },
+                    ),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),

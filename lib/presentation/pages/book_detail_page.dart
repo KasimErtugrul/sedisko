@@ -257,12 +257,13 @@ class BookDetailPage extends GetView<LibraryController> {
 
   /// "Ödünç ver" diyaloğunu açar; onayda kaydı denetleyiciye yazar.
   /// Başarı bilgi balonu burada, depolama hatası denetleyicide gösterilir.
+  /// Keşke 34 (1.26.0): diyaloğa iade hatırlatma günü de girer.
   Future<void> _lendBook(BuildContext context, BookModel book) async {
     final result = await showLendDialog(context);
     if (result == null) return;
     final person = result.$1;
     final ok = await Get.find<LoanController>()
-        .lendBook(book, person, note: result.$2);
+        .lendBook(book, person, note: result.$2, dueAt: result.$3);
     if (ok) {
       Get.snackbar(
         'Ödünç kaydedildi',
@@ -293,6 +294,7 @@ class BookDetailPage extends GetView<LibraryController> {
           title: Text(loan.person),
           subtitle: Text(
             'verildi: ${formatDate(loan.lentAt)}'
+            '${loan.dueAt != null ? ' • iade: ${formatDate(loan.dueAt)}' : ''}'
             '${loan.note != null ? ' • ${loan.note}' : ''}',
           ),
           trailing: TextButton(
@@ -661,24 +663,78 @@ class _UpdatePageDialogState extends State<_UpdatePageDialog> {
     return null;
   }
 
+  /// Keşke 32 (1.26.0): hızlı adım düğmeleri — "237 yazmak yerine '+10'
+  /// basmak benim için daha kolaydı." Alan değeri 0 ile (toplam sayfa
+  /// biliniyorsa) toplam arasında kırpılır; yazı yazmadan ilerlenir.
+  void _step(int delta) {
+    final current =
+        int.tryParse(_controller.text.trim()) ?? widget.book.currentPage;
+    var next = current + delta;
+    if (next < 0) next = 0;
+    final total = widget.book.pageCount;
+    if (total > 0 && next > total) next = total;
+    setState(() {
+      _controller.text = '$next';
+      _error = null;
+    });
+  }
+
+  Widget _quickButton(int delta) {
+    return OutlinedButton(
+      key: ValueKey('page-step-$delta'),
+      style: OutlinedButton.styleFrom(
+        visualDensity: VisualDensity.compact,
+        minimumSize: const Size(64, 40),
+      ),
+      onPressed: () => _step(delta),
+      child: Text(delta > 0 ? '+$delta' : '$delta'),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
       title: const Text('Kaçıncı sayfadasın?'),
-      content: TextField(
-        controller: _controller,
-        autofocus: true,
-        keyboardType: TextInputType.number,
-        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-        onChanged: (_) {
-          if (_error != null) setState(() => _error = null);
-        },
-        decoration: InputDecoration(
-          border: const OutlineInputBorder(),
-          errorText: _error,
-          suffixText:
-              widget.book.pageCount > 0 ? '/ ${widget.book.pageCount}' : null,
-        ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextField(
+            controller: _controller,
+            autofocus: true,
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            onChanged: (_) {
+              if (_error != null) setState(() => _error = null);
+            },
+            decoration: InputDecoration(
+              border: const OutlineInputBorder(),
+              errorText: _error,
+              suffixText:
+                  widget.book.pageCount > 0 ? '/ ${widget.book.pageCount}' : null,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _quickButton(-10),
+              const SizedBox(width: 8),
+              _quickButton(-1),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'hızlı adım',
+                  style: Theme.of(context).textTheme.bodySmall,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(width: 8),
+              _quickButton(1),
+              const SizedBox(width: 8),
+              _quickButton(10),
+            ],
+          ),
+        ],
       ),
       actions: [
         TextButton(

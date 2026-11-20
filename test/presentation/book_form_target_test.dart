@@ -84,6 +84,10 @@ void main() {
       arguments: BookFormArgs(book: BookModel.blank()),
     );
     await tester.pumpAndSettle();
+    // Keşke 7 (1.26.0): bitirme hedefi 'Diğer bilgiler' bölümünde; temiz
+    // yeni kitapta bölüm kapalı gelir, açılır.
+    await tester.tap(find.text('Diğer bilgiler (isteğe bağlı)'));
+    await tester.pumpAndSettle();
   }
 
   Future<void> scrollToSave(WidgetTester tester) async {

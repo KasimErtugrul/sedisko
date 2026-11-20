@@ -168,6 +168,11 @@ void main() {
   testWidgets('basım yılı harf kabul etmez ve dört haneyi aşmaz', (tester) async {
     await pumpForm(tester);
 
+    // Keşke 7 (1.26.0): basım yılı 'Diğer bilgiler' bölümünde; temiz yeni
+    // kitapta bölüm kapalı gelir, açılır.
+    await tester.tap(find.text('Diğer bilgiler (isteğe bağlı)'));
+    await tester.pumpAndSettle();
+
     final form = Get.find<BookFormController>();
     final yearField = find.widgetWithText(TextFormField, 'Basım yılı');
 

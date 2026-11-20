@@ -77,8 +77,13 @@ Future<void> showLendBookPickerSheet(BuildContext context) async {
   final result = await showLendDialog(context);
   if (result == null) return;
   final person = result.$1;
-  final ok =
-      await loanController.lendBook(picked, person, note: result.$2);
+  final ok = await loanController.lendBook(
+    picked,
+    person,
+    note: result.$2,
+    // Keşke 34 (1.26.0): iade hatırlatma günü.
+    dueAt: result.$3,
+  );
   if (ok) {
     Get.snackbar(
       'Ödünç kaydedildi',

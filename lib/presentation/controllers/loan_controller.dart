@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:get/get.dart';
 
 import '../../core/errors/app_exceptions.dart';
@@ -5,6 +7,7 @@ import '../../data/datasources/loan_local_datasource.dart';
 import '../../data/models/book_model.dart';
 import '../../data/models/borrowed_book_model.dart';
 import '../../data/models/loan_model.dart';
+import '../../data/services/reading_reminder_service.dart';
 
 /// Ödünç verme ve ödünç alma kayıtlarının GetX denetleyicisi (1.18.0).
 ///
@@ -12,17 +15,28 @@ import '../../data/models/loan_model.dart';
 /// - [loans]: kitaplıkta verdiğimiz kitapların ödünç kayıtları.
 /// - [borrowed]: başkasından aldığımız kitaplar (kitaplık kaydı değil).
 ///
+/// Keşke 34/35 (1.26.0): kayda isteğe bağlı hatırlatma günü eklendi —
+/// verilen ödünçte 'iade günü', alınan ödünçte 'sahibine geri ver'
+/// bildirimi kurulur ([ReminderScheduler.scheduleOnce]; zamanlayıcı
+/// verilmezse — izole testler — hatırlatma sessizce atlanır). Kayıt geri
+/// alınınca, silinince ya da hatırlatma temizlenince planlı bildirim de
+/// iptal edilir; uygulama açılışında gelecek tarihli hatırlatmalar yeniden
+/// kurulur (cihaz yeniden başladığında alarm sıfırlanmış olabilir).
+///
 /// [onNotify] test edilebilirlik için verilir; verilmezse GetX snackbar
 /// gösterilir. Kullanıcıya hata yalnızca depolama yazmalarında gösterilir;
 /// boş girdiler sessizce reddedilir (false döner).
 class LoanController extends GetxController {
   LoanController({
     required LoanLocalDataSource store,
+    ReminderScheduler? reminderScheduler,
     void Function(String title, String message)? onNotify,
   })  : _store = store,
+        _scheduler = reminderScheduler,
         _notify = onNotify ?? _defaultNotify;
 
   final LoanLocalDataSource _store;
+  final ReminderScheduler? _scheduler;
 
   final void Function(String title, String message) _notify;
 
@@ -41,9 +55,12 @@ class LoanController extends GetxController {
 
   /// Depodaki tüm kayıtları belleğe yükler. Okuma savunmacıdır (bozuk
   /// blok/kayıt zaten depoda düşürülür); burada ekstra hata işleme gerekmez.
+  /// Keşke 34/35 (1.26.0): gelecek tarihli hatırlatmalar açılışta yeniden
+  /// kurulur — cihaz yeniden başladığında planlı alarm sıfırlanmış olur.
   Future<void> load() async {
     loans.assignAll(_store.getLoans());
     borrowed.assignAll(_store.getBorrowed());
+    _rescheduleReminders();
   }
 
   /// Sürüyor olan ödünçler; verilme tarihi AZALAN (en yeni önce).
@@ -76,7 +93,17 @@ class LoanController extends GetxController {
   /// Kitabı [person] kişisine ödünç verir. Aynı kitaba sürüyor bir ödünç
   /// varken yeni kayıt açmak serbesttir; kayıtlar bağımsızdır (önceki
   /// kayıt otomatik geri alınmış sayılmaz).
-  Future<bool> lendBook(BookModel book, String person, {String? note}) async {
+  ///
+  /// [dueAt] verilirse (keşke 34, 1.26.0) o gün için iade hatırlatması
+  /// kurulur; kurulum başarısızsa kayıt yine de geçerlidir, kullanıcıya
+  /// 'hatırlatma kurulamadı' haberilir (iznin yarısı eksikse kaydın
+  /// kendisini düşürmemek bilinçli bir tercihtir).
+  Future<bool> lendBook(
+    BookModel book,
+    String person, {
+    String? note,
+    DateTime? dueAt,
+  }) async {
     final cleanedPerson = person.trim();
     if (cleanedPerson.isEmpty) return false;
 
@@ -87,12 +114,16 @@ class LoanController extends GetxController {
       person: cleanedPerson,
       note: _cleanNote(note),
       lentAt: DateTime.now(),
+      dueAt: _cleanDate(dueAt),
     );
-    return _saveLoan(loan, isNew: true);
+    final ok = await _saveLoan(loan, isNew: true);
+    if (ok) await _scheduleLoanReminder(loan, isNew: true);
+    return ok;
   }
 
   /// Ödünç kaydını geri alınmış işaretler (bugün). Zaten geri alınmışsa
-  /// sessizce başarılı sayılır (idempotent).
+  /// sessizce başarılı sayılır (idempotent). İade hatırlatması (varsa)
+  /// iptal edilir: kitap geldi, alarm çalmaya gerek yok.
   Future<bool> markReturned(String loanId) async {
     final index = loans.indexWhere((l) => l.id == loanId);
     if (index < 0) return false;
@@ -101,7 +132,9 @@ class LoanController extends GetxController {
     if (!current.isActive) return true;
 
     final updated = current.copyWith(returnedAt: DateTime.now());
-    return _saveLoan(updated, index: index);
+    final ok = await _saveLoan(updated, index: index);
+    if (ok) _cancelReminder(current.id);
+    return ok;
   }
 
   Future<bool> removeLoan(String id) async {
@@ -115,16 +148,20 @@ class LoanController extends GetxController {
       return false;
     }
     loans.removeWhere((l) => l.id == id);
+    _cancelReminder(id);
     return true;
   }
 
   /// Başkasından ödünç alınan kitabı kaydeder. Yazarlar virgüllü düz
   /// metin değil, zaten ayrılmış liste olarak gelir (diyalog ayırır).
+  /// [remindAt] verilirse (keşke 35, 1.26.0) 'sahibine geri ver'
+  /// hatırlatması kurulur.
   Future<bool> addBorrowed({
     required String title,
     List<String> authors = const [],
     required String owner,
     String? note,
+    DateTime? remindAt,
   }) async {
     final cleanedTitle = title.trim();
     final cleanedOwner = owner.trim();
@@ -137,21 +174,29 @@ class LoanController extends GetxController {
       owner: cleanedOwner,
       note: _cleanNote(note),
       borrowedAt: DateTime.now(),
+      remindAt: _cleanDate(remindAt),
     );
-    return _saveBorrowed(item, isNew: true);
+    final ok = await _saveBorrowed(item, isNew: true);
+    if (ok) await _scheduleBorrowedReminder(item, isNew: true);
+    return ok;
   }
 
   /// Mevcut alıntı kaydını günceller (başlık/sahip boşsa reddedilir).
+  /// Hatırlatma günü değişmişse bildirim yeniden kurulur; temizlenmişse
+  /// iptal edilir.
   Future<bool> updateBorrowed(BorrowedBookModel item) async {
     final index = borrowed.indexWhere((b) => b.id == item.id);
     if (index < 0) return false;
     if (item.title.trim().isEmpty || item.owner.trim().isEmpty) return false;
 
-    return _saveBorrowed(item, index: index);
+    final ok = await _saveBorrowed(item, index: index);
+    if (ok) _scheduleBorrowedReminder(item, isNew: false);
+    return ok;
   }
 
   /// Alıntıyı geri verildi işaretler (bugün). Zaten geri verilmişse
-  /// sessizce başarılı sayılır (idempotent).
+  /// sessizce başarılı sayılır (idempotent). 'Geri vereyim' hatırlatması
+  /// (varsa) iptal edilir.
   Future<bool> markBorrowedReturned(String id) async {
     final index = borrowed.indexWhere((b) => b.id == id);
     if (index < 0) return false;
@@ -159,8 +204,10 @@ class LoanController extends GetxController {
     final current = borrowed[index];
     if (!current.isActive) return true;
 
-    return _saveBorrowed(current.copyWith(returnedAt: DateTime.now()),
-        index: index);
+    final ok = await _saveBorrowed(
+        current.copyWith(returnedAt: DateTime.now()), index: index);
+    if (ok) _cancelReminder(current.id);
+    return ok;
   }
 
   Future<bool> removeBorrowed(String id) async {
@@ -174,10 +221,139 @@ class LoanController extends GetxController {
       return false;
     }
     borrowed.removeWhere((b) => b.id == id);
+    _cancelReminder(id);
     return true;
   }
 
   // ---------- iç yardımcılar ----------
+
+  // Keşke 34/35 (1.26.0): hatırlatma zamanlaması. Zamanlayıcı verilmediyse
+  // (izole testler, denetleyicisiz kurulumlar) tüm bu akış sessizce atlanır;
+  // kayıt yazma davranışı hiç değişmez.
+
+  /// Planlı bildirim kimliği: kayıt kimliğinden türetilir. Kayıt kimlikleri
+  /// benzersizdir; aynı kayıt her kurulumda AYNI kimliği alır, böylece
+  /// yeniden kurulum eski alarmı değiştirir, geri alma/silme tam doğru
+  /// alarmı iptal eder.
+  static int reminderId(String recordId) => recordId.hashCode & 0x7FFFFFFF;
+
+  static String _loanReminderBody(LoanModel loan) =>
+      '"${loan.bookTitle}" kitabını bugün ${loan.person} kişiden geri '
+      'isteyebilirsin.';
+
+  static String _borrowedReminderBody(BorrowedBookModel item) =>
+      '"${item.title}" kitabını bugün ${item.owner} kişiye geri verebilirsin.';
+
+  /// Ödünç kaydına hatırlatma kurar: kayıt sürüyor ve gelecek bir gün
+  /// seçilmişse tek seferlik bildirim; kurulum başarısızsa kullanıcıya
+  /// bildirilir (kayıt zaten yazılmıştır, sessiz kalınmaz).
+  Future<void> _scheduleLoanReminder(LoanModel loan,
+      {required bool isNew}) async {
+    final scheduler = _scheduler;
+    if (scheduler == null) return;
+    if (!loan.isActive || loan.dueAt == null) {
+      // Yeni kayıtta hatırlatma yok: iptal edilecek alarm da yoktur.
+      // Düzenlemede gün temizlenmişse eski alarm kapatılır.
+      if (!isNew) unawaited(scheduler.cancel(reminderId(loan.id)));
+      return;
+    }
+    _scheduleOnceGuarded(
+      schedule: () => scheduler.scheduleOnce(
+        id: reminderId(loan.id),
+        title: 'İade günü',
+        body: _loanReminderBody(loan),
+        at: loan.dueAt!,
+      ),
+      isNew: isNew,
+    );
+  }
+
+  /// Alıntı kaydına 'sahibine geri ver' hatırlatması kurar; gün
+  /// temizlenmişse ya da kitap geri verilmişse alarmı iptal eder.
+  Future<void> _scheduleBorrowedReminder(BorrowedBookModel item,
+      {required bool isNew}) async {
+    final scheduler = _scheduler;
+    if (scheduler == null) return;
+    if (!item.isActive || item.remindAt == null) {
+      // Yeni kayıtta hatırlatma yok: iptal edilecek alarm da yoktur.
+      // Düzenlemede gün temizlenmişse eski alarm kapatılır.
+      if (!isNew) unawaited(scheduler.cancel(reminderId(item.id)));
+      return;
+    }
+    _scheduleOnceGuarded(
+      schedule: () => scheduler.scheduleOnce(
+        id: reminderId(item.id),
+        title: 'Geri verme günü',
+        body: _borrowedReminderBody(item),
+        at: item.remindAt!,
+      ),
+      isNew: isNew,
+    );
+  }
+
+  /// Tek seferlik kurulumu çalıştırır; başarısızlıkta kullanıcıyı
+  /// haberdar eder. Yeni kayıtta kurulum hatası ayrı bir haberdir; güncelleme
+  /// yeniden kurulumunda sessizlik tercih edilir (kayıt zaten yaşar).
+  Future<void> _scheduleOnceGuarded({
+    required Future<bool> Function() schedule,
+    required bool isNew,
+  }) async {
+    final ok = await schedule();
+    if (!ok && isNew) {
+      _notify(
+        'Hatırlatma kurulamadı',
+        'Kayıt kaydedildi ama bildirim izni yok gibi görünüyor. '
+        'Cihaz ayarlarından bildirimlere izin ver.',
+      );
+    }
+  }
+
+  /// Açılış yeniden kurulumu: gelecek tarihli hatırlatmalar yeniden kurulur
+  /// (geçmiş tarihleri zamanlayıcı zaten reddeder); hatırlatmasız/geri
+  /// verilmiş kayıtların artık alarmları iptal edilir.
+  void _rescheduleReminders() {
+    final scheduler = _scheduler;
+    if (scheduler == null) return;
+    for (final loan in loans) {
+      if (loan.isActive && loan.dueAt != null) {
+        unawaited(scheduler.scheduleOnce(
+          id: reminderId(loan.id),
+          title: 'İade günü',
+          body: _loanReminderBody(loan),
+          at: loan.dueAt!,
+        ));
+      } else {
+        unawaited(scheduler.cancel(reminderId(loan.id)));
+      }
+    }
+    for (final item in borrowed) {
+      if (item.isActive && item.remindAt != null) {
+        unawaited(scheduler.scheduleOnce(
+          id: reminderId(item.id),
+          title: 'Geri verme günü',
+          body: _borrowedReminderBody(item),
+          at: item.remindAt!,
+        ));
+      } else {
+        unawaited(scheduler.cancel(reminderId(item.id)));
+      }
+    }
+  }
+
+  void _cancelReminder(String recordId) {
+    _scheduler?.cancel(reminderId(recordId));
+  }
+
+  /// Hatırlatma tarihi savunmacı temizliği: yalnız geleceğe dünülmüş
+  /// (bugün 00:00'dan sonra) tarih kabul edilir; bozuk/ geçmiş tarih
+  /// sessizce 'yok' olur.
+  static DateTime? _cleanDate(DateTime? value) {
+    if (value == null) return null;
+    final today = DateTime.now();
+    final dayStart = DateTime(today.year, today.month, today.day);
+    if (!value.isAfter(dayStart)) return null;
+    return value;
+  }
 
   Future<bool> _saveLoan(LoanModel loan, {int? index, bool isNew = false}) async {
     try {

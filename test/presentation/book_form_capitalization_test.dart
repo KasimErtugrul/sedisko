@@ -78,6 +78,10 @@ void main() {
     addTearDown(tester.view.reset);
     await tester.pumpWidget(GetMaterialApp(home: const BookFormPage()));
     await tester.pumpAndSettle();
+    // Keşke 7 (1.26.0): 'Diğer bilgiler' bölümü temiz yeni kitapta kapalı
+    // gelir; Yayınevi gibi ayrıntı alanlarına dokunmak için açılır.
+    await tester.tap(find.text('Diğer bilgiler (isteğe bağlı)'));
+    await tester.pumpAndSettle();
   }
 
   /// [TextFormField] kendi başına textCapitalization sergilemez; alanın
