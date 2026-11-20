@@ -247,7 +247,7 @@ void main() {
       await controller.addBorrowed(title: 'Yeni', owner: 'Veli');
 
       expect(controller.activeBorrowed.map((b) => b.title).toList(),
-        ['Eski', 'Yeni']);//  ['Yeni', 'Eski']);
+          ['Yeni', 'Eski']);
     });
   });
 

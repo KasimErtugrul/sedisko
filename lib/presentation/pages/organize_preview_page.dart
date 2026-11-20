@@ -41,6 +41,8 @@ class OrganizePreviewPage extends StatelessWidget {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
                 children: [
+                  _SummaryCard(summary: controller.previewMoveSummary()),
+                  const SizedBox(height: 8),
                   for (final planned in arrangement.shelves)
                     _PlannedShelfCard(
                       key: ValueKey('planned-${planned.shelf.name}'),
@@ -94,6 +96,54 @@ class OrganizePreviewPage extends StatelessWidget {
       return;
     }
     Get.offNamed(Routes.organizePlan);
+  }
+}
+
+/// Plan özeti (1.18.1): çıktıyı sayılarla açıklar. Kitaplık çoğunlukla
+/// hedef düzendeysen plan DOĞRU olarak yalnız 1-2 kitap taşır; bu kart
+/// o çıktının "hata değil" olduğunu tek bakışta gösterir.
+class _SummaryCard extends StatelessWidget {
+  const _SummaryCard({required this.summary});
+
+  final ({int moved, int untouched})? summary;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final summary = this.summary;
+    if (summary == null) return const SizedBox.shrink();
+    final text = summary.moved == 0
+        ? 'Taşınacak kitap yok: ${summary.untouched} kitap zaten hedef '
+            'düzeninde. Plan üretmek yerine kurulumdan kriteri '
+            'değiştirebilirsin.'
+        : '${summary.moved} kitap taşınacak, ${summary.untouched} kitap '
+            'zaten hedef düzeninde.';
+    return Card(
+      key: const ValueKey('preview-summary'),
+      margin: EdgeInsets.zero,
+      color: scheme.secondaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            Icon(
+              summary.moved == 0 ? Icons.check_circle_outline : Icons.route,
+              size: 20,
+              color: scheme.onSecondaryContainer,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                text,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: scheme.onSecondaryContainer,
+                    ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

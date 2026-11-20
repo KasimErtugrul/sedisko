@@ -124,11 +124,21 @@ class ShelfOrganizeController extends GetxController {
     final names = _library.shelves;
     if (names.isEmpty) return false;
 
+    // Ad benzersizliği aksan/büyük harf duyarsızdır (1.18.1):
+    // 'Kitaplık' ve 'kitaplık' yazımları tek rafa birleşir. Yinelenen
+    // tanım; plan hedef adlarını karıştırır, önizlemede aynı ada iki
+    // kart ve taşma hesabında çift bütçe üretir.
+    final seen = <String>{};
+    final unique = <String>[
+      for (final name in names)
+        if (seen.add(TextNormalizer.searchKey(name))) name,
+    ];
+
     shelves.assignAll([
-      for (var i = 0; i < names.length; i++)
+      for (var i = 0; i < unique.length; i++)
         ShelfModel(
           id: BookModel.newId(),
-          name: names[i],
+          name: unique[i],
           capacity: defaultCapacity,
           location: '',
           order: i,
@@ -391,8 +401,79 @@ class ShelfOrganizeController extends GetxController {
     final options = _currentOptions();
     previewCriterion.value = criterion;
     previewOptions.value = options;
-    preview.value = ShelfPlanner.arrange(books, shelves, criterion,
-        options: options);
+    final arrangement = ShelfPlanner.arrange(
+      books,
+      shelves,
+      criterion,
+      options: options,
+    );
+    _explainFavorites(arrangement.warnings);
+    preview.value = arrangement;
+  }
+
+  /// Favori tercihlerinin plana yansımadığı durumları AÇIKÇA uyarıya
+  /// yazar (1.18.1). Sessiz devre dışı kalma, kullanıcının plan çıktısını
+  /// bozuk sanmasının bilinen kaynaklarından biriydi:
+  ///
+  /// - Favori raf tercihi kayıtlı ama raf artık yok (raflar hızlı
+  ///   kurulumla yeniden açılmışsa kimlikler yenilenir): favori
+  ///   yerleştirme hiç çalışmadan geçer ve kullanıcı fark etmez.
+  /// - Favori yazar adları kitaplık verisiyle eşleşmez (yazım farkı):
+  ///   planlayıcı boş grupları sessizce atlar.
+  void _explainFavorites(List<String> warnings) {
+    if (favoriteAuthors.isEmpty) return;
+
+    final favorite = effectiveFavoriteShelf;
+    if (favorite == null) {
+      final stored = favoriteShelfId.value;
+      if (stored != null && stored.isNotEmpty) {
+        warnings.add(
+          'Favori raf tercihin kayıtlı ama bu raf raflar listesinde yok '
+          '(raflar yeniden oluşturulmuş olabilir). Favori yerleştirme bu '
+          'planda devre dışı kaldı; kurulumdan favori rafı yeniden seç.',
+        );
+      }
+      warnings.add(
+        'Favori yazarların için favori raf seçilmediği için favori '
+        'yerleştirme yapılmadı; kitaplar yalnız seçtiğin kritere göre '
+        'dağıtıldı.',
+      );
+      return;
+    }
+
+    final bookAuthorKeys = <String>{
+      for (final book in books)
+        for (final author in book.authors)
+          TextNormalizer.searchKey(author.trim()),
+    }..remove('');
+    final unmatched = <String>[
+      for (final author in favoriteAuthors)
+        if (!bookAuthorKeys.contains(TextNormalizer.searchKey(author.trim())))
+          author,
+    ];
+    if (unmatched.isNotEmpty) {
+      warnings.add(
+        'Şu favori yazarlar kitaplıkta bulunamadı (yazım farkı olabilir): '
+        '${unmatched.join(', ')}. Bu yazarlar için favori yerleştirme '
+        'yapılmadı.',
+      );
+    }
+  }
+
+  /// Önizlemenin özeti: kaç kitap taşınacak, kaç kitap zaten hedefinde.
+  /// Önizleme yoksa null. Önizleme sayfasının üst kartı bunu gösterir;
+  /// "yalnız 1 kitap değişecek" çıktısı artık kendi kendini açıklar —
+  /// kitaplık çoğunlukla hedef düzendeysen bu DOĞRU sonuctur, hata değil.
+  ({int moved, int untouched})? previewMoveSummary() {
+    final arrangement = preview.value;
+    if (arrangement == null) return null;
+    var moved = 0;
+    for (final book in books) {
+      final target = arrangement.targetShelfOf(book.id);
+      if (target == null) continue;
+      if (book.shelf.trim() != target.trim()) moved++;
+    }
+    return (moved: moved, untouched: books.length - moved);
   }
 
   void clearPreview() {
@@ -425,7 +506,10 @@ class ShelfOrganizeController extends GetxController {
     if (result.turs.isEmpty) {
       plan.value = null;
       await _shelfStore.savePlan(null);
-      preview.value = null;
+      // Önizleme SİLİNMEZ (1.18.1): boş plan, arayüzün altında
+      // preview.value'yu null'a çekiyordu ve kullanıcı önizleme
+      // sayfasında "Önizleme yok. Kuruluma dön." yazısıyla baş başa
+      // kalıyordu. Sayfa açık kalır; snackbar nedeni anlatır.
       return;
     }
 

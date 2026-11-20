@@ -893,6 +893,42 @@ flutter test
 
 ## Sürüm notları
 
+**1.18.1:** `pubspec.yaml` sürümü `1.18.1+23`'e yükseltildi. Kullanıcı
+raporu: "rafları düzenle butonuna basıyor ama ya uygulama kilitleniyor
+ya da sadece 1 kitap değiştirme çıkıyor." İki ayrı kök neden bulundu ve
+giderildi; veri anahtarları ve plan formatı (`organize_plan_v1`)
+değişmedi, plan algoritmasının çıktısı birebir korundu.
+
+- **Kilitlenme (ANR):** taşıma planı üretimi kuadratikti — her tur
+  adımında tüm bekleyen hareketler baştan taranıyor, yer etiketi her
+  hareket için raf tanımlarını yeniden okuyordu. 3000 kitapta ölçüm:
+  5.3 saniye kesintisiz ana izolasyon bloğu (Android ANR eşiği ~5 sn);
+  1.18.1'de aynı girdi 0,2 saniyenin altında (raf-adı kuyrukları +
+  yer-etiketi önbelleği; ~25 kat hızlanma). Yeni uygulama, ESKİ
+  uygulamanın gömülü referans kopyasıyla tur tur emir emir
+  karşılaştırılarak doğrulandı (`move_plan_builder_equivalence_test`):
+  tek yer/çok yer/rafsız/harf varyantı/çift kayıt senaryolarında
+  planlar birebir aynı. Plan sayfasında 24 emri aşan turlar artık sabit
+  yükseklikte kaydırılabilir listede tembel kurulur; büyük tur
+  kartının açılışı donduruyordu.
+- **"Sadece 1 kitap değiştirme":** kitaplık çoğunlukla hedef düzendeysen
+  plan DOĞRU olarak 0-1 hamle üretir (önceki plan tamamlandıysa ya da
+  tek yeni kitap geldiyse). Çıktı artık kendi kendini açıklar:
+  önizlemenin üstünde özet kartı ("N kitap taşınacak, M kitap zaten
+  hedef düzeninde"); taşınacak hiçbir şey yoksa önizleme sayfası
+  silinmiyor, snackbar ile kalıyor. Sessiz no-op kökleri de açıklandı:
+  (a) favori raf tercihi kayıtlı ama raf artık yoksa (hızlı kurulum
+  rafları yeniden açınca kimlikler yenilenir) favori yerleştirme
+  sessizce atlanıyordu — kurulum sayfası ve önizleme uyarısı ekledi;
+  (b) favori yazar adı kitaplık verisiyle yazım farkıyla eşleşmiyorsa
+  planlayıcı boş grubu sessizce atlıyordu — önizlemede hangi
+  yazarların eşleşmediği yazılıyor. Raf adlarını kitaplardan içe
+  aktarırken aksan/büyük harf duyarsız tekilleştirme eklendi
+  ('Kitaplık' + 'kitaplık' tek raf). Yeni testler: eşdeğerlik +
+  başarım, favori tanılama uyarıları, no-op planın önizlemeyi
+  koruması, önizleme özet kartı, yetim favori raf ipucu, büyük tur
+  tembel kurulumu, içe aktarma tekilleştirmesi; toplam 693 test yeşil.
+
 **1.18.0:** `pubspec.yaml` sürümü `1.18.0+22`'ye yükseltildi. Mevcut
 veri anahtarları (`books_v1`, `shelves_v1`, `organize_plan_v1`) hiç
 değişmedi; üç yeni anahtar eklendi (`loans_v1`, `borrowed_v1`,

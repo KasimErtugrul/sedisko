@@ -154,6 +154,23 @@ class _OrganizeSetupPageState extends State<OrganizeSetupPage> {
                       ),
                   ],
                 ),
+              // Yetim favori raf tercihi (1.18.1): kayıtlı kimlik raflar
+              // arasında yoksa (raflar hızlı kurulumla yeniden açılmış
+              // olabilir) plan favori yerleştirmeyi sessizce atlar;
+              // kullanıcı burada UYARILIR.
+              if (controller.favoriteShelfId.value != null &&
+                  controller.favoriteShelfId.value!.isNotEmpty &&
+                  favorite == null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Kayıtlı favori raf bulunamadı (raflar değişmiş '
+                  'olabilir); favori yerleştirme için favori rafı '
+                  'yeniden seç.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                ),
+              ],
               const SizedBox(height: 12),
               Text(
                 'Favori yazarlar',

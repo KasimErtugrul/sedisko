@@ -203,12 +203,21 @@ class _OutsidersCard extends StatelessWidget {
 }
 
 /// Tek tur kartı: yer başlığı + sıralı emirler + "Yaptım" düğmesi.
+///
+/// Büyük turda emirler sabit yükseklikte kaydırılabilir listede
+/// gösterilir (1.18.1): 2000+ kitaplık tek turun yüzlerce emri
+/// ExpansionTile içinde bir kerede kurulunca arayüz saniyelerce
+/// kilitleniyordu; ListView.builder yalnız görünür emirleri kurar.
 class _TurCard extends StatelessWidget {
   const _TurCard({
     required this.index,
     required this.tur,
     required this.done,
   });
+
+  /// Bu sayıyı aşan turlarda emir listesi kaydırılabilir pencerede
+  /// kurulur (tembel kurulum eşiği).
+  static const int lazyActionThreshold = 24;
 
   final int index;
   final MoveTurModel tur;
@@ -238,12 +247,26 @@ class _TurCard extends StatelessWidget {
         ),
         childrenPadding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
         children: [
-          for (var i = 0; i < tur.actions.length; i++)
-            _ActionTile(
-              step: i + 1,
-              action: tur.actions[i],
-              done: done,
-            ),
+          if (tur.actions.length > lazyActionThreshold)
+            SizedBox(
+              height: 320,
+              child: ListView.builder(
+                key: ValueKey('tur-actions-lazy-$index'),
+                itemCount: tur.actions.length,
+                itemBuilder: (context, i) => _ActionTile(
+                  step: i + 1,
+                  action: tur.actions[i],
+                  done: done,
+                ),
+              ),
+            )
+          else
+            for (var i = 0; i < tur.actions.length; i++)
+              _ActionTile(
+                step: i + 1,
+                action: tur.actions[i],
+                done: done,
+              ),
           if (!done)
             Padding(
               padding: const EdgeInsets.only(top: 8),
