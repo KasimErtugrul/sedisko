@@ -20,6 +20,8 @@ import '../widgets/home/borrowed_strip.dart';
 import '../widgets/home/favorite_author_strip.dart';
 import '../widgets/home/home_empty_state.dart';
 import '../widgets/home/home_section_header.dart';
+import '../widgets/home/home_shortcuts_row.dart';
+import '../widgets/home/home_plan_banner.dart';
 import '../widgets/home/home_summary_row.dart';
 import '../widgets/home/loan_strip.dart';
 import '../widgets/home/shelf_summary_grid.dart';
@@ -35,24 +37,30 @@ import '../widgets/status_filter_row.dart';
 ///
 /// Arama boşken akış sırası:
 /// 1. Özet satırı (toplam / okunuyor / bitti / favori)
-/// 2. "Devam eden kitaplar" — yatay şerit
-/// 3. "Favoriler" — yatay şerit
-/// 4. "Favori yazarlar" — yıldız avatarlı yazar kartları (1.16.0); asistan
+/// 2. "Taşıma planı sürüyor" kartı — YALNIZ plan sürerken (1.22.0,
+///    keşke 29: "ben Ana Sayfa'da yaşıyorum"); plan yokken yer tutmaz
+/// 3. "Kısayollar" satırı — her koşulda duran yazılı düğmeler: Tüm
+///    kitaplar / Ödünç verilenler / Ödünç aldıkların / Satın alınacaklar
+///    (1.22.0 — keşke 13, 14: "kitap listesini beş dakika aradım",
+///    "minik 'Tümü' yazısı gözüme görünmedi bile")
+/// 4. "Devam eden kitaplar" — yatay şerit
+/// 5. "Favoriler" — yatay şerit
+/// 6. "Favori yazarlar" — yıldız avatarlı yazar kartları (1.16.0); asistan
 ///    kurulumunda seçilen favori yazarlar burada da görünür; "Tümü"
 ///    Yazarlar sekmesine geçirir
-/// 5. "Bitirme hedefleri" — geri sayımlı yatay şerit
-/// 6. "Son eklenenler" — eklenme tarihi azalan yatay şerit
-/// 7. "En çok sayfalı kitaplar" — yatay şerit
-/// 8. "En çok kitaba sahip yazarlar" — yatay yazar kartları; "Tümü"
+/// 7. "Bitirme hedefleri" — geri sayımlı yatay şerit
+/// 8. "Son eklenenler" — eklenme tarihi azalan yatay şerit
+/// 9. "En çok sayfalı kitaplar" — yatay şerit
+/// 10. "En çok kitaba sahip yazarlar" — yatay yazar kartları; "Tümü"
 ///    Yazarlar sekmesine geçirir
-/// 9. "Rafların" — iki kolonlu raf grid'i (gridview); "Tümü" Raflar
+/// 11. "Rafların" — iki kolonlu raf grid'i (gridview); "Tümü" Raflar
 ///    sekmesine geçirir
-/// 10. "Bu ay bitirdiklerin" — bu ay bitirilenler şeridi
-/// 11. "Not aldıkların" — notlu kitaplar şeridi
-/// 12. "Ödünç verilenler" — aktif ödünç şeridi (1.18.0); "Tümü" ödünç
+/// 12. "Bu ay bitirdiklerin" — bu ay bitirilenler şeridi
+/// 13. "Not aldıkların" — notlu kitaplar şeridi
+/// 14. "Ödünç verilenler" — aktif ödünç şeridi (1.18.0); "Tümü" ödünç
 ///     sayfasını açar
-/// 13. "Ödünç aldıkların" — başkasından alınan kitaplar şeridi (1.18.0)
-/// 14. "Satın alınacaklar" — satın alma listesi şeridi (1.18.0)
+/// 15. "Ödünç aldıkların" — başkasından alınan kitaplar şeridi (1.18.0)
+/// 16. "Satın alınacaklar" — satın alma listesi şeridi (1.18.0)
 ///
 /// Hiçbir bölüm veri yokken gizlenmez: her bölüm başlığı her koşulda
 /// görünür; veri olmayan bölümün yerinde kısa bir "Henüz ..." ipucu
@@ -191,17 +199,26 @@ class HomePage extends GetView<LibraryController> {
     );
   }
 
-  /// Ana akış: özet + bölüm şeritleri, tek sanallaştırılmış liste.
+  /// Ana akış: özet + durum kartı + kısayollar + bölüm şeritleri, tek
+  /// sanallaştırılmış liste.
   ///
   /// Her bölüm her koşulda listeye girer; veri yokken şerit yerine
   /// [HomeSectionEmptyHint] ipucu kartı kurulur ("Henüz ..." metni).
   /// Bölüm gizlenmez, düzen kitaplık durumuna göre oynamaz.
+  ///
+  /// Kısayollar satırı bölüm değildir: veriye bağlı olmadığı için her
+  /// koşulda girer. Plan hatırlatma kartı ise durum kartıdır: YALNIZ
+  /// plan sürerken girer, plan bitince akıştan çekilir (keşke 29). Plan
+  /// durumu burada okunur — dış Obx plan değişimine abone olur; kartın
+  /// kendi Obx'i de içtaki metni yeniler.
   Widget _homeFeed() {
     final books = controller.books;
     final topAuthors = HomeFeed.topAuthors(books);
     final finishedThisMonth = HomeFeed.finishedThisMonth(books, DateTime.now());
     final shelfSummaries = _shelfSummaries();
     final favoriteAuthors = _favoriteAuthorSummaries();
+    final hasPlan = Get.isRegistered<ShelfOrganizeController>() &&
+        Get.find<ShelfOrganizeController>().plan.value != null;
 
     final sections = <_FeedSection>[
       _FeedSection(
@@ -343,8 +360,9 @@ class HomePage extends GetView<LibraryController> {
       ),
     ];
 
+    // Özet + (varsa plan kartı) + kısayollar + her bölüm (başlık+şerit).
     final itemCount =
-        1 + sections.length * 2; // özet + her bölüm (başlık+şerit)
+        1 + (hasPlan ? 1 : 0) + 1 + sections.length * 2;
 
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
@@ -352,6 +370,12 @@ class HomePage extends GetView<LibraryController> {
       itemBuilder: (context, index) {
         if (index == 0) return const HomeSummaryRow();
         var cursor = 1;
+        if (hasPlan) {
+          if (index == cursor) return const HomePlanBanner();
+          cursor++;
+        }
+        if (index == cursor) return const HomeShortcutsRow();
+        cursor++;
         for (final section in sections) {
           if (index == cursor) return _sectionHeader(section);
           if (index == cursor + 1) {

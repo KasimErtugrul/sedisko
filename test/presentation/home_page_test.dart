@@ -126,14 +126,21 @@ void main() {
     expect(find.text('Not aldıkların'), findsOneWidget);
   });
 
-  testWidgets("'Tüm kitaplar' bölümü ana sayfada artık yok", (tester) async {
+  testWidgets("'Tüm kitaplar' ana sayfada bölüm değil, kısayol çipidir",
+      (tester) async {
     await pumpHome(tester, height: 4000);
 
-    // Bölüm başlığı kaldırıldı; tam kitaplık Raflar > Tüm kitaplar
-    // kartından açılır. 'Hayvan Çiftliği' artık "Son eklenenler" şeridinde
-    // (tüm kitaplar bir tarihte eklenmiştir); 'Dönüşüm' hem "Not aldıkların"
-    // hem "Son eklenenler" şeridinde görünür.
-    expect(find.text('Tüm kitaplar'), findsNothing);
+    // Bölüm başlığı kaldırılmıştı (1.16.0); tam kitaplık Raflar > Tüm
+    // kitaplar kartından açılır. 1.22.0 (keşke 13): "kitap listesini beş
+    // dakika aradım" — bölüm değil KISAYOL çipi döndü ('home-shortcut-
+    // all-books'); listenin kendisi hâlâ Raflar sekmesinden açılır.
+    expect(
+      find.byKey(const ValueKey('home-shortcut-all-books')),
+      findsOneWidget,
+    );
+    expect(find.text('Tüm kitaplar'), findsOneWidget);
+    // Şeritler değişmedi: 'Hayvan Çiftliği' "Son eklenenler"de; 'Dönüşüm'
+    // hem "Not aldıkların" hem "Son eklenenler" şeridinde görünür.
     expect(find.text('Hayvan Çiftliği'), findsOneWidget);
     expect(find.text('Dönüşüm'), findsNWidgets(2));
   });

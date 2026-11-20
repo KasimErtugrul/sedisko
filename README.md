@@ -924,6 +924,42 @@ flutter test
 
 ## Sürüm notları
 
+**1.22.0:** `pubspec.yaml` sürümü `1.22.0+30`'a yükseltildi. Keşke
+notlarının FAZ 3'ü — "saklı sayfaları görünür kıl" ("en çok can yakan
+on"un 3. maddesi: "Kitap listesi ve ödünç sayfaları saklanmış; alt barda
+yerleri yok" — not 13, 14) ve kendisiyle beraber yürüyen keşke 29 ("İlerleme
+kartı Raflar sekmesinde duruyor; ama ben Ana Sayfa'da yaşıyorum"). Bu fazın
+iki değişikliği ana sayfada:
+
+- **Keşke 13 + 14 — Kısayollar satırı:** özet satırının hemen altında,
+  her koşulda duran yazılı çipler dört saklı hedefi tek dokunuşla açar:
+  "Tüm kitaplar" (Raflar sekmesindeki kartın açtığı tam kitaplık listesi),
+  "Ödünç verilenler", "Ödünç aldıkların" ve "Satın alınacaklar" (bölüm
+  başlıklarındaki minik "Tümü" aksiyonlarının açtığı sayfalar). Etiketler
+  hedeflerin mevcut adlarıyla birebir aynıdır — bir yerin adı her yerde
+  aynıdır (keşke 21'in dersi). Listenin kendisi ana sayfaya taşınmadı
+  (1.16.0 kararı durur): kapısı taşındı. Satır bölüm değildir, kitaplık
+  durumuna bağlı değildir; [Wrap] ile dar ekranda (360 dp × 1.3 metin
+  ölçeği) alt satıra sarılır, taşmaz.
+- **Keşke 29 — Plan hatırlatma kartı:** taşıma planı sürerken ana sayfa
+  akışının en üstünde "Taşıma planı sürüyor — 2/5 tur tamam, devam etmek
+  için dokun." kartı çıkar ve plan sayfasını açar. Hasan'ın önerdiği
+  cümleyi harfiyen taşır. Kart YALNIZ plan sürerken kurulur: bütün turlar
+  "Yaptım" ile bitince ya da plan iptal edilince kaybolur; plan yokken yer
+  tutmaz (durum kartıdır, bölüm değildir). Raflar sekmesindeki ilerleme
+  kartı aynen durur: iki giriş, tek hedef.
+
+"Şunlara dokunmayın" listesindeki davranışlar korundu; bölüm başlıkları,
+boş ipucu kartları, "Tümü" aksiyonları, uzun basma yolları ve Raflar
+sekmesi kartları birebir aynıdır. Veri anahtarları ve saklanan veriler
+değişmedi (`books_v1`, `shelves_v1`, `organize_plan_v1`, `loans_v1`,
+`borrowed_v1`, `wishlist_v1`, `settings_*`). Yeni testler: dört kısayolun
+görünürlüğü ve dört hedefin rota doğrulaması (Get.currentRoute + AppBar
+başlıkları), satırın bölüm başlıklarından önce kurulması, plan kartının
+plan-yok / plan-sürüyor / plan-bitti durumları ve 360 dp × 1.3 taşma
+koşusu; "Tüm kitaplar bölümü yok" testi kısayol çipine güncellendi
+(toplamda 736 test yeşil, `flutter analyze`: No issues found!).
+
 **1.21.0:** `pubspec.yaml` sürümü `1.21.0+29`'a yükseltildi. Keşke
 notlarının FAZ 2'si — "ikonlara yazıyı giydirmek" ("en çok can yakan
 on" listesinin 2. maddesi: "Yazısız ikonlar: düğmelerin çoğu yalnız

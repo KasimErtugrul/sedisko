@@ -11,7 +11,7 @@ class ApiConstants {
 class AppInfo {
   const AppInfo._();
 
-  static const String version = '1.21.0';
+  static const String version = '1.22.0';
 }
 
 class StorageKeys {
