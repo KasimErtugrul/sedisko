@@ -111,7 +111,7 @@ class LoanController extends GetxController {
       _notify('Silinemedi', error.message);
       return false;
     } catch (_) {
-      _notify('Silinemedi', 'Beklenmeyen bir sorun oluştu.');
+      _notify('Silinemedi', 'Beklenmeyen bir sorun oluştu. İşlemi yeniden dene; sürerse uygulamayı kapatıp aç.');
       return false;
     }
     loans.removeWhere((l) => l.id == id);
@@ -170,7 +170,7 @@ class LoanController extends GetxController {
       _notify('Silinemedi', error.message);
       return false;
     } catch (_) {
-      _notify('Silinemedi', 'Beklenmeyen bir sorun oluştu.');
+      _notify('Silinemedi', 'Beklenmeyen bir sorun oluştu. İşlemi yeniden dene; sürerse uygulamayı kapatıp aç.');
       return false;
     }
     borrowed.removeWhere((b) => b.id == id);
@@ -186,7 +186,7 @@ class LoanController extends GetxController {
       _notify('Kaydedilemedi', error.message);
       return false;
     } catch (_) {
-      _notify('Kaydedilemedi', 'Beklenmeyen bir sorun oluştu.');
+      _notify('Kaydedilemedi', 'Beklenmeyen bir sorun oluştu. İşlemi yeniden dene; sürerse uygulamayı kapatıp aç.');
       return false;
     }
     if (isNew) {
@@ -205,7 +205,7 @@ class LoanController extends GetxController {
       _notify('Kaydedilemedi', error.message);
       return false;
     } catch (_) {
-      _notify('Kaydedilemedi', 'Beklenmeyen bir sorun oluştu.');
+      _notify('Kaydedilemedi', 'Beklenmeyen bir sorun oluştu. İşlemi yeniden dene; sürerse uygulamayı kapatıp aç.');
       return false;
     }
     if (isNew) {

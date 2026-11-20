@@ -16,9 +16,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 ///
 /// GetX 4.x'te `Get.back()`, açık bir snackbar varsa onu kapatıp ROTA POP
 /// ETMEDEN döner (get 4.7 extension_navigation.dart). Kullanıcı raporu:
-/// "Open Library'de bulunamadı" bildirimi hâlâ açıkken hızlıca 'Manuel
-/// ekle'ye basılırsa sheet açık kalır, form üstüne biner; Kaydet deyince
-/// kullanıcı ana sayfada sheet'le birlikte kalır ("ana sayfaya atıyor").
+/// "Open Library'de bulunamadı" bildirimi hâlâ açıkken hızlıca
+/// 'Kendim yazacağım'a basılırsa sheet açık kalır, form üstüne biner;
+/// Kaydet deyince kullanıcı ana sayfada sheet'le birlikte kalır
+/// ("ana sayfaya atıyor").
 class FakeBookRepository implements BookRepository {
   FakeBookRepository({List<BookModel>? initial}) : store = [...?initial];
 
@@ -150,12 +151,12 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('bildirim açıkken Manuel ekle: sheet kapanır, form üstte olur',
+  testWidgets('bildirim açıkken Kendim yazacağım: sheet kapanır, form üstte olur',
       (tester) async {
     await pumpApp(tester);
 
-    // Kullanıcı senaryosu: barkod bulunamazsnca gösterilen bildirim hâlâ
-    // açıkken kullanıcı hızlıca Manuel ekle'ye basar.
+    // Kullanıcı senaryosu: barkod bulunamayınca gösterilen bildirim hâlâ
+    // açıkken kullanıcı hızlıca Kendim yazacağım'a basar.
     Get.snackbar(
       "Open Library'de bulunamadı",
       'Bilgileri elle girebilirsin. ISBN senin için dolduruldu.',
@@ -165,7 +166,7 @@ void main() {
 
     await tester.tap(find.byType(FloatingActionButton));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Manuel ekle'));
+    await tester.tap(find.text('Kendim yazacağım'));
     await tester.pumpAndSettle();
 
     // Form açıldı VE alt sheet kapandı; sheet açık kalsaydı Kaydet'te
@@ -177,7 +178,7 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(find.text('Manuel ekle'), findsNothing);
+    expect(find.text('Kendim yazacağım'), findsNothing);
 
     // Bildirimin otomatik kapanma zamanlayıcısını tüketir.
     await tester.pump(const Duration(seconds: 4));

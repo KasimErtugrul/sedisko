@@ -90,7 +90,7 @@ class LibraryController extends GetxController {
     } on StorageException catch (error) {
       _notify('Kitaplar yüklenemedi', error.message);
     } catch (_) {
-      _notify('Kitaplar yüklenemedi', 'Beklenmeyen bir sorun oluştu.');
+      _notify('Kitaplar yüklenemedi', 'Beklenmeyen bir sorun oluştu. İşlemi yeniden dene; sürerse uygulamayı kapatıp aç.');
     } finally {
       isLoading.value = false;
     }
@@ -446,7 +446,7 @@ class LibraryController extends GetxController {
       _notify('Kaydedilemedi', error.message);
       return false;
     } catch (_) {
-      _notify('Kaydedilemedi', 'Beklenmeyen bir sorun oluştu.');
+      _notify('Kaydedilemedi', 'Beklenmeyen bir sorun oluştu. İşlemi yeniden dene; sürerse uygulamayı kapatıp aç.');
       return false;
     }
 
@@ -477,7 +477,7 @@ class LibraryController extends GetxController {
       _notify('Silinemedi', error.message);
       return false;
     } catch (_) {
-      _notify('Silinemedi', 'Beklenmeyen bir sorun oluştu.');
+      _notify('Silinemedi', 'Beklenmeyen bir sorun oluştu. İşlemi yeniden dene; sürerse uygulamayı kapatıp aç.');
       return false;
     }
     books.removeWhere((b) => b.id == id);
@@ -668,10 +668,12 @@ class LibraryController extends GetxController {
   /// Aynı ISBN tekrar tarandığında kullanıcıya seçenek sunar: mevcut kitabı
   /// gör ya da aynı kitabın yeni bir kopyasını ekle (ör. okunacak + rafa
   /// konulacak ikinci nüsha). Kopyaların okuma durumları bağımsızdır.
+  /// Keşke 11 (1.25.0): başlık formun kopya sorusuyla aynı günlük dilde —
+  /// "Bu ISBN kitaplıkta" dersi yerine "Bu kitabı zaten eklemişsin".
   Future<_DuplicateIsbnAction> _duplicateIsbnDialog(BookModel existing) async {
     final result = await Get.dialog<_DuplicateIsbnAction>(
       AlertDialog(
-        title: const Text('Bu ISBN kitaplıkta'),
+        title: const Text('Bu kitabı zaten eklemişsin'),
         content: Text(
           '"${existing.title}" bu ISBN ile kayıtlı.\n\n'
           'Ne yapmak istersin?',

@@ -103,7 +103,7 @@ void main() {
   }
 
   group('kurulum sayfası', () {
-    testWidgets('kriter + onay olmadan "Hedef düzeni oluştur" kapalıdır',
+    testWidgets('kriter + onay olmadan "Planı oluştur" kapalıdır',
         (tester) async {
       await pumpPage(tester, const OrganizeSetupPage());
 
@@ -133,7 +133,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Önizleme sayfası açıldı: planlanan raflar görünür.
-      expect(find.text('Hedef düzen (önizleme)'), findsOneWidget);
+      expect(find.text('Plan önizlemesi'), findsOneWidget);
       expect(find.byKey(const ValueKey('planned-Raf 1')), findsOneWidget);
       expect(find.byKey(const ValueKey('planned-Raf 2')), findsOneWidget);
     });
@@ -150,7 +150,7 @@ void main() {
   });
 
   group('önizleme sayfası', () {
-    testWidgets('hedef düzeni gösterir ve plana geçirir', (tester) async {
+    testWidgets('plan önizlemesini gösterir ve plana geçirir', (tester) async {
       controller.buildPreview(OrganizeCriterion.author);
       tester.view.physicalSize = const Size(800, 1600);
       tester.view.devicePixelRatio = 1.0;

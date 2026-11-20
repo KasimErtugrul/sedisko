@@ -121,7 +121,7 @@ void main() {
         find.byKey(const ValueKey('organize-create-reason')),
         findsOneWidget,
       );
-      expect(find.textContaining('dağıtım kriteri seçilmedi'), findsOneWidget);
+      expect(find.textContaining('nasıl dizileceği seçilmedi'), findsOneWidget);
       expect(find.textContaining('işaretlenmedi'), findsOneWidget);
     });
 

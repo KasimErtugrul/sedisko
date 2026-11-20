@@ -162,8 +162,10 @@ class _OrganizeEntry extends StatelessWidget {
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
                             Text(
+                              // Keşke 43 (1.25.0): "dağıt" yerine günlük
+                              // "diz" — Hasan'ın kendi kelimesi.
                               'Yazara, yayınevine, ada ya da sayfa sayısına '
-                              'göre dağıt; taşma yok.',
+                              'göre diz; taşma yok.',
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
                           ],

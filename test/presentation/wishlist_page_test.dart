@@ -70,7 +70,7 @@ void main() {
     expect(find.text('Not: okurken önerildi'), findsOneWidget);
     expect(find.text('Open Library'), findsOneWidget); // kaynak rozeti
     expect(find.text('Simyacı'), findsOneWidget);
-    expect(find.text('Manuel'), findsOneWidget); // kaynak rozeti
+    expect(find.text('Kendim ekledim'), findsOneWidget); // kaynak rozeti (keşke 5)
     expect(find.text('Kitaplığa ekle'), findsNWidgets(2));
   });
 
@@ -131,7 +131,7 @@ void main() {
 
     expect(find.text('Yeni Kitap'), findsOneWidget);
     expect(find.text('Ayşe Kulin, Ahmet Ümit'), findsOneWidget);
-    expect(find.text('Manuel'), findsOneWidget);
+    expect(find.text('Kendim ekledim'), findsOneWidget);
     expect(controller.items.single.title, 'Yeni Kitap');
     expect(controller.items.single.authors, ['Ayşe Kulin', 'Ahmet Ümit']);
     expect(controller.items.single.source, WishlistSource.manual);

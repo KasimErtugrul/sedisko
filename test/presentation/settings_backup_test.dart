@@ -153,7 +153,7 @@ void main() {
 
     expect(find.text('Yedekleme ve aktarım'), findsOneWidget);
     expect(find.text('Yedeği paylaş (WhatsApp vb.)'), findsOneWidget);
-    expect(find.text('Yedeği içe aktar'), findsOneWidget);
+    expect(find.text('Yedeği geri yükle'), findsOneWidget);
   });
 
   testWidgets('paylaş düğmesi yedeği havuza yazar ve paylaşır',
@@ -178,7 +178,7 @@ void main() {
     expect(sharer.lastSubject, contains('1 raf'));
   });
 
-  testWidgets('içe aktar: birleştirme iletişim kutusu uygular',
+  testWidgets('geri yükle: birleştirme iletişim kutusu uygular',
       (tester) async {
     await bookStore.upsert(book('b1', 'Var olan kitap'));
     // Yedek içeriği: 1 yeni kitap + 1 yeni raf (sahte seçici içeriği).
@@ -194,11 +194,11 @@ void main() {
     registerBackup(picker: FakePicker(envelope.encode()));
     await pumpSettings(tester);
 
-    await tester.tap(find.text('Yedeği içe aktar'));
+    await tester.tap(find.text('Yedeği geri yükle'));
     // Dialog açıkken meşgul göstergesi döner (sonsuz animasyon);
     // pumpAndSettle yerine sabit süre pump kullanılır.
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('Yedeği nasıl içe aktaralım?'), findsOneWidget);
+    expect(find.text('Yedeği nasıl geri yükleyelim?'), findsOneWidget);
     expect(find.text('Yedekte 1 kitap ve 1 raf var.'), findsOneWidget);
 
     // 'Birleştir' başlığı açıklama bölümünde de var; düğmeyi hedefle.
@@ -218,7 +218,7 @@ void main() {
     await letSnackbarFinish(tester);
   });
 
-  testWidgets('içe aktar: vazgeç hiçbir şeyi değiştirmez', (tester) async {
+  testWidgets('geri yükle: vazgeç hiçbir şeyi değiştirmez', (tester) async {
     await bookStore.upsert(book('b1', 'Var olan kitap'));
     final envelope = BackupEnvelope(
       exportedAt: DateTime(2026, 11, 19),
@@ -229,13 +229,13 @@ void main() {
     registerBackup(picker: FakePicker(envelope.encode()));
     await pumpSettings(tester);
 
-    await tester.tap(find.text('Yedeği içe aktar'));
+    await tester.tap(find.text('Yedeği geri yükle'));
     await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.text('Vazgeç'));
     await tester.pumpAndSettle();
 
     expect(bookStore.getBooks().map((b) => b.id), ['b1']);
-    expect(find.text('Yedeği nasıl içe aktaralım?'), findsNothing);
+    expect(find.text('Yedeği nasıl geri yükleyelim?'), findsNothing);
     expect(sink.lastContent, isNull);
   });
 
@@ -243,12 +243,12 @@ void main() {
     registerBackup(picker: FakePicker('bu bir yedek değil'));
     await pumpSettings(tester);
 
-    await tester.tap(find.text('Yedeği içe aktar'));
+    await tester.tap(find.text('Yedeği geri yükle'));
     await tester.pumpAndSettle();
 
     expect(find.text('Dosya geçersiz'), findsOneWidget);
     expect(bookStore.getBooks(), isEmpty);
-    expect(find.text('Yedeği nasıl içe aktaralım?'), findsNothing);
+    expect(find.text('Yedeği nasıl geri yükleyelim?'), findsNothing);
     expect(sink.lastContent, isNull);
     await letSnackbarFinish(tester);
   });

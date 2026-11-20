@@ -20,6 +20,7 @@ import '../pages/search_page.dart';
 import '../pages/shelf_editor_page.dart';
 import '../pages/shelf_page.dart';
 import '../pages/shell_page.dart';
+import '../pages/splash_page.dart';
 import '../pages/wishlist_page.dart';
 import 'app_routes.dart';
 import 'route_args.dart';
@@ -28,6 +29,9 @@ class AppPages {
   const AppPages._();
 
   static final List<GetPage<dynamic>> pages = [
+    // Açılış karşılama ekranı ('sedişko', 1.25.0): bekletme süresi
+    // dolunca ana sayfaya geçilir ve yığından silinir.
+    GetPage(name: Routes.splash, page: () => const SplashPage()),
     GetPage(name: Routes.home, page: () => const ShellPage()),
     GetPage(
       name: Routes.shelf,

@@ -173,7 +173,8 @@ class _BackupTiles extends StatelessWidget {
         ),
         ListTile(
           leading: const Icon(Icons.download),
-          title: const Text('Yedeği içe aktar'),
+          // Keşke 43 (1.25.0): "İçe aktar" yerine günlük "geri yükle".
+          title: const Text('Yedeği geri yükle'),
           subtitle: const Text(
             'Başka cihazdan gönderilen yedek dosyasını (örn. WhatsApp\'tan '
             'indirilen) seçin; birleştirin ya da üzerine yazın.',

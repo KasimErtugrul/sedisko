@@ -12,6 +12,7 @@ import '../../data/services/cover_photo_store.dart';
 import '../../domain/repositories/book_repository.dart';
 import '../routes/app_routes.dart';
 import '../routes/route_args.dart';
+import '../utils/haber_seridi.dart';
 import '../utils/app_navigation.dart';
 import 'library_controller.dart';
 
@@ -458,8 +459,9 @@ class BookFormController extends GetxController {
       // PopScope ile uyumlu kapatma: kirli formda da güvenli (bkz.
       // [_closeForm]).
       _closeForm();
-      Get.snackbar('Kaydedildi', book.title,
-          snackPosition: SnackPosition.BOTTOM);
+      // Keşke 44 (1.25.0): 'Kaydedildi' balonla değil, ekranda kalan
+      // şeritle söylenir — "balon gittiğinde ne olduğunu bilmiyorum".
+      haberSeridiGoster(baslik: 'Kaydedildi', mesaj: book.title);
     } finally {
       isSaving.value = false;
     }
@@ -469,15 +471,20 @@ class BookFormController extends GetxController {
 
   /// Aynı ISBN kayıtlıyken kaydet tuşuna basıldıysa: "farklı kopya olarak
   /// kaydet" onayı. `true` → kayda devam; `false` → vazgeç.
+  ///
+  /// Keşke 11 (1.25.0): soru günlük dilde sorulur — "Terimlere boğuldum.
+  /// 'Bu kitabı zaten eklemişsin; ikinci kopyasını mı ekliyorsun?' yeterdi."
+  /// Davranış aynen korunur ("dokunmayın" listesindeki kopya sorusu);
+  /// yalnız kelimeler yumuşar.
   Future<bool> _confirmSaveAsCopy() async {
     final result = await Get.dialog<bool>(
       AlertDialog(
-        title: const Text('Bu ISBN kitaplıkta'),
+        title: const Text('Bu kitabı zaten eklemişsin'),
         content: const Text(
-          'Aynı ISBN\'e sahip başka bir kitap var. Bu kitabı aynı kitabın '
-          'farklı bir kopyası olarak kaydetmek istiyor musun?\n\n'
-          'Kopyalar birbirinden bağımsızdır: her birinin okuma durumu, '
-          'sayfası ve günlüğü ayrı tutulur.',
+          'Bu kitap kitaplıkta zaten var. İkinci kopyasını mı '
+          'ekliyorsun?\n\n'
+          'İkisinin okuma durumu ve sayfası ayrı ayrı tutulur; '
+          'birini okumak diğerini etkilemez.',
         ),
         actions: [
           TextButton(

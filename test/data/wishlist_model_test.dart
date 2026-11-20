@@ -15,7 +15,7 @@ void main() {
 
     test('label: kullanıcıya gösterilen metin', () {
       expect(WishlistSource.openlibrary.label, 'Open Library');
-      expect(WishlistSource.manual.label, 'Manuel');
+      expect(WishlistSource.manual.label, 'Kendim ekledim');
     });
   });
 

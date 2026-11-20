@@ -111,7 +111,10 @@ class BackupController extends GetxController {
       // Meşgul bayrağı zaten tutuluyor; kilitlenmesiz dahili akış çalışır.
       await _applyImport(envelope, mode);
     } catch (error) {
-      _notify('Hata', 'Dosya okunamadı ya da içe aktarma tamamlanamadı.');
+      // Keşke 45 (1.25.0): hata balonu ne yapılacağını da söyler.
+      _notify('Hata',
+          'Dosya okunamadı ya da geri yükleme tamamlanamadı. Dosyayı '
+          'yeniden seçip deneyebilirsin.');
     } finally {
       isBusy.value = false;
     }
@@ -141,12 +144,16 @@ class BackupController extends GetxController {
     try {
       final summary = await _service.applyImport(envelope, mode);
       await _refreshAfterImport();
-      _notify('İçe aktarma tamamlandı', _successMessage(summary));
+      // Keşke 43 (1.25.0): "İçe aktarma" yerine "geri yükleme".
+      _notify('Geri yükleme tamamlandı', _successMessage(summary));
       return summary;
     } catch (error) {
+      // Keşke 45 (1.25.0): ne yapılacağı yazılı — verinin değişmediği
+      // de açıkça söylenir.
       _notify(
         'Hata',
-        'İçe aktarma yazılırken başarısız oldu. Veriniz değişmedi.',
+        'Geri yükleme yazılırken başarısız oldu. Verin değişmedi; '
+        'yeniden deneyebilirsin.',
       );
       return null;
     }

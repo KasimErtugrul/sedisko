@@ -83,7 +83,7 @@ class _OrganizeSetupPageState extends State<OrganizeSetupPage> {
             ),
             _shelfReadinessCard(context),
             const SizedBox(height: 12),
-            _stepHeader(context, 2, 'Kitaplar neye göre dağıtılsın?',
+            _stepHeader(context, 2, 'Kitaplar neye göre dizilsin?',
                 done: criterion.value != null),
             _criterionCard(context),
             if (isAuthor) ...[
@@ -106,7 +106,9 @@ class _OrganizeSetupPageState extends State<OrganizeSetupPage> {
             // — kurulumda da yazılı olsun (önizleme özeti 1.18.1'den beri
             // söylüyor; buradaki ikinci yer Hasan'ın istediği yerdir).
             Text(
-              'Not: kitapların çoğu zaten hedef düzenindeyse plan az '
+              // Keşke 43 (1.25.0): "hedef düzen" yerine günlük "yerinde"
+              // dili; keşke 27'nin notu aynen durur.
+              'Not: kitapların çoğu zaten yerindeyse plan az '
               'kitap taşır; "1 kitap taşınacak" bir hata işareti '
               'değildir.',
               key: const ValueKey('organize-few-moves-note'),
@@ -122,7 +124,7 @@ class _OrganizeSetupPageState extends State<OrganizeSetupPage> {
                 if (controller.shelves.isEmpty)
                   'raf tanımı yok (yukarıdaki "Raf tanımları" ile ekle)',
                 if (criterion.value == null)
-                  'dağıtım kriteri seçilmedi',
+                  'kitapların nasıl dizileceği seçilmedi',
                 if (!confirmed.value)
                   '"Kitaplarımın tamamını girdim" kutusu '
                       'işaretlenmedi',
@@ -139,7 +141,9 @@ class _OrganizeSetupPageState extends State<OrganizeSetupPage> {
                           }
                         : null,
                     icon: const Icon(Icons.auto_awesome),
-                    label: const Text('Hedef düzeni oluştur'),
+                    // Keşke 43 (1.25.0): "Hedef düzeni oluştur" yerine
+                    // günlük ad — "plan" kelimesi artık tüm akışta aşina.
+                    label: const Text('Planı oluştur'),
                   ),
                   if (!ready) ...[
                     const SizedBox(height: 8),
@@ -278,7 +282,7 @@ class _OrganizeSetupPageState extends State<OrganizeSetupPage> {
                           'adlarda tanım yok: '
                           '${controller.unmatchedBookShelfNames().join(', ')} '
                           '— adlar aynı değilse plan kitapları tanım '
-                          'adlarına dağıtır. Düzenleyicide adları '
+                          'adlarına paylaştırır. Düzenleyicide adları '
                           'kitaplardakiyle birebir aynı yap.',
                           style: Theme.of(context)
                               .textTheme
@@ -485,7 +489,7 @@ class _OrganizeSetupPageState extends State<OrganizeSetupPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Kitaplar nasıl dağıtılsın?',
+            Text('Kitaplar nasıl dizilsin?',
                 style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 4),
             for (final value in OrganizeCriterion.values)

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../data/models/backup_model.dart';
 import '../../../data/services/backup_service.dart';
 
-/// İçe aktarma kipi seçim penceresi.
+/// Geri yükleme kipi seçim penceresi.
 ///
 /// Kullanıcıya yedekte ne olduğu ve iki kipin farkı net anlatılır:
 /// - **Birleştir**: mevcut kitaplar korunur; yedekteki yeniler eklenir.
@@ -19,7 +19,9 @@ class BackupImportModeDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return AlertDialog(
-      title: const Text('Yedeği nasıl içe aktaralım?'),
+      // Keşke 43 (1.25.0): "İçe aktar" yerine günlük "geri yükle" —
+      // "'İçe aktar' yerine 'geri yükle'" (Hasan'ın kendi örneği).
+      title: const Text('Yedeği nasıl geri yükleyelim?'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,

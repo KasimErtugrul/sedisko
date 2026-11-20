@@ -1,6 +1,10 @@
 class Routes {
   const Routes._();
 
+  /// Açılış karşılama ekranı ('sedişko', 1.25.0). Bekletme süresi
+  /// dolunca ana sayfaya geçilir; yığından silinir (Get.offNamed).
+  static const String splash = '/splash';
+
   /// Alt navigasyonlu kabuk: 'Raflar' + 'Ayarlar' sekmeleri.
   static const String home = '/';
   static const String shelf = '/shelf';

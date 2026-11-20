@@ -5,6 +5,7 @@ import '../../core/utils/text_normalizer.dart';
 import '../controllers/library_controller.dart';
 import '../routes/app_routes.dart';
 import '../utils/app_navigation.dart';
+import '../utils/haber_seridi.dart';
 import '../widgets/author_rename_dialog.dart';
 import '../widgets/book_tile.dart';
 import '../widgets/responsive/responsive_center.dart';
@@ -314,10 +315,10 @@ class _ShelfPageState extends State<ShelfPage> {
     // 'Kasim' → 'M. Kasım'); filtre güncel gruba taşınır.
     _controller.authorFilter.value = TextNormalizer.searchKey(newName);
 
-    Get.snackbar(
-      'Yazar güncellendi',
-      '$changed kitap "$newName" olarak yazıldı.',
-      snackPosition: SnackPosition.BOTTOM,
+    // Keşke 44 (1.25.0): önemli haber şeritle söylenir, balonla değil.
+    haberSeridiGoster(
+      baslik: 'Yazar güncellendi',
+      mesaj: '$changed kitap "$newName" olarak yazıldı.',
     );
   }
 
@@ -337,17 +338,17 @@ class _ShelfPageState extends State<ShelfPage> {
     // güncel raf kartlarına geri al. AppNav.pop kullanılır: GetX 4.x'te
     // Get.back(), açık bir snackbar gördüğünde pop'u yapmadan döner (örn.
     // kısmi taşıma hatası bildirimi); bu yüzden çıkış önce yapılır ve
-    // snackbar en son gösterilmeli.
+    // haber şeridi en son gösterilmeli.
     if (widget.shelf != null && shelf.trim() != widget.shelf) {
       AppNav.pop();
     }
 
     final display = shelf.trim().isEmpty ? 'Rafsız' : shelf.trim();
     final suffix = moved < total ? ' (${total - moved} kitap taşınmadı)' : '';
-    Get.snackbar(
-      'Taşındı',
-      '$moved kitap "$display" rafına toplandı$suffix.',
-      snackPosition: SnackPosition.BOTTOM,
+    // Keşke 44 (1.25.0): 'Taşındı' balonla değil, ekranda kalan şeritle.
+    haberSeridiGoster(
+      baslik: 'Taşındı',
+      mesaj: '$moved kitap "$display" rafına toplandı$suffix.',
     );
   }
 

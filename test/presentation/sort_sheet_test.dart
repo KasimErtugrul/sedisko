@@ -111,13 +111,16 @@ void main() {
     await pumpBookList(tester);
     await openSortSheet(tester);
 
-    // Azalan'a bas: sayfa açık kalır, yön kaydedilir.
-    await tester.tap(find.text('Azalan'));
+    // Varsayılan alan 'Kitap adı' (yazı alanı): "Z'den A'ya"ya bas —
+    // keşke 17 (1.25.0): yön etiketleri alana göre konuşur; sayfa açık
+    // kalır, yön kaydedilir.
+    await tester.tap(find.text("Z'den A'ya"));
     await tester.pumpAndSettle();
     expect(controller.sortAscending.value, isFalse);
     expect(find.text('Kitapları sırala'), findsOneWidget);
 
-    // Alan seç: sayfa kapanır, alan + yön birleşik uygulanır.
+    // Sayfa sayısı seçilince liste sayı diline göre dizilir; sayfa
+    // kapanır, alan + yön birleşik uygulanır.
     await tester.tap(find.text('Sayfa sayısı'));
     await tester.pumpAndSettle();
 

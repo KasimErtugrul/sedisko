@@ -173,7 +173,7 @@ class _ProgressCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               'Toplam ${plan.totalMoveCount} kitap taşınacak • '
-              'kriter: ${plan.criterion.label}',
+              'neye göre: ${plan.criterion.label}',
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
@@ -378,7 +378,8 @@ class _TurCard extends StatelessWidget {
     if (hadPlan && controller.plan.value == null && context.mounted) {
       Get.snackbar(
         'Düzenleme tamamlandı',
-        'Tüm geziler bitti; kitaplar hedef düzende.',
+        // Keşke 43 (1.25.0): "hedef düzen" yerine günlük dil.
+        'Tüm geziler bitti; kitaplar istediğin düzende.',
         snackPosition: SnackPosition.BOTTOM,
       );
     }

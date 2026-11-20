@@ -68,7 +68,9 @@ class KitaplikApp extends StatelessWidget {
             GlobalCupertinoLocalizations.delegate,
           ],
           initialBinding: InitialBinding(prefs),
-          initialRoute: Routes.home,
+          // Açılışta 'sedişko' karşılama ekranı (1.25.0); bekletme
+          // süresi dolunca ana sayfaya geçilir (Get.offNamed).
+          initialRoute: Routes.splash,
           getPages: AppPages.pages,
         );
       },

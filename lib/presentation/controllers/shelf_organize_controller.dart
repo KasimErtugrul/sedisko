@@ -456,8 +456,8 @@ class ShelfOrganizeController extends GetxController {
       }
       warnings.add(
         'Favori yazarların için favori raf seçilmediği için favori '
-        'yerleştirme yapılmadı; kitaplar yalnız seçtiğin kritere göre '
-        'dağıtıldı.',
+        'yerleştirme yapılmadı; kitaplar yalnız senin "neye göre" '
+        'seçimine göre dizildi.',
       );
       return;
     }

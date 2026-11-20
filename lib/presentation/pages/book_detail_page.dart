@@ -132,7 +132,10 @@ class BookDetailPage extends GetView<LibraryController> {
                         const Padding(
                           padding: EdgeInsets.only(top: 6),
                           child: Chip(
-                            label: Text('Manuel giriş'),
+                            // Keşke 5 (1.25.0): 'Manuel' jargondu; rozet de
+                            // günlük dilde — satın alma listesindeki rozet
+                            // ile aynı ad.
+                            label: Text('Kendim ekledim'),
                             visualDensity: VisualDensity.compact,
                           ),
                         ),
@@ -358,7 +361,9 @@ class BookDetailPage extends GetView<LibraryController> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
                 child: Text(
-                  'Kopyalar birbirinden bağımsızdır: birini okumaya başlamak '
+                  // Keşke 11 (1.25.0): "bağımsız" dersi günlük dile geçti;
+                  // davranış ve bilgi aynen durur.
+                  'Her kopya kendi başına yaşar: birini okumaya başlamak '
                   'diğerlerini etkilemez; her kopyanın durumu, sayfası ve '
                   'günlüğü ayrıdır.',
                   style: theme.textTheme.bodySmall,

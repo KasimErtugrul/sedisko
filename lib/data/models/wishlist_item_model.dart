@@ -24,8 +24,11 @@ enum WishlistSource {
   static WishlistSource fromKey(String? key) =>
       key == 'openlibrary' ? WishlistSource.openlibrary : WishlistSource.manual;
 
+  // Keşke 5 (1.25.0): rozet de kullanıcının dilini konuşur — 'Manuel'
+  // jargondu; "Kendim ekledim" herkes için açık. Depodaki anahtar
+  // ('openlibrary' / öteki) DEĞİŞMEZ; yalnız ekrandaki etiket günlük.
   String get label =>
-      this == WishlistSource.openlibrary ? 'Open Library' : 'Manuel';
+      this == WishlistSource.openlibrary ? 'Open Library' : 'Kendim ekledim';
 }
 
 /// copyWith'te "hiç verilmedi" ile "null verildi"yi ayırt eden koruyucu.

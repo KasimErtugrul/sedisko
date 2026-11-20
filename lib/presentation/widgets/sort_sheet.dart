@@ -6,12 +6,15 @@ import '../controllers/library_controller.dart';
 
 /// Kitap sıralama alt sayfası.
 ///
-/// Üstte yön seçimi (Artan / Azalan), altta sıralama alanları listesi.
-/// Alan seçilince sayfa kapanır ve liste hemen güncellenir; yön değişimi
-/// sayfada kalır ki kullanıcı artırdıktan sonra alanı aynı sayfadan
-/// seçebilsin. Eksik bilgi (bilinmeyen sayfa sayısı, tarihsiz kitap,
-/// rafsız kitap) her iki yönde de listenin sonuna gider; kuralın
-/// açıklaması BookSorter'dadır.
+/// Üstte yön seçimi, altta sıralama alanları listesi. Yön etiketleri
+/// alana göre konuşur (keşke 17, 1.25.0): yazı alanlarında "A'dan Z'ye /
+/// Z'den A'ya", sayı ve tarihte "Azdan çoğa / Çoktan aza" — "Artan
+/// nedir, azalan nedir?" sorusu artık sorulmaz. Alan seçilince sayfa
+/// kapanır ve liste hemen güncellenir; yön değişimi sayfada kalır ki
+/// kullanıcı artırdıktan sonra alanı aynı sayfadan seçebilsin. Eksik
+/// bilgi (bilinmeyen sayfa sayısı, tarihsiz kitap, rafsız kitap) her
+/// iki yönde de listenin sonuna gider; kuralın açıklaması
+/// BookSorter'dadır.
 Future<void> showBookSortSheet(BuildContext context) {
   return showModalBottomSheet<void>(
     context: context,
@@ -36,6 +39,13 @@ class _BookSortSheet extends StatelessWidget {
     BookSortField.publishDate: Icons.event,
   };
 
+  static const _alphabeticalFields = <BookSortField>{
+    BookSortField.title,
+    BookSortField.author,
+    BookSortField.publisher,
+    BookSortField.shelf,
+  };
+
   @override
   Widget build(BuildContext context) {
     final controller = Get.find<LibraryController>();
@@ -54,25 +64,31 @@ class _BookSortSheet extends StatelessWidget {
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: Obx(
-              () => SegmentedButton<bool>(
-                segments: const [
+            child: Obx(() {
+              // Keşke 17 (1.25.0): "'Artan / Azalan' yerine 'A'dan Z'ye /
+              // Z'den A'ya' yazsaydı düşünmezdim." Etiketler seçili alana
+              // göre kurulur; yazı alanında harf dili, sayı ve tarihte
+              // miktar dili konuşur.
+              final alphabetical = _alphabeticalFields
+                  .contains(controller.sortField.value);
+              return SegmentedButton<bool>(
+                segments: [
                   ButtonSegment(
                     value: true,
-                    icon: Icon(Icons.arrow_upward, size: 16),
-                    label: Text('Artan'),
+                    icon: const Icon(Icons.arrow_upward, size: 16),
+                    label: Text(alphabetical ? "A'dan Z'ye" : 'Azdan çoğa'),
                   ),
                   ButtonSegment(
                     value: false,
-                    icon: Icon(Icons.arrow_downward, size: 16),
-                    label: Text('Azalan'),
+                    icon: const Icon(Icons.arrow_downward, size: 16),
+                    label: Text(alphabetical ? "Z'den A'ya" : 'Çoktan aza'),
                   ),
                 ],
                 selected: {controller.sortAscending.value},
                 onSelectionChanged: (selection) =>
                     controller.sortAscending.value = selection.first,
-              ),
-            ),
+              );
+            }),
           ),
           for (final field in BookSortField.values)
             Obx(() {

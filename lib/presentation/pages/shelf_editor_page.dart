@@ -220,7 +220,7 @@ class _MismatchBanner extends StatelessWidget {
             Text(
               'Düzen planı yalnız buradaki tanımları kullanır; adlar '
               'birebir aynı değilse doluluklar 0 görünür ve plan '
-              'kitapları tanım adlarına dağıtır. Kalem simgesiyle '
+              'kitapları tanım adlarına paylaştırır. Kalem simgesiyle '
               'tanım adını kitaplardakiyle birebir aynı yap.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: scheme.onErrorContainer,

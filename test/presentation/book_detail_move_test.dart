@@ -183,7 +183,7 @@ void main() {
 
     expect(find.text('Bu kitabın 1 kopyası daha var'), findsOneWidget);
     expect(
-      find.textContaining('Kopyalar birbirinden bağımsızdır'),
+      find.textContaining('Her kopya kendi başına yaşar'),
       findsOneWidget,
     );
     // Kopya satırı: raf + bağımsız durum bilgisi.
@@ -222,7 +222,7 @@ void main() {
     controller.handleIsbn('978-3-16-148410-0');
     await tester.pumpAndSettle();
 
-    expect(find.text('Bu ISBN kitaplıkta'), findsOneWidget);
+    expect(find.text('Bu kitabı zaten eklemişsin'), findsOneWidget);
     expect(find.textContaining('bu ISBN ile kayıtlı'), findsOneWidget);
 
     await tester.tap(find.text('Yeni kopya ekle'));

@@ -15,7 +15,7 @@ import 'package:kitaplik/presentation/pages/organize_setup_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// 1.18.1/1.19.0 çıktı-netliği ekran testleri:
-/// - önizleme özet kartı ("N kitap taşınacak, M kitap zaten hedef rafta"
+/// - önizleme özet kartı ("N kitap taşınacak, M kitap zaten yerinde"
 ///   + planın raf içi dizilişi kapsamadığı notu),
 /// - kurulumda yetim favori raf ipucu (favoriler kartı yalnız yazara
 ///   göre kriterinde görünür),
@@ -111,9 +111,9 @@ void main() {
 
     final summary = controller.previewMoveSummary()!;
     final expected = '${summary.moved} kitap taşınacak, '
-        '${summary.untouched} kitap zaten hedef rafta.';
+        '${summary.untouched} kitap zaten yerinde.';
     expect(find.byKey(const ValueKey('preview-summary')), findsOneWidget);
-    expect(find.textContaining('kitap zaten hedef rafta'),
+    expect(find.textContaining('kitap zaten yerinde'),
         findsOneWidget);
     expect(find.textContaining(expected), findsOneWidget);
   });
@@ -129,7 +129,7 @@ void main() {
       find.textContaining('Taşınacak kitap yok'),
       findsOneWidget,
     );
-    expect(find.textContaining('4 kitap zaten hedef rafta'),
+    expect(find.textContaining('4 kitap zaten yerinde'),
         findsOneWidget);
   });
 

@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '../../core/utils/text_normalizer.dart';
 import '../controllers/library_controller.dart';
 import '../routes/app_routes.dart';
+import '../utils/haber_seridi.dart';
 import '../routes/route_args.dart';
 import '../widgets/author_rename_dialog.dart';
 
@@ -107,10 +108,10 @@ class AuthorsPage extends GetView<LibraryController> {
 
     final changed = await controller.renameAuthor(authorKey, newName);
     if (changed > 0) {
-      Get.snackbar(
-        'Yazar güncellendi',
-        '$changed kitap "$newName" olarak yazıldı.',
-        snackPosition: SnackPosition.BOTTOM,
+      // Keşke 44 (1.25.0): önemli haber şeritle söylenir, balonla değil.
+      haberSeridiGoster(
+        baslik: 'Yazar güncellendi',
+        mesaj: '$changed kitap "$newName" olarak yazıldı.',
       );
     }
   }

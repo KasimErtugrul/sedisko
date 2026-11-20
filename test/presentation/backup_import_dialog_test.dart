@@ -53,7 +53,7 @@ void main() {
       (tester) async {
     await pumpOpener(tester);
 
-    expect(find.text('Yedeği nasıl içe aktaralım?'), findsOneWidget);
+    expect(find.text('Yedeği nasıl geri yükleyelim?'), findsOneWidget);
 
     // İçerikteki açıklayıcı başlık da "Üzerine yaz" yazdığından düğmeyi
     // tipiyle daraltarak hedefle (TextButton yalnız aksiyon sırasında).
@@ -69,7 +69,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Her iki diyalog da kapandı; kip replace olarak döndü.
-    expect(find.text('Yedeği nasıl içe aktaralım?'), findsNothing);
+    expect(find.text('Yedeği nasıl geri yükleyelim?'), findsNothing);
     expect(lastResult, BackupImportMode.replace);
   });
 
@@ -93,7 +93,7 @@ void main() {
 
     // İkinci diyalog kapandı; ilk diyalog hâlâ açık — karar zorlanmadı.
     expect(find.text('Bütün kitaplık değişecek'), findsNothing);
-    expect(find.text('Yedeği nasıl içe aktaralım?'), findsOneWidget);
+    expect(find.text('Yedeği nasıl geri yükleyelim?'), findsOneWidget);
     expect(find.widgetWithText(FilledButton, 'Birleştir'), findsOneWidget);
     expect(lastResult, isNull);
   });
@@ -106,7 +106,7 @@ void main() {
 
     // Güvenli kip tek dokunuşla biter; ikinci diyalog hiç açılmaz.
     expect(find.text('Bütün kitaplık değişecek'), findsNothing);
-    expect(find.text('Yedeği nasıl içe aktaralım?'), findsNothing);
+    expect(find.text('Yedeği nasıl geri yükleyelim?'), findsNothing);
     expect(lastResult, BackupImportMode.merge);
   });
 }

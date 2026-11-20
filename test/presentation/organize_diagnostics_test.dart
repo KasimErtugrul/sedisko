@@ -156,7 +156,7 @@ void main() {
   });
 
   group('no-op plan ve özet', () {
-    test('kitaplar zaten hedef düzende: plan null, önizleme SİLİNMEZ',
+    test('kitaplar zaten istediğin düzende: plan null, önizleme SİLİNMEZ',
         () async {
       await controller.quickSetup(125); // 50 kitap ≈ 125 cm
       controller.buildPreview(OrganizeCriterion.author);

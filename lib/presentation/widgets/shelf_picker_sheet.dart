@@ -5,6 +5,7 @@ import '../../core/utils/text_normalizer.dart';
 import '../../data/models/book_model.dart';
 import '../controllers/library_controller.dart';
 import '../controllers/shelf_organize_controller.dart';
+import '../utils/haber_seridi.dart';
 
 /// Raf seçim alt sayfası: mevcut raflar + 'Rafsız' + 'Yeni raf...'.
 ///
@@ -75,10 +76,10 @@ Future<void> pickShelfAndMove(BuildContext context, BookModel book) async {
   if (!ok) return; // Hata mesajı LibraryController'da gösterildi.
 
   final display = shelf.trim().isEmpty ? 'Rafsız' : shelf.trim();
-  Get.snackbar(
-    'Taşındı',
-    '${book.title} → $display rafına taşındı.',
-    snackPosition: SnackPosition.BOTTOM,
+  // Keşke 44 (1.25.0): 'Taşındı' balonla değil, ekranda kalan şeritle.
+  haberSeridiGoster(
+    baslik: 'Taşındı',
+    mesaj: '${book.title} → $display rafına taşındı.',
   );
 }
 

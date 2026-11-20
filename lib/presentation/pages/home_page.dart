@@ -517,7 +517,9 @@ class HomePage extends GetView<LibraryController> {
             ),
             ListTile(
               leading: const Icon(Icons.edit_note),
-              title: const Text('Manuel ekle'),
+              // Keşke 5 (1.25.0): "'Manuel' ne demek bilmiyorum;
+              // 'Kendim yazacağım' deseydi hemen anlardım."
+              title: const Text('Kendim yazacağım'),
               subtitle: const Text('Bilgileri kendin gir'),
               onTap: () {
                 AppNav.pop();

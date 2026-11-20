@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:kitaplik/main.dart';
 import 'package:kitaplik/presentation/controllers/settings_controller.dart';
+import 'package:kitaplik/presentation/pages/splash_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -27,6 +28,9 @@ void main() {
       permanent: true,
     );
     await tester.pumpWidget(KitaplikApp(prefs: prefs));
+    // Açılışta 'sedişko' karşılama ekranı oynar (1.25.0); bekletme ve
+    // giriş animasyonunu tek pompada geçip ana sayfaya yerleş.
+    await tester.pump(SplashPage.defaultHoldDuration + SplashPage.fadeDuration);
     await tester.pumpAndSettle();
   }
 
@@ -68,10 +72,10 @@ void main() {
     await tester.tap(find.byType(FloatingActionButton));
     await tester.pumpAndSettle();
 
-    expect(find.text('Manuel ekle'), findsOneWidget);
+    expect(find.text('Kendim yazacağım'), findsOneWidget);
     expect(find.text('Barkod tara'), findsOneWidget);
 
-    await tester.tap(find.text('Manuel ekle'));
+    await tester.tap(find.text('Kendim yazacağım'));
     await tester.pumpAndSettle();
 
     expect(find.text('Yeni kitap'), findsOneWidget); // form AppBar başlığı
@@ -90,7 +94,7 @@ void main() {
 
     await tester.tap(find.byType(FloatingActionButton));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Manuel ekle'));
+    await tester.tap(find.text('Kendim yazacağım'));
     await tester.pumpAndSettle();
 
     expect(find.text('Yeni kitap'), findsOneWidget);

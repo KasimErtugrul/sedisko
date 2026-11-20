@@ -1018,7 +1018,152 @@ flutter test
       ana sayfa hatırlatma kartı ile Raflar sekmesi kartı aynı "gezi"
       dilini taşır.
 
+65. **Keşke notları FAZ 6 — kelimeleri yumuşat + açılışta bir selam
+    (1.25.0)** — belgenin kapanışındaki sıranın DÖRDÜNCÜ VE SON adımı
+    ("önce gizli işleri görünür kıl; sonra ikonlara yazıyı giydir; sonra
+    asistanı adım adım soru soran bir eşe çevir; en sonunda kelimeleri
+    yumuşat") ve H bölümü "Kelimeler ve kurallar" (43-45): Hasan'ın en
+    sık söylediği şey uygulamanın diliydi — "özellikler çalışıyor; ama
+    kelimeler ona yabancı. Ben kitap okuyorum, terim öğrenmiyorum."
+    Yanında kelimelerle aynı derde dokunan beş keşke daha aynı faza
+    girdi: keşke 5 ("'Manuel' ne demek bilmiyorum"), keşke 11
+    ("Terimlere boğuldum"), keşke 17 ("'Artan nedir, azalan nedir?'")
+    ve top-10'un 10. maddesinin ikinci yarısı (keşke 44). Kullanıcının
+    ayrıca bir dileği vardı: "yaaa bir de splash ekran yap be gülüm...
+    sedişko yazsın ama :)" — açılış karşılama ekranı bu fazda eklendi.
+    - **Keşke 43 — günlük kelimeler:** Hasan'ın dört örneği harfiyen
+      uygulandı: "İçe aktar" yerine "geri yükle" (ayarlar satırı
+      'Yedeği geri yükle', kip diyaloğu 'Yedeği nasıl geri
+      yükleyelim?', 'Geri yükleme tamamlandı' bildirimi), "kriter"
+      yerine "neye göre" (plan özeti 'neye göre: Yazara göre', kapatma
+      nedeni 'kitapların nasıl dizileceği seçilmedi', özet satırı
+      'kurulumdan "neye göre" seçimini değiştirebilirsin'), "hedef
+      düzen" yerine dizilim dili (kurulum adımı 'Kitaplar neye göre
+      dizilsin?' / 'Kitaplar nasıl dizilsin?', düğme 'Planı oluştur',
+      önizleme başlığı 'Plan önizlemesi', bitirme balonu 'kitaplar
+      istediğin düzende', not 'kitapların çoğu zaten yerindeyse'),
+      "dağıt" yerine "paylaştır" (uyarı kartı 'plan kitapları tanım
+      adlarına paylaştırır', düzenleyici metni, Raflar sekmesi 'göre
+      diz; taşma yok', favori uyarısı 'seçimine göre dizildi').
+    - **Keşke 44 — ekranda kalan şerit:** "Taşındı", "Kaydedildi" ve
+      "Yazar güncellendi" artık üç saniyelik balon DEĞİL, 'Anladım'a
+      dokunulana kadar ekranda duran haber şerididir (kök Overlay'e
+      takılan yuvarlak köşeli kart: başlık + ayrıntı + Anladım). Şerit
+      zamanlayıcıyla kaybolmaz, alttan çıkan öteki haberleri ve
+      AppNav.pop'un GetX snackbar korumasını tıkamaz, ekran/rota
+      değişse de durur, yeni şerit eskisinin yerine geçer (yığılmaz).
+      Öteki bildirimler eskisi gibi snackbar'dır ("dokunmayın" listesi
+      bozulmaz; 1.23.0'ın 'Geri Al' teklifi balon olarak kalır — teklif
+      haberdir, şerit değil). Not: ilk denemede MaterialBanner
+      kullanıldı; rota çıkarken aynı şerit iki Scaffold'a birden
+      sunulunca iç Hero'su aynı etiketle iki yerde yaşayıp rota
+      geçişinde Hero uçuşu başlatıyor ve şerit sıkışıyordu (21-47 piksel
+      taşma, testlerde ölçüldü) — kök Overlay bu tuzağı kökten yok sayar.
+    - **Keşke 45 — hata balonu yol söyler:** "Beklenmeyen bir sorun
+      oluştu." balonu artık ne yapılacağını da yazar: "İşlemi yeniden
+      dene; sürerse uygulamayı kapatıp aç." (Hasan'ın sorusunun iki
+      yanı: tekrar VE kapat-aç). Ödünç kayıt silme/ekleme, kitaplık
+      yükleme/kaydetme/silme ve yedek yazma hataları aynı dürüstlükte:
+      'Geri yükleme yazılırken başarısız oldu. Verin değişmedi; yeniden
+      deneyebilirsin.', 'Dosyayı yeniden seçip deneyebilirsin.'
+    - **Keşke 5 — "Manuel" bitti:** ekle menüsündeki seçenek
+      'Kendim yazacağım' oldu ("'Manuel' ne demek bilmiyorum;
+      'Kendim yazacağım' deseydi hemen anlardım"); satın alma listesindeki
+      kaynak rozeti ve kitap detayındaki elle giriş rozeti de aynı dille
+      'Kendim ekledim' oldu. Depodaki kaynak anahtarı ('openlibrary' /
+      öteki) DEĞİŞMEZ; yalnız ekrandaki etiket günlük.
+    - **Keşke 11 — kopya sorusu samimi:** her iki kopya diyaloğu Hasan'ın
+      cümlesini kullanır: "Bu kitabı zaten eklemişsin" — formdaki soru
+      'Bu kitap kitaplıkta zaten var. İkinci kopyasını mı ekliyorsun?'
+      der, tarama diyaloğu '"X" bu ISBN ile kayıtlı. Ne yapmak
+      istersin?' der; terim dersi ('Kopyalar birbirinden bağımsızdır…')
+      günlük anlatıma indi ('İkisinin okuma durumu ve sayfası ayrı ayrı
+      tutulur; birini okumak diğerini etkilemez.' / 'Her kopya kendi
+      başına yaşar…'). Sorunun YERİ ve davranışı aynen durur ("dokunmayın"
+      listesindeki kopya sorusu).
+    - **Keşke 17 — yön etiketleri alana göre:** sıralama sayfasındaki
+      'Artan / Azalan' ikilisi, seçili alana göre konuşur: yazı
+      alanlarında "A'dan Z'ye / Z'den A'ya", sayfa sayısı ve tarihlerde
+      "Azdan çoğa / Çoktan aza". "'Artan nedir, azalan nedir? Bir an
+      durdum." — artık durulmaz. Yön seçimi sayfayı kapatmaz (eski
+      davranış aynen).
+    - **Sedişko karşılama ekranı:** açılışta kısa bir selam: kitap
+      simgesi, büyük 'sedişko' yazısı, altında 'Kitaplığım' alt yazısı
+      ve küçük bir ilerleme işareti; 1,8 sn sonra ana sayfaya geçilir ve
+      karşılama YIĞINDAN SİLİNİR (Get.offNamed) — geri tuşu oraya
+      döndürmez, 1.24.0'ın gezinme davranışı aynen korunur. Tema
+      kuralları aynen: 'sedişko' temanın tohum rengiyle boyanır
+      (palet/karanlık mod otomatik izlenir), yazı ölçeğini görmezden
+      gelmez (1.3 kademesinde taşma testiyle savunulur). Veri anahtarları
+      ve saklanan veriler değişmez; ekran HİÇBİR ŞEY YAZMAZ.
+
 ## Sürüm notları
+
+**1.25.0:** `pubspec.yaml` sürümü `1.25.0+33`'e yükseltildi. Keşke
+notlarının FAZ 6'sı — "kelimeleri yumuşat" (belge kapanışının dördüncü
+ve son adımı; keşke 43, 44, 45 + aynı derde dokunan 5, 11, 17) ve
+kullanıcının dileği olan 'sedişko' açılış karşılama ekranı. Sekiz
+değişiklik:
+
+- **Keşke 43 — günlük kelimeler:** Hasan'ın dört kelime örneği
+  harfiyen: 'İçe aktar' → 'geri yükle' ([SettingsPage] satırı 'Yedeği
+  geri yükle', [BackupImportModeDialog] başlığı 'Yedeği nasıl geri
+  yükleyelim?', 'Geri yükleme tamamlandı' bildirimi), 'kriter' → 'neye
+  göre' (plan özeti 'neye göre: …', kapatma nedeni 'kitapların nasıl
+  dizileceği seçilmedi', özet 'kurulumdan "neye göre" seçimini
+  değiştirebilirsin'), 'hedef düzen' → dizilim dili ('Kitaplar neye
+  göre dizilsin?' / 'Kitaplar nasıl dizilsin?' adım başlıkları, düğme
+  'Planı oluştur', önizleme başlığı 'Plan önizlemesi', 'kitaplar
+  istediğin düzende', 'kitapların çoğu zaten yerindeyse'), 'dağıt' →
+  'paylaştır' (uyarı kartı ve düzenleyici 'tanım adlarına paylaştırır',
+  Raflar sekmesi 'göre diz; taşma yok', favori uyarısı 'seçimine göre
+  dizildi').
+- **Keşke 44 — haber şeridi:** [haberSeridiGoster] yardımcısı kök
+  Overlay'e 'Anladım' düğmeli şerit takar; 'Taşındı' (üç yol: raf
+  seçicisi, toplu taşıma, yazar toplama), 'Kaydedildi' (form kaydı) ve
+  'Yazar güncellendi' (iki yol: yazarlar sayfası, raf sayfası) artık
+  şeritle söylenir. Şerit kalıcıdır, Snackbar kuyruğunu tıkamaz, rota
+  geçişinde durur; MaterialBanner'ın Hero uçuşu taşması kök Overlay ile
+  kökten önlenir (testte kanıtlandı).
+- **Keşke 45 — hatada yol:** yedi 'Beklenmeyen bir sorun oluştu.'
+  balonu ve iki yedek hatası artık ne yapılacağını söyler: 'İşlemi
+  yeniden dene; sürerse uygulamayı kapatıp aç.' / 'Verin değişmedi;
+  yeniden deneyebilirsin.' / 'Dosyayı yeniden seçip deneyebilirsin.'
+- **Keşke 5 — 'Manuel' bitti:** ekle menüsü 'Kendim yazacağım',
+  satın alma listesi rozeti ve kitap detayındaki elle giriş rozeti
+  'Kendim ekledim' oldu; depo anahtarı değişmez.
+- **Keşke 11 — samimi kopya sorusu:** form diyaloğu 'Bu kitabı zaten
+  eklemişsin' başlığıyla sorulur ('İkisinin okuma durumu ve sayfası
+  ayrı ayrı tutulur; birini okumak diğerini etkilemez.'), barkod
+  diyaloğu aynı başlığı alır ('"X" bu ISBN ile kayıtlı. Ne yapmak
+  istersin?'), detayın kopya kartı 'Her kopya kendi başına yaşar…'
+  der. Davranış ve 'dokunmayın' koruması aynen.
+- **Keşke 17 — alan dilinde yön:** sıralama yönü etiketleri alana göre
+  kurulur: yazı alanlarında "A'dan Z'ye / Z'den A'ya", sayı ve
+  tarihlerde "Azdan çoğa / Çoktan aza"; yön değişimi sayfayı kapatmaz.
+- **Sedişko karşılama:** [SplashPage] — 'sedişko' büyük, 'Kitaplığım'
+  alt yazı, kitap simgesi ve ilerleme işareti; 1,8 sn sonra
+  Get.offNamed ile ana sayfaya geçilir (yığından silinir, geri döndürmez).
+  [Routes.splash] yeni rota; GetMaterialApp initialRoute artık splash.
+  Tohum rengi ve yazı ölçeği kuralları aynen; 1.3 ölçekte taşma testi
+  savunur. widget_test pompa yardımcısı karşılama süresini geçer.
+- Dokunmayın listesi bozulmaz (form çıkış onayı, elle giriş yolu,
+  "Kaçıncı sayfadasın?", dolu raf uyarısı, hızlı kurulum, kopya
+  sorusu, kart bilgisi, yedek paylaşımı); veri anahtarları ve saklanan
+  veriler değişmez (`books_v1`, `shelves_v1`, `organize_plan_v1`,
+  `loans_v1`, `borrowed_v1`, `wishlist_v1`, `settings_*`); açık
+  'Manuel' kaynak anahtarı ('openlibrary' / öteki) aynen yazılır.
+  Yeni testler: sedişko karşılama (açılışta yazar, ana sayfaya geçer,
+  tohum rengi, 1.3 ölçekte taşmaz), haber şeridi (kurulur/Anladım
+  kapatır, zamanla kaybolmaz, snackbar'ı tıkamaz, şerit yığılmaz, rota
+  geçişinde taşmaz), günlük kelimelerin akış testleri; güncellenen
+  testler: Manuel → Kendim yazacağım/Kendim ekledim, kopya diyaloğu
+  başlığı ve metni, yön etiketi, 'Planı oluştur' ve 'Plan önizlemesi',
+  geri yükleme diyaloğu başlığı, önizleme özeti 'zaten yerinde' ve
+  neden satırı 'nasıl dizileceği seçilmedi', adım başlığı 'Kitaplar
+  neye göre dizilsin?', favori uyarısı 'seçimine göre dizildi',
+  widget_test pompa yardımcısı (toplamda 771 test yeşil, `flutter
+  analyze`: No issues found!).
 
 **1.24.0:** `pubspec.yaml` sürümü `1.24.0+32`'e yükseltildi. Keşke
 notlarının FAZ 5'i — "asistanı adım adım soru soran bir eşe çevir"

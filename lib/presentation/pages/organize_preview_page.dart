@@ -36,7 +36,7 @@ class OrganizePreviewPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = Get.find<ShelfOrganizeController>();
     return Scaffold(
-      appBar: AppBar(title: const Text('Hedef düzen (önizleme)')),
+      appBar: AppBar(title: const Text('Plan önizlemesi')),
       body: Obx(() {
         final arrangement = controller.preview.value;
         if (arrangement == null) {
@@ -73,8 +73,8 @@ class OrganizePreviewPage extends StatelessWidget {
                     'Listedeki sıra, kitapların hedef raftaki plan '
                     'sırasıdır. Plan yalnız kitapların HANGİ rafta '
                     'olacağını kapsar; rafta A→Z gibi dizilme emri '
-                    'üretmez. Beğenmediysen geri dönüp kriteri '
-                    'değiştirebilirsin.',
+                    'üretmez. Beğenmediysen geri dönüp "neye göre" '
+                    'seçimini değiştirebilirsin.',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
@@ -106,7 +106,7 @@ class OrganizePreviewPage extends StatelessWidget {
     if (controller.plan.value == null) {
       Get.snackbar(
         'Taşınacak kitap yok',
-        'Kitaplar zaten hedef düzende; plan üretilmedi.',
+        'Kitaplar zaten istediğin düzende; plan üretilmedi.',
         snackPosition: SnackPosition.BOTTOM,
       );
       return;
@@ -130,11 +130,11 @@ class _SummaryCard extends StatelessWidget {
     final summary = this.summary;
     if (summary == null) return const SizedBox.shrink();
     final text = summary.moved == 0
-        ? 'Taşınacak kitap yok: ${summary.untouched} kitap zaten hedef '
-            'rafta. Plan üretmek yerine kurulumdan kriteri '
-            'değiştirebilirsin.'
+        ? 'Taşınacak kitap yok: ${summary.untouched} kitap zaten '
+            'yerinde. Plan üretmek yerine kurulumdan "neye göre" '
+            'seçimini değiştirebilirsin.'
         : '${summary.moved} kitap taşınacak, ${summary.untouched} kitap '
-            'zaten hedef rafta.';
+            'zaten yerinde.';
     return Card(
       key: const ValueKey('preview-summary'),
       margin: EdgeInsets.zero,

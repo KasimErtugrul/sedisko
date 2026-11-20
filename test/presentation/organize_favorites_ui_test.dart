@@ -126,7 +126,7 @@ void main() {
     expect(find.text('Favoriler'), findsOneWidget);
     // Kriter kartı favorilerden ÖNCE gelir (düzen önce kriter ister).
     final criterionDy =
-        tester.getTopLeft(find.text('Kitaplar nasıl dağıtılsın?')).dy;
+        tester.getTopLeft(find.text('Kitaplar nasıl dizilsin?')).dy;
     final favoritesDy = tester.getTopLeft(find.text('Favoriler')).dy;
     expect(criterionDy, lessThan(favoritesDy));
   });

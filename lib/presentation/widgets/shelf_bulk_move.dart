@@ -7,6 +7,7 @@ import '../../domain/services/book_thickness.dart';
 import '../controllers/library_controller.dart';
 import '../controllers/shelf_organize_controller.dart';
 import '../utils/app_navigation.dart';
+import '../utils/haber_seridi.dart';
 import 'shelf_picker_sheet.dart';
 
 /// Bir raftaki TÜM kitapları başka bir rafa toplu taşıma (1.16.0, kullanıcı
@@ -58,10 +59,10 @@ Future<void> moveWholeShelf(BuildContext context, String sourceShelf) async {
   final suffix = moved < targets.length
       ? ' (${targets.length - moved} kitap taşınmadı)'
       : '';
-  Get.snackbar(
-    'Taşındı',
-    '$moved kitap "$display" rafına toplandı$suffix.',
-    snackPosition: SnackPosition.BOTTOM,
+  // Keşke 44 (1.25.0): 'Taşındı' balonla değil, ekranda kalan şeritle.
+  haberSeridiGoster(
+    baslik: 'Taşındı',
+    mesaj: '$moved kitap "$display" rafına toplandı$suffix.',
   );
 }
 
