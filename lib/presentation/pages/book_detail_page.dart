@@ -5,12 +5,15 @@ import 'package:get/get.dart';
 import '../../core/utils/date_formatter.dart';
 import '../../core/utils/text_normalizer.dart';
 import '../../data/models/book_model.dart';
+import '../../data/models/loan_model.dart';
 import '../../domain/services/reading_goal.dart';
 import '../controllers/library_controller.dart';
+import '../controllers/loan_controller.dart';
 import '../routes/app_routes.dart';
 import '../routes/route_args.dart';
 import '../utils/app_navigation.dart';
 import '../widgets/cover_image.dart';
+import '../widgets/lend_dialog.dart';
 import '../widgets/reading_stats_panel.dart';
 import '../widgets/responsive/responsive_center.dart';
 import '../widgets/shelf_picker_sheet.dart';
@@ -52,6 +55,12 @@ class BookDetailPage extends GetView<LibraryController> {
         appBar: AppBar(
           title: const Text('Kitap detayı'),
           actions: [
+            if (_canLend(book))
+              IconButton(
+                tooltip: 'Ödünç ver',
+                icon: const Icon(Icons.book_outlined),
+                onPressed: () => _lendBook(context, book),
+              ),
             IconButton(
               tooltip: book.isFavorite
                   ? 'Favorilerden çıkar'
@@ -166,6 +175,10 @@ class BookDetailPage extends GetView<LibraryController> {
               ],
             ),
             const SizedBox(height: 16),
+            // Ödünç bannerı yalnızca LoanController kayıtlıyken ve kitap
+            // sürüyor bir ödünçteyken çizilir; denetleyicisiz kurulumlarda
+            // (testler) sayfa eskisi gibi kalır.
+            ..._loanBanner(context, book),
             Card(
               child: ListTile(
                 leading: const Icon(Icons.shelves),
@@ -195,6 +208,75 @@ class BookDetailPage extends GetView<LibraryController> {
         )),
       );
     });
+  }
+
+  /// Ödünç verme aksiyonu yalnızca LoanController kayıtlıyken ve kitabın
+  /// sürüyor bir ödünçü yokken görünür; kayıt geri alınınca aksiyon
+  /// geri gelir (Obx, loans listesini izler).
+  bool _canLend(BookModel book) {
+    if (!Get.isRegistered<LoanController>()) return false;
+    return Get.find<LoanController>().activeLoanFor(book.id) == null;
+  }
+
+  /// "Ödünç ver" diyaloğunu açar; onayda kaydı denetleyiciye yazar.
+  /// Başarı bilgi balonu burada, depolama hatası denetleyicide gösterilir.
+  Future<void> _lendBook(BuildContext context, BookModel book) async {
+    final result = await showLendDialog(context);
+    if (result == null) return;
+    final person = result.$1;
+    final ok = await Get.find<LoanController>()
+        .lendBook(book, person, note: result.$2);
+    if (ok) {
+      Get.snackbar(
+        'Ödünç kaydedildi',
+        '"${book.title}" $person kişisine verildi.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
+  }
+
+  /// Kitap sürüyor bir ödünçteyken sayfa başında banner: kişi + tarih +
+  /// 'Geri alındı' düğmesi. Kitaplık denetleyicisiyle bağımsız izlenir.
+  List<Widget> _loanBanner(BuildContext context, BookModel book) {
+    if (!Get.isRegistered<LoanController>()) return const [];
+    final loan = Get.find<LoanController>().activeLoanFor(book.id);
+    if (loan == null) return const [];
+
+    final theme = Theme.of(context);
+    return [
+      Card(
+        key: const Key('loan-banner'),
+        color: theme.colorScheme.secondaryContainer,
+        margin: EdgeInsets.zero,
+        child: ListTile(
+          leading: Icon(
+            Icons.book_outlined,
+            color: theme.colorScheme.onSecondaryContainer,
+          ),
+          title: Text(loan.person),
+          subtitle: Text(
+            'verildi: ${formatDate(loan.lentAt)}'
+            '${loan.note != null ? ' • ${loan.note}' : ''}',
+          ),
+          trailing: TextButton(
+            onPressed: () => _markLoanReturned(loan),
+            child: const Text('Geri alındı'),
+          ),
+        ),
+      ),
+      const SizedBox(height: 8),
+    ];
+  }
+
+  Future<void> _markLoanReturned(LoanModel loan) async {
+    final ok = await Get.find<LoanController>().markReturned(loan.id);
+    if (ok) {
+      Get.snackbar(
+        'Geri alındı',
+        '"${loan.bookTitle}" ${loan.person} kişisinden iade edildi.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
   }
 
   /// Yazarın kitaplarını yazar filtresiyle açar (çok yazarlı kitaplarda

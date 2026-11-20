@@ -26,6 +26,9 @@ flutter run
 ```xml
 <uses-permission android:name="android.permission.INTERNET"/>
 <uses-permission android:name="android.permission.CAMERA"/>
+<!-- 1.18.0: günlük okuma hatırlatıcısı -->
+<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
 ```
 
 `android/app/build.gradle.kts` içinde `minSdk = 23`.
@@ -833,7 +836,79 @@ flutter test
       rafta ya da başka rafta olduğu, favori rafta ne kadar boşluk
       rezerve edildiği metin metin anlatılır.
 
+59. **Ödünç verme ve ödünç alma (1.18.0)** — kullanıcı isteği: "bir
+    kitabı ödünç verme sistemini ekleyelim. aynı zamanda bir kitabı da
+    başkasından ödünç alma sistemini de getirelim."
+    - **Ödünç verme:** kitap detayındaki "Ödünç ver" aksiyonu kişi adı
+      (+isteğe bağlı not) ile kayıt açar (`loans_v1`); kitabın kendisi
+      `books_v1` içinde yaşamaya devam eder, yalnız ödünç ilişkisi ayrı
+      tutulur. Detay sayfası ödünçteyken kişi + tarih bannerı gösterir
+      ve "Geri alındı" ile kayıt kapanır. Ana sayfada "Ödünç verilenler"
+      bölümü, "Tümü" ile tam geçmiş sayfası (`/loans`: Sürüyor + Geri
+      alınanlar).
+    - **Ödünç alma:** başkasından aldığın kitaplar KİTAPLIK KAYDI
+      DEĞİLDİR; `borrowed_v1` içinde bağımsız kayıt (başlık, yazar,
+      sahip, not, tarih). "Ödünç aldıkların" sayfasında ekleyip
+      düzenleyebilir, "Geri verdim" ile kapatabilirsin. Ana sayfada
+      "Ödünç aldıkların" bölümü.
+    - Kitap silinse bile ödünç geçmişi kitap adının kopyasıyla anlamlı
+      kalır; bozuk kayıtlar savunmacı biçimde atlanır, yazmalar kilitli
+      sıra ile yapılır.
+
+60. **Open Library başlık/yazar araması + Satın alınacaklar (1.18.0)** —
+    kullanıcı isteği: "kitap adı yada yazar a göre de arama varmıdır?
+    eğer varsa hem kitap ekleme kısmına ekleyelim hemde satın alınacaklar
+    listesi yapalım."
+    - **Arama:** Open Library'nin `/search.json` ucu hem kitap adı hem
+      yazar aramayı destekler; "Kitap ekle" menüsüne "İsim/yazarla ara"
+      girdi eklendi. Sonuç kartında kapak, yazar(lar), ilk baskı yılı,
+      yayınevi, sayfa sayısı görünür; her sonuç "Kitaplığa ekle"
+      (formu doldurulmuş açar) ya da "Satın alma listesine ekle"
+      verir.
+    - **Satın alınacaklar:** `wishlist_v1` anahtarıyla ayrı liste.
+      Open Library aramasından ya da "Elle ekle" diyaloğundan beslenir;
+      kartta kaynak rozeti ('Open Library' / 'Manuel') vardır. "Kitaplığa
+      ekle" formu doldurulmuş açar; düzenleme dokunuşla, çıkarma onaylı
+      çöp ikonuyla. Ana sayfada "Satın alınacaklar" bölümü.
+    - Aynı ISBN (ya da başlık+yazar) listede iki kez oluşamaz; arama
+      boş girişte çalışmaz, ağ hataları Türkçe mesajla bildirilir.
+
+61. **Günlük okuma hatırlatıcısı (1.18.0)** — kullanıcı isteği: "flutter
+    local notification paketiyle de okumaya başladığı ve günlük kaç sayfa
+    okuyacağını bildiren bir sistem kuralım ve kullanıcı saat kaçta
+    bildirim gelmesini istiyorsa o saatte bildirim gelsin ve ayarlar
+    kısmından da bildirimleri katabilsin."
+    - **flutter_local_notifications + flutter_timezone + timezone**
+      paketleri eklendi. Ayarlar sekmesinde "Okuma hatırlatıcısı"
+      bölümü: anahtar (varsayılan KAPALI), saat seçici (varsayılan
+      20:30), günlük sayfa hedefi (varsayılan 20, 1-1000 arası).
+    - Açıkken her gün seçilen saatte yerel bildirim gelir: "Bugün
+      N sayfa okuma hedefin var. İyi okumalar!" Zamanlama cihaz yerel
+      saat diliminde günlük tekrarlıdır (inexact alarm; izin isteme
+      Android 13+ POST_NOTIFICATIONS, iOS alert/sound ile yapılır).
+    - Ayarlardan kapatınca alarm iptal edilir; uygulama güncellenip
+      alarm sıfırlansa bile açılışta yeniden kurulur (BOOT_COMPLETED
+      alıcısı da manifest'te bildirildi). Tercih anahtarları:
+      `settings_reminder_enabled/hour/minute/pages`.
+
 ## Sürüm notları
+
+**1.18.0:** `pubspec.yaml` sürümü `1.18.0+22`'ye yükseltildi. Mevcut
+veri anahtarları (`books_v1`, `shelves_v1`, `organize_plan_v1`) hiç
+değişmedi; üç yeni anahtar eklendi (`loans_v1`, `borrowed_v1`,
+`wishlist_v1`) ve dört yeni tercih anahtarı (`settings_reminder_*`).
+Yedek zarfı **formatVersion 2**'ye çıktı: ödünç verilenler, ödünç
+alınanlar ve satın alma listesi artık yedekte taşınır — "üzerine yaz"
+içe aktarmada bu kayıtlar da komple değişir, "birleştir"de kimlik/ISBN/
+başlık+yazar eşleşenler atlanır. Sürüm 1 dosyaları hâlâ okunur (yeni
+bloklar boş gelir); eski uygulama sürümü 2 dosyayı anlamlı hatayla
+reddeder. Yeni paketler: `flutter_local_notifications`,
+`flutter_timezone`, `timezone`. Yeni testler: ödünç modeli/depo/
+denetleyici/sayfalar/detay bannerı, Open Library arama (MockClient ile
+URL ve savunmacı ayrıştırma), satın alma modeli/depo/denetleyici/
+sayfalar, hatırlatıcı servis/denetleyici/bölüm, yedek v2 blokları
+(uçtan uca taşıma, sürüm 1 uyumu, bozuk kayıt reddi, depoların
+opsiyonelliği); toplam 665 test yeşil.
 
 **1.17.0:** `pubspec.yaml` sürümü `1.17.0+21`'e yükseltildi. Veri
 anahtarları (`books_v1`, `shelves_v1`, `organize_plan_v1`) ve tercih

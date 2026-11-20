@@ -3,10 +3,15 @@ import 'package:equatable/equatable.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/utils/text_normalizer.dart';
 import '../datasources/book_local_datasource.dart';
+import '../datasources/loan_local_datasource.dart';
 import '../datasources/shelf_local_datasource.dart';
+import '../datasources/wishlist_local_datasource.dart';
 import '../models/backup_model.dart';
 import '../models/book_model.dart';
+import '../models/borrowed_book_model.dart';
+import '../models/loan_model.dart';
 import '../models/shelf_model.dart';
+import '../models/wishlist_item_model.dart';
 
 /// İçe aktarma kipi.
 enum BackupImportMode {
@@ -28,6 +33,9 @@ class BackupImportSummary extends Equatable {
     required this.shelvesImported,
     required this.shelvesKept,
     required this.planCleared,
+    this.loansImported = 0,
+    this.borrowedImported = 0,
+    this.wishlistImported = 0,
   });
 
   final BackupImportMode mode;
@@ -47,9 +55,24 @@ class BackupImportSummary extends Equatable {
   /// "Üzerine yaz"da eski taşıma planı sıfırlandı mı?
   final bool planCleared;
 
+  /// Cihaza yazılan ödünç verilen / ödünç alınan / satın alma kayıtları
+  /// (1.18.0). Depolar verilmediyse her zaman 0'dır.
+  final int loansImported;
+  final int borrowedImported;
+  final int wishlistImported;
+
   @override
-  List<Object?> get props =>
-      [mode, booksImported, booksSkipped, shelvesImported, shelvesKept, planCleared];
+  List<Object?> get props => [
+        mode,
+        booksImported,
+        booksSkipped,
+        shelvesImported,
+        shelvesKept,
+        planCleared,
+        loansImported,
+        borrowedImported,
+        wishlistImported,
+      ];
 }
 
 /// Kitaplık yedeğini üreten ve geri yükleyen servis.
@@ -58,15 +81,25 @@ class BackupImportSummary extends Equatable {
 /// mantık tamamen deterministtir: aynı veri + aynı mevcut durum her zaman
 /// aynı sonucu üretir (rastgelelik yalnızca kimlik çakışması çözümünde,
 /// yeni kimlik üretirken devreye girer).
+///
+/// Ödünç ve satın alma depoları OPSİYONELDİR: verilmezse bu veriler
+/// yedekte yer almaz ve içe aktarmada dokunulmaz (eski testler ve
+/// yalnız kitaplık senaryoları değişmez).
 class BackupService {
   BackupService({
     required BookLocalDataSource bookStore,
     required ShelfLocalDataSource shelfStore,
+    LoanLocalDataSource? loanStore,
+    WishlistLocalDataSource? wishlistStore,
   })  : _bookStore = bookStore,
-        _shelfStore = shelfStore;
+        _shelfStore = shelfStore,
+        _loanStore = loanStore,
+        _wishlistStore = wishlistStore;
 
   final BookLocalDataSource _bookStore;
   final ShelfLocalDataSource _shelfStore;
+  final LoanLocalDataSource? _loanStore;
+  final WishlistLocalDataSource? _wishlistStore;
 
   /// Mevcut veritabanından paylaşılacak zarfı toplar.
   BackupEnvelope buildEnvelope() {
@@ -75,6 +108,9 @@ class BackupService {
       appVersion: AppInfo.version,
       books: _bookStore.getBooks(),
       shelves: _shelfStore.getShelves(),
+      loans: _loanStore?.getLoans() ?? const [],
+      borrowed: _loanStore?.getBorrowed() ?? const [],
+      wishlist: _wishlistStore?.getItems() ?? const [],
     );
   }
 
@@ -105,6 +141,12 @@ class BackupService {
     // temizlenir (yeniden düzenleme istenirse yeniden planlanır).
     await _shelfStore.savePlan(null);
 
+    // Ödünç/satın alma depoları verilmişse aynı disiplinle komple
+    // değiştirilir: "üzerine yaz" yedeğin aynen geri yüklenmesidir.
+    await _loanStore?.replaceAllLoans(envelope.loans);
+    await _loanStore?.replaceAllBorrowed(envelope.borrowed);
+    await _wishlistStore?.replaceAll(envelope.wishlist);
+
     return BackupImportSummary(
       mode: BackupImportMode.replace,
       booksImported: envelope.books.length,
@@ -112,6 +154,9 @@ class BackupService {
       shelvesImported: envelope.shelves.length,
       shelvesKept: 0,
       planCleared: true,
+      loansImported: envelope.loans.length,
+      borrowedImported: envelope.borrowed.length,
+      wishlistImported: envelope.wishlist.length,
     );
   }
 
@@ -221,6 +266,70 @@ class BackupService {
     // kalır; yalnız plana yeni eklenen kitaplar yansımazsa kullanıcı
     // "Yeniden planla" ile güncelleyebilir.
 
+    // 3) Ödünç verilenler: kimlik eşleşen atlanır; gelenler eklenir.
+    //    (Kitap kimliği birleştirmede değişebildiği için ilişki yeniden
+    //    kurulmaz; kayıt yine de başlık metniyle anlamlı kalır.)
+    final existingLoanIds = <String>{
+      for (final loan in _loanStore?.getLoans() ?? const <LoanModel>[]) loan.id,
+    };
+    final addedLoans = <LoanModel>[
+      for (final loan in envelope.loans)
+        if (existingLoanIds.add(loan.id)) loan,
+    ];
+
+    // 4) Ödünç alınanlar: aynı kuralla.
+    final existingBorrowedIds = <String>{
+      for (final item in _loanStore?.getBorrowed() ??
+          const <BorrowedBookModel>[])
+        item.id,
+    };
+    final addedBorrowed = <BorrowedBookModel>[
+      for (final item in envelope.borrowed)
+        if (existingBorrowedIds.add(item.id)) item,
+    ];
+
+    // 5) Satın alma listesi: kimlik, ISBN ya da (başlık+yazar) çifti
+    //    eşleşen atlanır; diğerleri eklenir.
+    final existingWishlistIds = <String>{};
+    final existingWishlistIsbns = <String>{};
+    final existingWishlistTitleAuthors = <String>{};
+    for (final item in _wishlistStore?.getItems() ??
+        const <WishlistItemModel>[]) {
+      existingWishlistIds.add(item.id);
+      final isbn = item.isbn?.trim().toLowerCase() ?? '';
+      if (isbn.isNotEmpty) existingWishlistIsbns.add(isbn);
+      final ta = _wishlistTitleAuthorKey(item);
+      if (ta != null) existingWishlistTitleAuthors.add(ta);
+    }
+    final addedWishlist = <WishlistItemModel>[];
+    for (final item in envelope.wishlist) {
+      final isbn = item.isbn?.trim().toLowerCase() ?? '';
+      if (isbn.isNotEmpty && existingWishlistIsbns.contains(isbn)) continue;
+      final ta = _wishlistTitleAuthorKey(item);
+      if (ta != null && existingWishlistTitleAuthors.contains(ta)) continue;
+      if (existingWishlistIds.contains(item.id)) continue;
+      existingWishlistIds.add(item.id);
+      if (isbn.isNotEmpty) existingWishlistIsbns.add(isbn);
+      if (ta != null) existingWishlistTitleAuthors.add(ta);
+      addedWishlist.add(item);
+    }
+
+    if (addedLoans.isNotEmpty) {
+      for (final loan in addedLoans) {
+        await _loanStore?.upsertLoan(loan);
+      }
+    }
+    if (addedBorrowed.isNotEmpty) {
+      for (final item in addedBorrowed) {
+        await _loanStore?.upsertBorrowed(item);
+      }
+    }
+    if (addedWishlist.isNotEmpty) {
+      for (final item in addedWishlist) {
+        await _wishlistStore?.upsert(item);
+      }
+    }
+
     return BackupImportSummary(
       mode: BackupImportMode.merge,
       booksImported: addedBooks.length,
@@ -228,7 +337,24 @@ class BackupService {
       shelvesImported: shelvesImported,
       shelvesKept: shelvesKept,
       planCleared: false,
+      loansImported: addedLoans.length,
+      borrowedImported: addedBorrowed.length,
+      wishlistImported: addedWishlist.length,
     );
+  }
+
+  /// Satın alma listesi birleştirme anahtarı: Türkçe katlamayla
+  /// başlık + sıralı yazarlar. Başlığı boş kayıt anahtar üretemez;
+  /// yalnız ISBN/kimlik ile eşleşir.
+  String? _wishlistTitleAuthorKey(WishlistItemModel item) {
+    final title = TextNormalizer.searchKey(item.title.trim());
+    if (title.isEmpty) return null;
+    final authors = item.authors
+        .map((a) => TextNormalizer.searchKey(a.trim()))
+        .where((a) => a.isNotEmpty)
+        .toList()
+      ..sort();
+    return '$title|${authors.join(',')}';
   }
 
   /// Kimlik çakışmasını çözerek benzersiz kimlik döner.

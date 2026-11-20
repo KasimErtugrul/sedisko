@@ -11,7 +11,7 @@ class ApiConstants {
 class AppInfo {
   const AppInfo._();
 
-  static const String version = '1.17.0';
+  static const String version = '1.18.0';
 }
 
 class StorageKeys {
@@ -27,6 +27,19 @@ class StorageKeys {
   /// Sürüyor olan taşıma planı (turlar + tamamlananlar). Plan bitince
   /// anahtar silinir.
   static const String organizePlan = 'organize_plan_v1';
+
+  /// Ödünç VERİLEN kitap kayıtları (kitap kimliği + kişi + tarih).
+  /// Kitabın kendisi hâlâ `books_v1` içinde yaşar; burada yalnızca
+  /// ödünç ilişkisi tutulur.
+  static const String loans = 'loans_v1';
+
+  /// Başkasından ÖDÜNÇ ALINAN kitaplar (kitaplıkta olmayan, sahibi
+  /// belli kitapların takip listesi).
+  static const String borrowed = 'borrowed_v1';
+
+  /// Satın alınacaklar listesi (Open Library aramasından ya da elle
+  /// eklenen, kitaplığa henüz girmemiş kitaplar).
+  static const String wishlist = 'wishlist_v1';
 }
 
 /// Ayarlar sayfasının kalıcı tercih anahtarları.
@@ -60,4 +73,16 @@ class SettingsKeys {
   /// Kitabın yeri sayfa sayısından tahmin edilir (≈350 sayfa = 1 birim).
   /// Varsayılan açıktır.
   static const String thicknessAware = 'settings_thickness_aware';
+
+  /// Günlük okuma hatırlatıcısı açık mı? Varsayılan kapalı gelir:
+  /// bildirim sessiz bir uygulamada sürpriz olur.
+  static const String reminderEnabled = 'settings_reminder_enabled';
+
+  /// Hatırlatma saati (0-23) ve dakikası (0-59). Saat yoksa 20:30
+  /// varsayılır; kullanıcı saati seçtiğinde yazılır.
+  static const String reminderHour = 'settings_reminder_hour';
+  static const String reminderMinute = 'settings_reminder_minute';
+
+  /// Günlük sayfa hedefi; hatırlatma metninde gösterilir. Varsayılan 20.
+  static const String reminderPages = 'settings_reminder_pages';
 }

@@ -1,21 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../data/models/borrowed_book_model.dart';
+import '../../data/models/loan_model.dart';
+import '../../data/models/wishlist_item_model.dart';
 import '../../domain/services/home_feed.dart';
 import '../controllers/library_controller.dart';
+import '../controllers/loan_controller.dart';
 import '../controllers/settings_controller.dart';
 import '../controllers/shelf_organize_controller.dart';
+import '../controllers/wishlist_controller.dart';
 import '../routes/app_routes.dart';
 import '../routes/route_args.dart';
 import '../utils/app_navigation.dart';
 import '../widgets/book_tile.dart';
 import '../widgets/home/author_strip.dart';
 import '../widgets/home/book_strip.dart';
+import '../widgets/home/borrowed_strip.dart';
 import '../widgets/home/favorite_author_strip.dart';
 import '../widgets/home/home_empty_state.dart';
 import '../widgets/home/home_section_header.dart';
 import '../widgets/home/home_summary_row.dart';
+import '../widgets/home/loan_strip.dart';
 import '../widgets/home/shelf_summary_grid.dart';
+import '../widgets/home/wishlist_strip.dart';
 import '../widgets/shelf_picker_sheet.dart';
 import '../widgets/status_filter_row.dart';
 
@@ -41,6 +49,10 @@ import '../widgets/status_filter_row.dart';
 ///    sekmesine geçirir
 /// 10. "Bu ay bitirdiklerin" — bu ay bitirilenler şeridi
 /// 11. "Not aldıkların" — notlu kitaplar şeridi
+/// 12. "Ödünç verilenler" — aktif ödünç şeridi (1.18.0); "Tümü" ödünç
+///     sayfasını açar
+/// 13. "Ödünç aldıkların" — başkasından alınan kitaplar şeridi (1.18.0)
+/// 14. "Satın alınacaklar" — satın alma listesi şeridi (1.18.0)
 ///
 /// Hiçbir bölüm veri yokken gizlenmez: her bölüm başlığı her koşulda
 /// görünür; veri olmayan bölümün yerinde kısa bir "Henüz ..." ipucu
@@ -282,6 +294,53 @@ class HomePage extends GetView<LibraryController> {
             'Kitap detayından not ekleyebilirsin.',
         emptyIcon: Icons.notes_outlined,
       ),
+      // Ödünç verme (1.18.0): kitaplıkta bir kitabın kişiye verilmesi.
+      // Denetleyici izole testlerde kayıtlı olmayabilir; o zaman bölüm
+      // boş ipucu kartıyla durur (bölüm asla gizlenmez).
+      _FeedSection(
+        'Ödünç verilenler',
+        LoanStrip(
+          loans: _activeLoans(),
+          onTapLoan: (loan) =>
+              Get.toNamed(Routes.detail, arguments: loan.bookId),
+        ),
+        isEmpty: _activeLoans().isEmpty,
+        emptyMessage: 'Henüz ödünç verilen kitap yok.\n'
+            'Kitap detayındaki "Ödünç ver" aksiyonunu kullanabilirsin.',
+        emptyIcon: Icons.book_outlined,
+        onSeeAll: () => Get.toNamed(Routes.loans),
+        actionKey: const ValueKey('see-all-loans'),
+      ),
+      // Ödünç alma (1.18.0): başkasından alınan, kitaplıkta olmayan kitaplar.
+      _FeedSection(
+        'Ödünç aldıkların',
+        BorrowedStrip(
+          borrowed: _activeBorrowed(),
+          onTap: (_) => Get.toNamed(Routes.borrowed),
+        ),
+        isEmpty: _activeBorrowed().isEmpty,
+        emptyMessage: 'Başkasından aldığın kitap yok.\n'
+            '"Tümü" sayfasından ödünç aldığın kitabı ekleyebilirsin.',
+        emptyIcon: Icons.swap_horiz_outlined,
+        onSeeAll: () => Get.toNamed(Routes.borrowed),
+        actionKey: const ValueKey('see-all-borrowed'),
+      ),
+      // Satın alınacaklar (1.18.0): Open Library aramasından ya da elle
+      // eklenen, alınmak istenen kitaplar.
+      _FeedSection(
+        'Satın alınacaklar',
+        WishlistStrip(
+          items: _wishlistItems(),
+          onTapItem: (_) => Get.toNamed(Routes.wishlist),
+        ),
+        isEmpty: _wishlistItems().isEmpty,
+        emptyMessage: 'Satın alınacak kitap listen boş.\n'
+            '"Tümü" sayfasından Open Library aramasıyla ya da elle '
+            'ekleyebilirsin.',
+        emptyIcon: Icons.shopping_cart_outlined,
+        onSeeAll: () => Get.toNamed(Routes.wishlist),
+        actionKey: const ValueKey('see-all-wishlist'),
+      ),
     ];
 
     final itemCount =
@@ -347,6 +406,29 @@ class HomePage extends GetView<LibraryController> {
     );
   }
 
+  /// Aktif ödünç verilenler (en yeni önce, en fazla 10 kart).
+  /// Denetleyici kayıtlı değilse boş liste.
+  List<LoanModel> _activeLoans() {
+    if (!Get.isRegistered<LoanController>()) return const <LoanModel>[];
+    return Get.find<LoanController>().activeLoans.take(10).toList();
+  }
+
+  /// Aktif ödünç alınanlar (en yeni önce, en fazla 10 kart).
+  List<BorrowedBookModel> _activeBorrowed() {
+    if (!Get.isRegistered<LoanController>()) {
+      return const <BorrowedBookModel>[];
+    }
+    return Get.find<LoanController>().activeBorrowed.take(10).toList();
+  }
+
+  /// Satın alınacaklar (en yeni önce, en fazla 10 kart).
+  List<WishlistItemModel> _wishlistItems() {
+    if (!Get.isRegistered<WishlistController>()) {
+      return const <WishlistItemModel>[];
+    }
+    return Get.find<WishlistController>().items.take(10).toList();
+  }
+
   void _openShelf(String key) =>
       Get.toNamed(Routes.shelf, arguments: ShelfArgs(shelf: key));
 
@@ -371,6 +453,17 @@ class HomePage extends GetView<LibraryController> {
                   controller.addByScan();
                 },
               ),
+            ListTile(
+              leading: const Icon(Icons.travel_explore),
+              title: const Text('İsim/yazarla ara'),
+              subtitle: const Text(
+                "Open Library'de kitap adı veya yazarla ara",
+              ),
+              onTap: () {
+                AppNav.pop();
+                Get.toNamed(Routes.search);
+              },
+            ),
             ListTile(
               leading: const Icon(Icons.edit_note),
               title: const Text('Manuel ekle'),

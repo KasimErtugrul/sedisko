@@ -4,7 +4,9 @@ import '../../data/models/backup_model.dart';
 import '../../data/services/backup_service.dart';
 import '../../data/services/backup_transfer.dart';
 import '../controllers/library_controller.dart';
+import '../controllers/loan_controller.dart';
 import '../controllers/shelf_organize_controller.dart';
+import '../controllers/wishlist_controller.dart';
 import '../widgets/backup/import_mode_dialog.dart';
 
 /// Yedekleme ve aktarım denetleyicisi.
@@ -158,13 +160,23 @@ class BackupController extends GetxController {
     if (Get.isRegistered<ShelfOrganizeController>()) {
       Get.find<ShelfOrganizeController>().reloadFromStore();
     }
+    // Ödünç ve satın alma listeleri de yedeğe girdiği için içe aktarma
+    // sonrası bellek tazelenir (1.18.0).
+    if (Get.isRegistered<LoanController>()) {
+      await Get.find<LoanController>().load();
+    }
+    if (Get.isRegistered<WishlistController>()) {
+      await Get.find<WishlistController>().load();
+    }
   }
 
   String _successMessage(BackupImportSummary summary) {
     if (summary.mode == BackupImportMode.replace) {
-      final base = '${summary.booksImported} kitap ve '
-          '${summary.shelvesImported} raf yedekten geri yüklendi.';
-      return summary.planCleared ? '$base Eski taşıma planı sıfırlandı.' : base;
+      final buffer = StringBuffer('${summary.booksImported} kitap ve '
+          '${summary.shelvesImported} raf yedekten geri yüklendi.');
+      _appendExtras(summary, buffer);
+      if (summary.planCleared) buffer.write(' Eski taşıma planı sıfırlandı.');
+      return buffer.toString();
     }
     final buffer = StringBuffer('${summary.booksImported} kitap eklendi');
     if (summary.booksSkipped > 0) {
@@ -177,6 +189,21 @@ class BackupController extends GetxController {
     if (summary.shelvesKept > 0) {
       buffer.write(' ${summary.shelvesKept} raf mevcut tanımla eşleşti.');
     }
+    _appendExtras(summary, buffer);
     return buffer.toString();
+  }
+
+  /// Ödünç/satın alma kayıtlarının özet cümlesini (sadece sıfırdan farklı
+  /// sayı varsa) tamponun sonuna ekler.
+  void _appendExtras(BackupImportSummary summary, StringBuffer buffer) {
+    if (summary.loansImported > 0) {
+      buffer.write(' ${summary.loansImported} ödünç kaydı.');
+    }
+    if (summary.borrowedImported > 0) {
+      buffer.write(' ${summary.borrowedImported} ödünç alınan kitap.');
+    }
+    if (summary.wishlistImported > 0) {
+      buffer.write(' ${summary.wishlistImported} satın alma kaydı.');
+    }
   }
 }

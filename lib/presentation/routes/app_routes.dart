@@ -13,4 +13,14 @@ class Routes {
   static const String organizeSetup = '/organize-setup';
   static const String organizePreview = '/organize-preview';
   static const String organizePlan = '/organize-plan';
+
+  /// Open Library başlık/yazar araması (1.18.0).
+  static const String search = '/search';
+
+  /// Satın alınacaklar listesi (1.18.0).
+  static const String wishlist = '/wishlist';
+
+  /// Ödünç verilenler (tüm geçmiş) ve ödünç alınanlar sayfaları (1.18.0).
+  static const String loans = '/loans';
+  static const String borrowed = '/borrowed';
 }

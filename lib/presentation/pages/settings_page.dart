@@ -6,6 +6,7 @@ import '../controllers/backup_controller.dart';
 import '../controllers/settings_controller.dart';
 import '../widgets/appearance/palette_picker.dart';
 import '../widgets/appearance/text_scale_picker.dart';
+import '../widgets/reminder/reading_reminder_section.dart';
 import '../widgets/responsive/responsive_center.dart';
 
 /// Ayarlar sekmesi: tema modu, renk paleti, yazı boyutu ve uygulama içi
@@ -101,6 +102,10 @@ class SettingsPage extends GetView<SettingsController> {
               subtitle: const Text('Tarama ve dokunuşlarda titreşim'),
             ),
           ),
+          const Divider(height: 24),
+          // Günlük okuma hatırlatıcısı (1.18.0); denetleyicisi kayıtsızken
+          // bölüm kendini boş bırakır (izole testler bozulmaz).
+          const ReadingReminderSection(),
           const Divider(height: 24),
           const _SectionHeader('Yedekleme ve aktarım'),
           _BackupTiles(),
