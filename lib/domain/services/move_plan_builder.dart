@@ -242,7 +242,7 @@ abstract final class MovePlanBuilder {
         final space = carryLimit - (carriedCount - drops.length);
         var take = const <_MoveRef>[];
         if (space > 0 && hasOuts) {
-          final room = space < queue!.length - head
+          final room = space < queue.length - head
               ? space
               : queue.length - head;
           take = queue.sublist(head, head + room);

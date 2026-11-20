@@ -6,23 +6,17 @@
 //
 // Referans gövde, 1.18.0'daki move_plan_builder.dart'ın birebir
 // kopyasıdır (yalnız sınıf adı ReferenceMovePlanBuilder'dır).
-import 'package:flutter_test/flutter_test.dart';
-
-import 'package:kitaplik/data/models/book_model.dart';
-import 'package:kitaplik/data/models/shelf_model.dart';
-import 'package:kitaplik/domain/services/move_plan_builder.dart';
-import 'package:kitaplik/domain/services/organize_criterion.dart';
-import 'package:kitaplik/domain/services/organize_options.dart';
-import 'package:kitaplik/domain/services/shelf_planner.dart';
-
 // ---------- REFERANS (1.18.0) UYGULAMA ----------
 
 import 'package:equatable/equatable.dart';
-
+import 'package:flutter_test/flutter_test.dart';
 import 'package:kitaplik/core/utils/text_normalizer.dart';
 import 'package:kitaplik/data/models/book_model.dart';
 import 'package:kitaplik/data/models/organize_plan_model.dart';
 import 'package:kitaplik/data/models/shelf_model.dart';
+import 'package:kitaplik/domain/services/move_plan_builder.dart';
+import 'package:kitaplik/domain/services/organize_criterion.dart';
+import 'package:kitaplik/domain/services/organize_options.dart';
 import 'package:kitaplik/domain/services/shelf_planner.dart';
 
 /// Taşıma planı sonucu: sıralı turlar + özet.
@@ -245,11 +239,12 @@ abstract final class ReferenceMovePlanBuilder {
     for (final entry in counts.entries) {
       final count = entry.value;
       if (count > bestCount ||
-          (count == bestCount && TextNormalizer.compareTr(
-                entry.key,
-                best,
-              ) <
-              0)) {
+          (count == bestCount &&
+              TextNormalizer.compareTr(
+                    entry.key,
+                    best,
+                  ) <
+                  0)) {
         best = entry.key;
         bestCount = count;
       }
@@ -360,11 +355,13 @@ void main() {
     ];
     final books = <BookModel>[];
     for (var i = 0; i < 60; i++) {
-      books.add(kitap('b$i', 'Kitap $i', ['Yazar ${i % 10}'],
-          'Raf ${i % 2 + 1}'));
+      books.add(
+          kitap('b$i', 'Kitap $i', ['Yazar ${i % 10}'], 'Raf ${i % 2 + 1}'));
     }
     final arrangement = ShelfPlanner.arrange(
-      books, shelves, OrganizeCriterion.author,
+      books,
+      shelves,
+      OrganizeCriterion.author,
       options: const OrganizeOptions(thicknessAware: true),
     );
     final planShelves = [for (final p in arrangement.shelves) p.shelf];
@@ -389,11 +386,14 @@ void main() {
     ];
     final books = <BookModel>[];
     for (var i = 0; i < 80; i++) {
-      books.add(kitap('b$i', 'Kitap $i', ['Yazar ${i % 16}'],
-          'Raf ${i % 4 + 1}', pages: 150 + (i * 13) % 400));
+      books.add(kitap(
+          'b$i', 'Kitap $i', ['Yazar ${i % 16}'], 'Raf ${i % 4 + 1}',
+          pages: 150 + (i * 13) % 400));
     }
     final arrangement = ShelfPlanner.arrange(
-      books, shelves, OrganizeCriterion.author,
+      books,
+      shelves,
+      OrganizeCriterion.author,
       options: const OrganizeOptions(thicknessAware: true),
     );
     final planShelves = [for (final p in arrangement.shelves) p.shelf];
@@ -414,11 +414,14 @@ void main() {
     ];
     final books = <BookModel>[];
     for (var i = 0; i < 50; i++) {
-      books.add(kitap('b$i', 'Kitap $i', ['Yazar ${i % 12}'],
-          i % 3 == 0 ? '' : 'Kitaplık', pages: 200 + (i * 7) % 300));
+      books.add(kitap(
+          'b$i', 'Kitap $i', ['Yazar ${i % 12}'], i % 3 == 0 ? '' : 'Kitaplık',
+          pages: 200 + (i * 7) % 300));
     }
     final arrangement = ShelfPlanner.arrange(
-      books, shelves, OrganizeCriterion.author,
+      books,
+      shelves,
+      OrganizeCriterion.author,
       options: const OrganizeOptions(thicknessAware: false),
     );
     final planShelves = [for (final p in arrangement.shelves) p.shelf];
@@ -429,8 +432,7 @@ void main() {
     expectSame(oldR, newR, 'rafsız');
   });
 
-  test('yer etiketinde büyük/küçük harf varyantları (eşitlik kırıcı)',
-      () {
+  test('yer etiketinde büyük/küçük harf varyantları (eşitlik kırıcı)', () {
     final shelves = [
       const ShelfModel(
           id: 's0', name: 'Raf 1', capacity: 20, location: 'Salon', order: 0),
@@ -441,11 +443,13 @@ void main() {
     ];
     final books = <BookModel>[];
     for (var i = 0; i < 45; i++) {
-      books.add(kitap('b$i', 'Kitap $i', ['Yazar ${i % 9}'],
-          'Raf ${i % 3 + 1}'));
+      books.add(
+          kitap('b$i', 'Kitap $i', ['Yazar ${i % 9}'], 'Raf ${i % 3 + 1}'));
     }
     final arrangement = ShelfPlanner.arrange(
-      books, shelves, OrganizeCriterion.title,
+      books,
+      shelves,
+      OrganizeCriterion.title,
       options: const OrganizeOptions(thicknessAware: true),
     );
     final planShelves = [for (final p in arrangement.shelves) p.shelf];
@@ -470,7 +474,9 @@ void main() {
       kitap('x3', 'Üçüncü', ['Yazar 3'], ''),
     ];
     final arrangement = ShelfPlanner.arrange(
-      books, shelves, OrganizeCriterion.author,
+      books,
+      shelves,
+      OrganizeCriterion.author,
       options: const OrganizeOptions(thicknessAware: false),
     );
     final planShelves = [for (final p in arrangement.shelves) p.shelf];
@@ -492,7 +498,10 @@ void main() {
       const ShelfModel(
           id: 's3', name: 'Raf 4', capacity: 25, location: '', order: 3),
       const ShelfModel(
-          id: 's4', name: 'Karışık kitaplar', capacity: 25, location: 'Koridor',
+          id: 's4',
+          name: 'Karışık kitaplar',
+          capacity: 25,
+          location: 'Koridor',
           order: 4),
     ];
     final books = <BookModel>[];
@@ -507,7 +516,9 @@ void main() {
       ));
     }
     final arrangement = ShelfPlanner.arrange(
-      books, shelves, OrganizeCriterion.author,
+      books,
+      shelves,
+      OrganizeCriterion.author,
       options: const OrganizeOptions(
         favoriteShelfId: 's0',
         favoriteAuthors: ['Yazar 3', 'Yazar 7'],
@@ -522,14 +533,12 @@ void main() {
     expectSame(oldR, newR, 'karışık 120');
   });
 
-  test('BAŞARIM: 3000 kitap planı artık saniyeler değil milisaniyeler',
-      () {
+  test('BAŞARIM: 3000 kitap planı artık saniyeler değil milisaniyeler', () {
     final shelfCount = 31;
     final shelves = [
       for (var i = 0; i < shelfCount; i++)
         ShelfModel(
-            id: 's$i', name: 'Raf $i', capacity: 120, location: '',
-            order: i),
+            id: 's$i', name: 'Raf $i', capacity: 120, location: '', order: i),
     ];
     final books = [
       for (var i = 0; i < 3000; i++)
@@ -542,7 +551,9 @@ void main() {
         ),
     ];
     final arrangement = ShelfPlanner.arrange(
-      books, shelves, OrganizeCriterion.author,
+      books,
+      shelves,
+      OrganizeCriterion.author,
       options: const OrganizeOptions(thicknessAware: true),
     );
     final planShelves = [for (final p in arrangement.shelves) p.shelf];
@@ -566,9 +577,13 @@ void main() {
       const ShelfModel(
           id: 's0', name: 'Raf 1', capacity: 10, location: '', order: 0),
     ];
-    final books = [kitap('b1', 'Kitap', ['Yazar'], 'Raf 1')];
+    final books = [
+      kitap('b1', 'Kitap', ['Yazar'], 'Raf 1')
+    ];
     final arrangement = ShelfPlanner.arrange(
-      books, shelves, OrganizeCriterion.author,
+      books,
+      shelves,
+      OrganizeCriterion.author,
       options: const OrganizeOptions(thicknessAware: false),
     );
     final planShelves = [for (final p in arrangement.shelves) p.shelf];
