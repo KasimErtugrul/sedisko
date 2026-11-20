@@ -22,6 +22,13 @@ import '../widgets/organize/capacity_bar.dart';
 /// önler (kullanıcı kararı: rehber değil, net açıklama).
 /// Favori raf yıldız rozetiyle işaretlenir: favori yazarların kitapları
 /// işaretli rafta listelenir (yalnız "Yazara göre" düzeninde).
+///
+/// **1.24.0 (keşke 26):** liste içinde DEĞİŞENLER de işaretli —
+/// başka raftan gelen kitabın satırında ok rozeti ve "Taşınıyor"
+/// yazısı durur, kartın başında "Bu rafa N kitap taşınıyor, M kitap
+/// zaten burada" özeti okunur. Yüzlerce adın içinde hangi kitabın
+/// yer değiştirdiği artık tek bakışta seçilir. HİÇBİR ŞEY YAZMAZ
+/// sözü aynen durur: bu sayfa yalnız gösterir.
 class OrganizePreviewPage extends StatelessWidget {
   const OrganizePreviewPage({super.key});
 
@@ -218,6 +225,14 @@ class _PlannedShelfCard extends StatelessWidget {
   bool get _isMix =>
       planned.shelf.name == ShelfModel.mixShelfName;
 
+  /// Keşke 26 (1.24.0): bu rafa BAŞKA raftan taşınacak kitap sayısı.
+  /// Raf ataması ad bazlıdır (books_v1'deki serbest raf adı); kitabın
+  /// mevcut raf adı bu rafın adından farklıysa taşınmıştır.
+  int get movedInCount => planned.books.where(_isMovedIn).length;
+
+  bool _isMovedIn(BookModel book) =>
+      book.shelf.trim() != planned.shelf.name;
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -280,6 +295,22 @@ class _PlannedShelfCard extends StatelessWidget {
                   '${BookThickness.formatMm(planned.usedMm)}/'
                   '${BookThickness.formatMm(planned.capacityMm)}',
             ),
+            // Keşke 26 (1.24.0): raf başına taşınma özeti — kart
+            // listesinde hangi kitapların yeni geleceği sayıyla bellidir.
+            if (movedInCount > 0)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  key: ValueKey('planned-moved-line-${planned.shelf.name}'),
+                  'Bu rafa $movedInCount kitap taşınıyor, '
+                  '${planned.books.length - movedInCount} kitap zaten '
+                  'burada.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: scheme.tertiary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ),
             const Divider(height: 16),
             if (planned.books.isEmpty)
               Text(
@@ -291,6 +322,7 @@ class _PlannedShelfCard extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 2),
                   child: Row(
+                    key: ValueKey('preview-row-${planned.books[i].id}'),
                     children: [
                       SizedBox(
                         width: 24,
@@ -314,6 +346,19 @@ class _PlannedShelfCard extends StatelessWidget {
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ),
+                      // Keşke 26 (1.24.0): başka raftan gelen kitap
+                      // ok rozetiyle işaretli; yerinde olan rozetsiz.
+                      if (_isMovedIn(planned.books[i])) ...[
+                        const SizedBox(width: 6),
+                        Tooltip(
+                          message: 'Başka raftan taşınıyor',
+                          child: Icon(
+                            Icons.subdirectory_arrow_right,
+                            size: 16,
+                            color: scheme.tertiary,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),

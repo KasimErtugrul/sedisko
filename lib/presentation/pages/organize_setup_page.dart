@@ -7,18 +7,23 @@ import '../controllers/shelf_organize_controller.dart';
 import '../routes/app_routes.dart';
 import '../widgets/organize/capacity_bar.dart';
 
-/// Otomatik düzenleme kurulumu (1.19.0 düzeni):
+/// Otomatik düzenleme kurulumu (1.19.0 düzeni + 1.24.0 adım adım):
+/// Tek ekranda ama NUMARALI ADIMLARLA (keşke 23, 1.24.0): her kartın
+/// üstünde "n. adım" başlığı durur; tamamlanan adımda onay işareti
+/// çıkar, favoriler adımı "isteğe bağlı" yazar. Favoriler YALNIZ
+/// "Yazara göre" seçiliyken görünür ve numaralama ona göre kayar:
 /// 1. **Rafların hazırlığı** — cm uzunluklar; kapasite = uzunluk ↔
 ///    kitap kalınlığı (sayfa sayısı → mm; 420 sayfa ≈ 3 cm, 130 sayfa
 ///    ≈ 1 cm).
 /// 2. **Kriter seçimi** (yazar / yayınevi / kitap adı / sayfa sayısı) —
 ///    dördü kendi başına çalışır.
-/// 3. **Favoriler** — YALNIZ "Yazara göre" seçiliyken görünür ve yalnız
-///    o kriterde devreye girer (kullanıcı kararı, 1.19.0): favori yazar
-///    kitapları favori rafa bütün halinde konur.
+/// 3. **Favoriler** (isteğe bağlı) — yalnız "Yazara göre" kriterinde.
 /// 4. "Kitaplarımın tamamını girdim" onayı — düzenleme yalnız eksiksiz
-///    kitaplıkta başlar,
-/// 5. "Hedef düzeni oluştur" → önizleme sayfası.
+///    kitaplıkta başlar; açıklama "neden soruluyor"u günlük dille yazar
+///    (keşke 25, 1.24.0).
+/// "Hedef düzeni oluştur" düğmesi kapalıyken NEDEN kapalı olduğunu
+/// eksik adımları sayarak söyler (keşke 22, 1.24.0); üstünde "az
+/// taşınma normaldir" notu durur (keşke 27, 1.24.0).
 class OrganizeSetupPage extends StatefulWidget {
   const OrganizeSetupPage({super.key});
 
@@ -66,35 +71,125 @@ class _OrganizeSetupPageState extends State<OrganizeSetupPage> {
         return ListView(
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
           children: [
+            // Keşke 23 (1.24.0): adım numaraları kartların üstünde;
+            // favoriler "Yazara göre"de 3. adım, değilse onay 3. adım.
+            // Tamamlanan adım onay işareti taşır: "her adımda ne
+            // yaptığımı bilirdim".
+            _stepHeader(
+              context,
+              1,
+              'Rafların hazırlığı',
+              done: controller.shelves.isNotEmpty,
+            ),
             _shelfReadinessCard(context),
             const SizedBox(height: 12),
+            _stepHeader(context, 2, 'Kitaplar neye göre dağıtılsın?',
+                done: criterion.value != null),
             _criterionCard(context),
             if (isAuthor) ...[
               const SizedBox(height: 12),
+              _stepHeader(context, 3, 'Favoriler',
+                  done: controller.effectiveFavoriteShelf != null,
+                  optional: true),
               _favoritesCard(context),
             ],
             const SizedBox(height: 12),
+            _stepHeader(
+              context,
+              isAuthor ? 4 : 3,
+              'Onay',
+              done: confirmed.value,
+            ),
             _confirmationCard(context),
             const SizedBox(height: 16),
+            // Keşke 27 (1.24.0): "1 kitap taşınacak" çıktısı korkutmasın
+            // — kurulumda da yazılı olsun (önizleme özeti 1.18.1'den beri
+            // söylüyor; buradaki ikinci yer Hasan'ın istediği yerdir).
+            Text(
+              'Not: kitapların çoğu zaten hedef düzenindeyse plan az '
+              'kitap taşır; "1 kitap taşınacak" bir hata işareti '
+              'değildir.',
+              key: const ValueKey('organize-few-moves-note'),
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 8),
             Obx(() {
               final ready = controller.shelves.isNotEmpty &&
                   criterion.value != null &&
                   confirmed.value;
-              return FilledButton.icon(
-                key: const ValueKey('organize-create-arrangement'),
-                onPressed: ready
-                    ? () {
-                        controller.buildPreview(criterion.value!);
-                        Get.toNamed(Routes.organizePreview);
-                      }
-                    : null,
-                icon: const Icon(Icons.auto_awesome),
-                label: const Text('Hedef düzeni oluştur'),
+              // Keşke 22 (1.24.0): gri düğme neden kapalı, ekranda yazar.
+              final missing = <String>[
+                if (controller.shelves.isEmpty)
+                  'raf tanımı yok (yukarıdaki "Raf tanımları" ile ekle)',
+                if (criterion.value == null)
+                  'dağıtım kriteri seçilmedi',
+                if (!confirmed.value)
+                  '"Kitaplarımın tamamını girdim" kutusu '
+                      'işaretlenmedi',
+              ];
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  FilledButton.icon(
+                    key: const ValueKey('organize-create-arrangement'),
+                    onPressed: ready
+                        ? () {
+                            controller.buildPreview(criterion.value!);
+                            Get.toNamed(Routes.organizePreview);
+                          }
+                        : null,
+                    icon: const Icon(Icons.auto_awesome),
+                    label: const Text('Hedef düzeni oluştur'),
+                  ),
+                  if (!ready) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'Düğme kapalı: ${missing.join(', ')}.',
+                      key: const ValueKey('organize-create-reason'),
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ],
               );
             }),
           ],
         );
       }),
+    );
+  }
+
+  /// Adım başlığı (keşke 23, 1.24.0): numara + ad + tamamlanma işareti.
+  /// İsteğe bağlı adım açıkça "isteğe bağlı" yazar; tamamlanan adım
+  /// onay işaretiyle "bitti" der. Tek satır; 360dp'de taşmaz.
+  Widget _stepHeader(
+    BuildContext context,
+    int number,
+    String title, {
+    required bool done,
+    bool optional = false,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    final suffix = optional ? ' (isteğe bağlı)' : '';
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        children: [
+          Flexible(
+            child: Text(
+              '$number. adım — $title$suffix',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: scheme.primary,
+                  ),
+            ),
+          ),
+          if (done) ...[
+            const SizedBox(width: 6),
+            Icon(Icons.check_circle, size: 18, color: scheme.primary),
+          ],
+        ],
+      ),
     );
   }
 
@@ -128,15 +223,20 @@ class _OrganizeSetupPageState extends State<OrganizeSetupPage> {
               // Keşke 9/21 (1.21.0): yazısız kalem ikonu yerine yazılı
               // düğme. Çubukta değil, kendi satırında: dar ekranda sayfa
               // başlığını sıkıştırmaz, taşmaz.
+              // Keşke 21 (1.24.0): bu yol RAF TANIMLARINI açar;
+              // asistan ise "Rafları otomatik düzenle"dür. İki yerin
+              // adı artık kelime kelime ayrışıyor: tanım sayfası
+              // her yerde "Raf tanımları", asistan her yerde "Rafları
+              // otomatik düzenle" (bir yerin adı her yerde aynıdır).
               Align(
                 alignment: Alignment.centerRight,
                 child: Tooltip(
-                  message: 'Rafları düzenle',
+                  message: 'Raf tanımları',
                   child: TextButton.icon(
                     key: const ValueKey('organize-open-editor'),
                     onPressed: () => Get.toNamed(Routes.shelfEditor),
                     icon: const Icon(Icons.edit_outlined),
-                    label: const Text('Rafları düzenle'),
+                    label: const Text('Raf tanımları'),
                   ),
                 ),
               ),
@@ -419,10 +519,12 @@ class _OrganizeSetupPageState extends State<OrganizeSetupPage> {
               value: confirmed.value,
               onChanged: (value) => confirmed.value = value ?? false,
               title: const Text('Kitaplarımın tamamını girdim'),
+              // Keşke 25 (1.24.0): "neden onay istiyorsunuz, işaretlemezsem
+              // ne olur?" sorularına günlük dilde, kısa yanıt.
               subtitle: Text(
-                'Düzen, elindeki tüm kitaplara göre hesaplanır. Sonra '
-                'ekleyeceğin kitaplar "yeni gelenler" olarak bekler; '
-                '"Yeniden planla" ile yerleşirler.',
+                'Neden soruluyor? Plan kitaplığın BUGÜNKÜ hâliyle '
+                'hesaplanır; işaretlemezsen düğme açılmaz. Sonra '
+                'ekleyeceğin kitaplar "Yeniden planla" ile yerleşir.',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             )),

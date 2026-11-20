@@ -56,7 +56,9 @@ class HomePlanBanner extends StatelessWidget {
                             ?.copyWith(color: scheme.onSecondaryContainer),
                       ),
                       Text(
-                        '${plan.completedCount}/${plan.turs.length} tur '
+                        // Keşke 28 (1.24.0): "tur" yerine günlük kelime
+                        // "gezi" (Raflar sekmesi kartıyla aynı ad).
+                        '${plan.completedCount}/${plan.turs.length} gezi '
                         'tamam — devam etmek için dokun.',
                         style: Theme.of(context)
                             .textTheme

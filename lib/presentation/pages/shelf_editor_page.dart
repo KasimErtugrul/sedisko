@@ -33,7 +33,12 @@ class ShelfEditorPage extends StatelessWidget {
     final controller = Get.find<ShelfOrganizeController>();
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Rafları düzenle'),
+        // Keşke 21 (1.24.0): sayfa başlığı artık "Raf tanımları" —
+        // asistan ("Rafları otomatik düzenle") ile kelime kelime
+        // ayrışır; Raflar sekmesi çubuğundaki tooltip ve asistan
+        // kurulumundaki düğme de aynı adı taşır: bir yerin adı her
+        // yerde aynıdır.
+        title: const Text('Raf tanımları'),
         actions: [
           // 1.21.0: yazılı çubuk düğmesi denendi; dar ekranda sayfa
           // başlığını sıkıştırdığı için tooltip'li ikon korunur. Hızlı

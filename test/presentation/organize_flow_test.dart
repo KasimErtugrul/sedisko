@@ -171,9 +171,10 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('organize-create-plan')));
       await tester.pumpAndSettle();
 
-      // Plan sayfası: tur kartı ve 'Yaptım' düğmesi.
+      // Plan sayfası: gezi kartı ve 'Yaptım' düğmesi (1.24.0 — keşke 28:
+      // "TUR" yerine Hasan'ın önerdiği günlük kelime "gezi").
       expect(find.byType(MovePlanPage), findsOneWidget);
-      expect(find.textContaining('TUR'), findsWidgets);
+      expect(find.textContaining('gezisi'), findsWidgets);
       expect(controller.plan.value, isNotNull);
     });
   });

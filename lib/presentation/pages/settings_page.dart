@@ -159,9 +159,14 @@ class _BackupTiles extends StatelessWidget {
         ListTile(
           leading: const Icon(Icons.ios_share),
           title: const Text('Yedeği paylaş (WhatsApp vb.)'),
+          // Keşke 41 (1.23.0): açıklama gerçekte yedeklenen her şeyi
+          // sayar — "ödünç kayıtlarım ve satın alma listem de yedeğe
+          // giriyor; bunu içe aktarım özetinde gördüm" (1.18.0'dan beri
+          // zarf formatVersion 2'dir).
           subtitle: const Text(
-            'Tüm kitaplar ve raf tanımları tek dosyada. Paylaşım '
-            'menüsünden alıcıyı (örn. WhatsApp) seçin.',
+            'Kitaplar, raf tanımları, ödünç kayıtları ve satın alma '
+            'listesi tek dosyada. Paylaşım menüsünden alıcıyı '
+            '(örn. WhatsApp) seçin.',
           ),
           trailing: const Icon(Icons.chevron_right),
           onTap: () => Get.find<BackupController>().exportAndShare(),

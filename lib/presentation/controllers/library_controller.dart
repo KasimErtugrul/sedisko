@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -15,16 +17,28 @@ import '../utils/app_navigation.dart';
 class LibraryController extends GetxController {
   /// [onNotify] test edilebilirlik için verilir; verilmezse GetX snackbar
   /// gösterilir. [coverStore] verilirse kitap silindiğinde fotoğraf
-  /// dosyası da diskten temizlenir.
+  /// dosyası da diskten temizlenir. [deleteUndoWindow] "Geri Al" şansının
+  /// süresidir (test edilebilirlik için verilir); verilmezse snackbar'ın
+  /// altı saniyesine bir saniye pay bırakılır.
   LibraryController(
     this._repository, {
     void Function(String title, String message)? onNotify,
     CoverPhotoStore? coverStore,
+    Duration deleteUndoWindow = const Duration(seconds: 7),
   })  : _notify = onNotify ?? _defaultNotify,
-        _coverStore = coverStore;
+        _coverStore = coverStore,
+        _deleteUndoWindow = deleteUndoWindow;
 
   final BookRepository _repository;
   final CoverPhotoStore? _coverStore;
+  final Duration _deleteUndoWindow;
+
+  /// Keşke 31 (1.23.0): "Bir gün yanlışlıkla basarsam kitabım gidiyor" —
+  /// silinen kitap "Geri Al" süresi boyunca bellekte tutulur; fotoğraf
+  /// dosyası da o süre bitmeden silinmez. Süre dolunca
+  /// [discardLastDeleted] gerçek silme sonunu tamamlar.
+  BookModel? _lastDeleted;
+  Timer? _undoTimer;
 
   final void Function(String title, String message) _notify;
 
@@ -62,6 +76,9 @@ class LibraryController extends GetxController {
   @override
   void onClose() {
     searchCtrl.dispose();
+    // Denetleyici kapanırken bekleyen "Geri Al" varsa gerçek silme sonunu
+    // (fotoğraf temizliği) tamamla; yoksa dosya sahipsiz kalır.
+    discardLastDeleted();
     super.onClose();
   }
 
@@ -443,7 +460,16 @@ class LibraryController extends GetxController {
     return true;
   }
 
-  Future<bool> deleteBook(String id) async {
+  /// Kitabı siler. [allowUndo] `true` verilirse (kitap detay sayfasındaki
+  /// silme akışı) kitap "Geri Al" süresi boyunca bellekte tutulur ve
+  /// [restoreLastDeleted] ile silinmeden önceki haliyle geri konabilir;
+  /// fotoğraf dosyası o süre bitmeden silinmez. Süre dolunca
+  /// [discardLastDeleted] temizliği yapar. `false` (eski davranış) ya da
+  /// kitaplıkta kayıt yokken fotoğraf hemen temizlenir.
+  ///
+  /// Veri anahtarları değişmez: geri alma, kitabı AYNI kimlikle depoya
+  /// yeniden yazar ([saveBook] — günlük aynen korunur, deriveLog kapalı).
+  Future<bool> deleteBook(String id, {bool allowUndo = false}) async {
     final book = byId(id);
     try {
       await _repository.deleteBook(id);
@@ -455,11 +481,41 @@ class LibraryController extends GetxController {
       return false;
     }
     books.removeWhere((b) => b.id == id);
+    if (allowUndo && book != null) {
+      _lastDeleted = book;
+      _undoTimer?.cancel();
+      _undoTimer = Timer(_deleteUndoWindow, discardLastDeleted);
+      return true;
+    }
     // Fotoğraf dosyası artık hiçbir kayıtta kullanılmıyor; diskten de
     // temizlenir. Depo içindeki silme kendi hatalarını yutar: temizlik
     // sorunu silme işleminin sonucunu etkilemez.
     await _coverStore?.delete(book?.coverPath);
     return true;
+  }
+
+  /// "Geri Al" süresi doldu ya da denetleyici kapanıyor: silinen kitap
+  /// unutulur ve fotoğraf dosyası diskten temizlenir (silmenin gerçek
+  /// sonu). Bu çağrıdan sonra [restoreLastDeleted] artık geri koyamaz.
+  void discardLastDeleted() {
+    _undoTimer?.cancel();
+    _undoTimer = null;
+    final path = _lastDeleted?.coverPath;
+    _lastDeleted = null;
+    if (path != null) _coverStore?.delete(path);
+  }
+
+  /// Silinen son kitabı silinmeden önceki haliyle geri koyar: aynı
+  /// kimlik, raf, okuma durumu, sayfa ve günlük. Depoya aynı kimlikle
+  /// yazılır; geri koyulacak kayıt yoksa ya da "Geri Al" süresi dolduysa
+  /// `false` döner.
+  Future<bool> restoreLastDeleted() async {
+    final book = _lastDeleted;
+    if (book == null) return false;
+    _undoTimer?.cancel();
+    _undoTimer = null;
+    _lastDeleted = null;
+    return saveBook(book, deriveLog: false);
   }
 
   /// Okuma günlüğünü [old] ile [incoming] arasındaki farktan üretir.

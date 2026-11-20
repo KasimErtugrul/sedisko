@@ -34,11 +34,14 @@ void main() {
     await pumpApp(tester);
 
     expect(find.text('Kitaplığım'), findsOneWidget); // AppBar başlığı
-    expect(find.text('Kitap ekle'), findsOneWidget); // FAB
+    // Keşke 4 (1.23.0): boş durumda FAB'la aynı işi yapan yazılı düğme
+    // de durur — aynı iş, aynı ad: "Kitap ekle" iki yerde görünür.
+    expect(find.text('Kitap ekle'), findsNWidgets(2)); // FAB + boş durum
     expect(
       find.text('Kitaplığın boş.\nİlk kitabını barkod tarayarak ekle.'),
       findsOneWidget,
     );
+    expect(find.byKey(const ValueKey('empty-add-book')), findsOneWidget);
   });
 
   testWidgets('arama alanında yazınca temizle butonu çıkar', (tester) async {
@@ -74,7 +77,8 @@ void main() {
     expect(find.text('Yeni kitap'), findsOneWidget); // form AppBar başlığı
   });
 
-  testWidgets('formda zorunlu alanlar boş kaydedilemez', (tester) async {
+  testWidgets('formda kitap adı boşken kayıt engellenir; raf artık opsiyonel',
+      (tester) async {
     // Form bitirme hedefi alanıyla uzadı; tek ekrana sığacak kadar yüksek
     // yüzey kullanılır. Böylece üstteki alanlar ListView tembel kurulumundan
     // düşüp Form.validate() dışında kalmaz ve hata metinleri doğrudan
@@ -95,9 +99,11 @@ void main() {
     await tester.tap(find.text('Kaydet'));
     await tester.pumpAndSettle();
 
-    // Zorunlu alan hataları görünür; kayıt gerçekleşmez (hâlâ formdayız).
+    // Keşke 8 (1.23.0): raf zorunluluğu kalktı — boş raf "Rafsız" kitaptır.
+    // Yalnız kitap adı hâlâ zorunludur; kayıt gerçekleşmez (hâlâ formdayız).
     expect(find.text('Kitap adı gerekli'), findsOneWidget);
-    expect(find.text('Raf bilgisi gerekli'), findsOneWidget);
+    expect(find.text('Raf bilgisi gerekli'), findsNothing);
+    expect(find.byKey(const ValueKey('form-chip-rafsiz')), findsOneWidget);
     expect(find.text('Yeni kitap'), findsOneWidget);
   });
 }

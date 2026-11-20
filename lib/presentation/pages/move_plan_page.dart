@@ -4,12 +4,21 @@ import 'package:get/get.dart';
 import '../../data/models/organize_plan_model.dart';
 import '../controllers/shelf_organize_controller.dart';
 
-/// Taşıma planı: tur tur, emir emir fiziksel yürüyüş senaryosu.
+/// Taşıma planı: gezi gezi, adım adım fiziksel yürüyüş senaryosu.
 ///
-/// - Her tur = tek yer (kat/oda); aynı yerdeki işler tek turda toplanır.
-/// - Her emir ya "X rafından al" ya da "X rafına koy"dur; rafta önce
+/// **KELİME NOTU (keşke 28, 1.24.0):** kullanıcıya karşı bu işin adı
+/// "gezi"dir (Hasan: "Tur bana yarıştaki tur gibi geldi; 'Alt kat
+/// gezisi' deseydi anlardım"). Modeldeki `MoveTurModel`/`turs`
+/// alanları ve 'plan-tur-*' test anahtarları iç isimlerdir, DEĞİŞMEZ;
+/// yalnız ekranda görünen metinler gezi diline geçti. Tek elde 10
+/// kitap kuralı da artık nedenini söyler: kolun yorulmasın diye.
+///
+/// - Her gezi = tek yer (kat/oda); aynı yerdeki işler tek gezide
+///   toplanır. El sınırını aşan işler aynı yer için "(devam)" gezisi
+///   açar — kart başlığı bunu açıkça yazar.
+/// - Her adım ya "X rafından al" ya da "X rafına koy"dur; rafta önce
 ///   ALMA sonra KOYMA sırası korunur (rafa koyacak yer açılsın).
-/// - "Yaptım" işareti: turda KONAN kitapların rafı anında güncellenir;
+/// - "Yaptım" işareti: gezide KONAN kitapların rafı anında güncellenir;
 ///   yarıda bırakılan plan "Yeniden planla" ile kalan işten yeniden
 ///   kurulur.
 class MovePlanPage extends StatelessWidget {
@@ -62,8 +71,8 @@ class MovePlanPage extends StatelessWidget {
             child: Padding(
               padding: EdgeInsets.all(32),
               child: Text(
-                'Aktif plan yok.\nRaflar sekmesinden "Otomatik düzenle" ile '
-                'yeni bir düzen oluşturabilirsin.',
+                'Aktif plan yok.\nRaflar sekmesinden "Rafları otomatik '
+                'düzenle" ile yeni bir düzen oluşturabilirsin.',
                 textAlign: TextAlign.center,
               ),
             ),
@@ -90,7 +99,15 @@ class MovePlanPage extends StatelessWidget {
               const SizedBox(height: 8),
             ],
             for (var i = 0; i < plan.turs.length; i++)
-              _TurCard(index: i, tur: plan.turs[i], done: plan.completedTurIndexes.contains(i)),
+              _TurCard(
+                index: i,
+                tur: plan.turs[i],
+                done: plan.completedTurIndexes.contains(i),
+                // Aynı yerin el sınırını aşan işi "devam" gezisine
+                // kalır (keşke 28, 1.24.0): başlık bunu açıkça yazar.
+                isContinuation:
+                    i > 0 && plan.turs[i - 1].location == plan.turs[i].location,
+              ),
           ],
         );
       }),
@@ -143,7 +160,7 @@ class _ProgressCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '$done/$total tur tamam',
+              '$done/$total gezi tamam',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 8),
@@ -174,10 +191,11 @@ class _HintCard extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Text(
-          'Aynı yerdeki (kat) rafların işleri tek turda: bir rafta önce '
-          'çıkan kitapları al, sonra gelenleri koy. Tek elde en fazla '
-          '${ShelfOrganizeController.carryLimit} kitap; sığmayanlar '
-          'aynı turun devamında gelir.',
+          // Keşke 28 (1.24.0): "neden 10?" sorusuna yanıt kartta.
+          'Her gezi tek yeri (katı) gezer: bir rafta önce çıkan '
+          'kitapları al, sonra gelenleri koy. Tek elde en fazla '
+          '${ShelfOrganizeController.carryLimit} kitap — kolun '
+          'yorulmasın diye; sığmayanlar aynı gezinin devamında gelir.',
           style: Theme.of(context).textTheme.bodySmall,
         ),
       ),
@@ -239,26 +257,31 @@ class _CoverageCard extends StatelessWidget {
   }
 }
 
-/// Tek tur kartı: yer başlığı + sıralı emirler + "Yaptım" düğmesi.
+/// Tek gezi kartı: yer başlığı + sıralı adımlar + "Yaptım" düğmesi.
 ///
-/// Büyük turda emirler sabit yükseklikte kaydırılabilir listede
-/// gösterilir (1.18.1): 2000+ kitaplık tek turun yüzlerce emri
+/// Büyük gezide adımlar sabit yükseklikte kaydırılabilir listede
+/// gösterilir (1.18.1): 2000+ kitaplık tek gezinin yüzlerce adımı
 /// ExpansionTile içinde bir kerede kurulunca arayüz saniyelerce
-/// kilitleniyordu; ListView.builder yalnız görünür emirleri kurar.
+/// kilitleniyordu; ListView.builder yalnız görünür adımları kurar.
 class _TurCard extends StatelessWidget {
   const _TurCard({
     required this.index,
     required this.tur,
     required this.done,
+    this.isContinuation = false,
   });
 
-  /// Bu sayıyı aşan turlarda emir listesi kaydırılabilir pencerede
+  /// Bu sayıyı aşan gezilerde adım listesi kaydırılabilir pencerede
   /// kurulur (tembel kurulum eşiği).
   static const int lazyActionThreshold = 24;
 
   final int index;
   final MoveTurModel tur;
   final bool done;
+
+  /// Önceki gezi de aynı yerdeyse bu bir "devam" gezisidir (el
+  /// sınırı 10 kitabı aşan yerlerde yer birden çok geziye bölünür).
+  final bool isContinuation;
 
   @override
   Widget build(BuildContext context) {
@@ -275,7 +298,10 @@ class _TurCard extends StatelessWidget {
               : Theme.of(context).colorScheme.primary,
         ),
         title: Text(
-          '${index + 1}. TUR — ${tur.location}',
+          // Keşke 28 (1.24.0): "1. TUR" yerine Hasan'ın önerdiği
+          // günlük dil; aynı yerin devam gezisi açıkça "devam" yazar.
+          '${index + 1}. ${tur.location} gezisi'
+          '${isContinuation ? ' (devam)' : ''}',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
@@ -326,9 +352,9 @@ class _TurCard extends StatelessWidget {
     final controller = Get.find<ShelfOrganizeController>();
     final confirmed = await Get.dialog<bool>(
       AlertDialog(
-        title: Text('${index + 1}. tur tamamlandı mı?'),
+        title: Text('${index + 1}. ${tur.location} gezisi tamamlandı mı?'),
         content: Text(
-          'Bu turdaki ${tur.moveCount} kitabın raf ataması uygulamada '
+          'Bu gezideki ${tur.moveCount} kitabın raf ataması uygulamada '
           'güncellenecek. Fiziksel olarak yerleştirdiysen onayla.',
         ),
         actions: [
@@ -352,14 +378,14 @@ class _TurCard extends StatelessWidget {
     if (hadPlan && controller.plan.value == null && context.mounted) {
       Get.snackbar(
         'Düzenleme tamamlandı',
-        'Tüm turlar tamam; kitaplar hedef düzende.',
+        'Tüm geziler bitti; kitaplar hedef düzende.',
         snackPosition: SnackPosition.BOTTOM,
       );
     }
   }
 }
 
-/// Tek emir: "X rafından al" ya da "X rafına koy" + kitap başlıkları.
+/// Tek adım: "X rafından al" ya da "X rafına koy" + kitap başlıkları.
 class _ActionTile extends StatelessWidget {
   const _ActionTile({
     required this.step,

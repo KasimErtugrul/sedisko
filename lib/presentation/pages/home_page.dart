@@ -104,7 +104,13 @@ class HomePage extends GetView<LibraryController> {
                     return const Center(child: CircularProgressIndicator());
                   }
                   if (controller.books.isEmpty) {
-                    return const HomeEmptyState(hasBooks: false);
+                    // Keşke 3 + 4 (1.23.0): boş durum yönlendirmesi yazı
+                    // değil düğmedir — ekle menüsünü açar (FAB'la aynı iş,
+                    // aynı ad). Barkod kullanılamıyorsa metin "elle" der.
+                    return HomeEmptyState(
+                      hasBooks: false,
+                      onAdd: () => _showAddSheet(context),
+                    );
                   }
                   final searching = controller.query.value.trim().isNotEmpty;
                   return searching ? _searchResults() : _homeFeed();
@@ -250,6 +256,14 @@ class HomePage extends GetView<LibraryController> {
         emptyIcon: Icons.star_outline,
         onSeeAll: onOpenAuthors,
         actionKey: const ValueKey('see-all-favorite-authors'),
+        // Keşke 4 (1.23.0): ipucu Raflar sekmesini gösteriyorsa o
+        // sekmeyi açan düğme de taşır (ulaşılan tek "raf sekmesi"
+        // yönlendirmesi; 'Rafların' bölümündeki aynı adlı aksiyonla
+        // tek hedefi paylaşır — aynı iş, aynı ad).
+        hintActionLabel:
+            onOpenShelves == null ? null : 'Raflar sekmesine git',
+        hintAction: onOpenShelves,
+        hintActionKey: const ValueKey('hint-open-shelves'),
       ),
       _FeedSection(
         'Bitirme hedefleri',
@@ -294,6 +308,16 @@ class HomePage extends GetView<LibraryController> {
         emptyIcon: Icons.bookmark_outline,
         onSeeAll: onOpenShelves,
         actionKey: const ValueKey('see-all-shelves'),
+        // Keşke 4 (1.23.0): yönlendirme yazısı basılabilir düğmedir.
+        // Not: kitap varken 'Rafsız' kartı her zaman durduğu için bu
+        // ipucu pratikte çizilmez; aksiyon aynı adla 'Favori yazarlar'
+        // ipucunda ulaşılandır. İki ipucu asla aynı anda kurulmaz
+        // (ikisi de yalnız kitaplık tamamen boşken boşalır ve o zaman
+        // akışın yerine HomeEmptyState geçer).
+        hintActionLabel:
+            onOpenShelves == null ? null : 'Raflar sekmesine git',
+        hintAction: onOpenShelves,
+        hintActionKey: const ValueKey('hint-open-shelves'),
       ),
       _FeedSection(
         'Bu ay bitirdiklerin',
@@ -383,6 +407,9 @@ class HomePage extends GetView<LibraryController> {
               return HomeSectionEmptyHint(
                 message: section.emptyMessage,
                 icon: section.emptyIcon,
+                actionLabel: section.hintActionLabel,
+                onAction: section.hintAction,
+                actionKey: section.hintActionKey,
               );
             }
             return section.body;
@@ -516,6 +543,9 @@ class _FeedSection {
     this.emptyIcon,
     this.onSeeAll,
     this.actionKey,
+    this.hintActionLabel,
+    this.hintAction,
+    this.hintActionKey,
   });
 
   final String title;
@@ -528,6 +558,13 @@ class _FeedSection {
   /// Boşken gösterilen "Henüz ..." ipucu metni; her bölümde bulunur
   /// (bölüm asla gizlenmez).
   final String emptyMessage;
+
+  /// İpucu kartının altındaki yazılı aksiyon (keşke 4, 1.23.0): ipucu
+  /// bir yere yönlendiriyorsa o yeri açan düğme. Yalnız 'Rafların'
+  /// bölümünde kullanılır (kabuk dışında null — aksiyon gizlenir).
+  final String? hintActionLabel;
+  final VoidCallback? hintAction;
+  final Key? hintActionKey;
 
   /// İpucu kartının sembolü (bölüm konusuna uyan ikon).
   final IconData? emptyIcon;

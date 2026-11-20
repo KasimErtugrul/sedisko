@@ -554,8 +554,30 @@ class BookDetailPage extends GetView<LibraryController> {
               AppNav.pop(); // diyalog
               // Silme başarılıysa detay sayfasından çık; başarısızsa
               // kal (hata mesajı LibraryController'da gösterilir).
-              final ok = await controller.deleteBook(book.id);
-              if (ok) AppNav.pop();
+              final ok = await controller.deleteBook(book.id, allowUndo: true);
+              if (!ok) return;
+              AppNav.pop();
+              // Keşke 31 (1.23.0): silme tek dokunuşta geri dönüşsüz değil
+              // — "Geri al şansı olsaydı, korkmadan kullanırdım". Kitap
+              // altı saniye bellekte tutulur; Geri Al aynı kimlikle geri
+              // koyar (raf, okuma durumu, günlük aynen). Süre dolunca
+              // denetleyici temizliği yapar, snackbar zaten kapanmıştır.
+              Get.snackbar(
+                'Kitap silindi',
+                '"${book.title}" kitaplıktan silindi.',
+                snackPosition: SnackPosition.BOTTOM,
+                duration: const Duration(seconds: 6),
+                // GetX 4.7.3: ana düğme Widget'tır (mainButton yoktur,
+                // mainButtonText yok). Dokunma: bildirim kapanır, kitap
+                // aynı kimlikle geri koyulur.
+                mainButton: TextButton(
+                  onPressed: () async {
+                    await Get.closeCurrentSnackbar();
+                    await controller.restoreLastDeleted();
+                  },
+                  child: const Text('Geri Al'),
+                ),
+              );
             },
             child: const Text('Sil'),
           ),

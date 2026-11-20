@@ -29,7 +29,10 @@ class ShelvesPage extends GetView<LibraryController> {
             // kurulum kartındadır.
             IconButton(
               key: const ValueKey('shelves-open-editor'),
-              tooltip: 'Rafları düzenle',
+              // Keşke 21 (1.24.0): bu düğme raf TANIMLARINI açar;
+              // asistan kartı ise "Rafları otomatik düzenle" der.
+              // Aynı ekranlarda iki farklı iş, iki farklı ad.
+              tooltip: 'Raf tanımları',
               icon: const Icon(Icons.edit_outlined),
               onPressed: () => Get.toNamed(Routes.shelfEditor),
             ),
@@ -173,7 +176,9 @@ class _OrganizeEntry extends StatelessWidget {
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
                             Text(
-                              '${plan.completedCount}/${plan.turs.length} tur '
+                              // Keşke 28 (1.24.0): "tur" yerine Hasan'ın
+                              // önerdiği günlük kelime: gezi.
+                              '${plan.completedCount}/${plan.turs.length} gezi '
                               'tamam — devam etmek için dokun.',
                               style: Theme.of(context).textTheme.bodySmall,
                             ),

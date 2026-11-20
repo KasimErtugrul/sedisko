@@ -96,7 +96,8 @@ Future<void> putHomeHarness() async {
   );
 }
 
-/// 5 turlu, 2 turu tamamlanmış bir plan: '2/5 tur tamam' metni üretilir.
+/// 5 turlu, 2 turu tamamlanmış bir plan: '2/5 gezi tamam' metni üretilir
+/// (1.24.0 — keşke 28: ekrandaki "tur" kelimesi "gezi" oldu).
 OrganizePlanModel planForTest() {
   MoveTurModel tur(int i) => MoveTurModel(
         location: 'Yer $i',
@@ -276,10 +277,11 @@ void main() {
       await pumpHome(tester);
 
       // Hasan'ın önerdiği cümle: "2/5 tur tamam, devam edelim mi?"
+      // (1.24.0 — keşke 28: "tur" kelimesi günlük "gezi" oldu.)
       expect(find.byKey(const ValueKey('home-plan-banner')), findsOneWidget);
       expect(find.text('Taşıma planı sürüyor'), findsOneWidget);
       expect(
-        find.textContaining('2/5 tur tamam'),
+        find.textContaining('2/5 gezi tamam'),
         findsOneWidget,
       );
 

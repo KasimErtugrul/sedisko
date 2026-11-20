@@ -922,7 +922,225 @@ flutter test
       ("plan yalnız raf atamalarını taşır") — "yalnız 1 kitap taşınacak"
       çıktısının ne anlama geldiği tek bakışta bellidir.
 
+63. **Keşke notları FAZ 4 — verini koru, dürüst anlat (1.23.0)** — Hasan'ın
+    "en çok can yakan on" listesinde veri riski taşıyan ve ekranın yalan
+    söylediği yerler: "Sildiğim kitabı bir süre geri alabileydim — 'Geri
+    al şansı olsaydı, korkmadan kullanırdım'" (keşke 31), "Zorunlu alana
+    ne yazacağımı bilemedim, bir şey uydurdum; sonra raflarımda uydurma
+    bir isim çıktı" (keşke 8), "Basım yılı alanı yalnızca sayı kabul etsin"
+    (keşke 12), "İlk kitabını barkod tarayarak ekle" yazısı düğme yokken de
+    duruyordu (keşke 3), "Bana bir yeri söylüyorsanız, o yere götüren
+    düğmeyi de koyun" (keşke 4), "Yedek paylaş açıklaması gerçekte
+    yedeklenen her şeyi sayasın" (keşke 41).
+    - **Keşke 31 — silmeyi geri al:** kitap detayından silince alttan
+      çıkan "Kitap silindi" bildirimi altı saniye "Geri Al" düğmesiyle
+      durur. Dokunulunca kitap silinmeden önceki haliyle geri koyulur:
+      AYNI kimlik, aynı raf, aynı okuma durumu, aynı sayfa ve okuma
+      günlüğü (günlük türetmesi kapalı yazma). Kapak fotoğrafı da geri
+      alma süresi bitmeden diskten silinmez; süre dolunca silmenin
+      gerçek sonu tamamlanır. Uzun basma yolu ve onay diyaloğu aynen
+      durur; veri anahtarları değişmez (kitap aynı kimlikle depoya
+      yeniden yazılır).
+    - **Keşke 8 — formda Rafsız:** "Raf *" zorunlu alanı kalktı: rafı
+      belli olmayan kitap boş bırakılır ve Raflar sekmesindeki "Rafsız"
+      kartında görünür (kitabı taşırkenki Rafsız yolu artık formda da
+      var). Rafsız çipi tek dokunuşla boşaltır; tanımlı raf çipleri ve
+      elle yazma yolu aynen çalışır. Uydurma raf adı doğuracak "bir şey
+      yazmak zorundayım" baskısı bitmiş oldu.
+    - **Keşke 12 — basım yılı yalnız sayı:** alan sayı klavyesi + yalnız
+      rakam biçimlendiricisiyle dört hanede sınırlıdır; sayfa sayısıyla
+      aynı tutum. Boş geçilebilir (yıl bilinmiyorsa); eski kayıtlardaki
+      harfli değerler görüntülenir ama yeni yazıda harf girilemez.
+    - **Keşke 3 — boş durum dürüst olsun:** "İlk kitabını barkod
+      tarayarak ekle" yazısı artık barkod kullanılabilirliğini izler:
+      ayar kapalı ya da cihaz desteklemiyorsa "İlk kitabını elle
+      ekleyebilirsin" der. Ayar değişince metin anında taze yazılır.
+    - **Keşke 4 — yönlendirme düğmedir:** boş kitaplıkta "Kitap ekle"
+      yazılı düğmesi FAB'ın açtığı ekle menüsünün aynısını açar (aynı iş,
+      aynı ad — keşke 21'in dersi). "Raflar sekmesindeki düzen
+      asistanında favori yazarlarını seçebilirsin" ipucu kartı da
+      "Raflar sekmesine git" düğmesi taşır; kabuk dışında (testlerde)
+      gizlenir.
+    - **Keşke 41 — yedek açıklaması gerçeği söyler:** "Yedeği paylaş"
+      satırı 1.18.0'dan beri ödünç kayıtları ve satın alma listesini de
+      taşımıştı ama alt yazı "tüm kitaplar ve raf tanımları" diyordu.
+      Artık yedeklenen her şey sayılır: kitaplar, raf tanımları, ödünç
+      kayıtları ve satın alma listesi.
+
+64. **Keşke notları FAZ 5 — asistanı adım adım soru soran bir eşe çevir
+    (1.24.0)** — belgenin kapanışındaki sıranın üçüncü adımı ve "en çok
+    can yakan on" listesinin 6. ve 8. maddeleri: asistan tek ekranda soru
+    duvarıydı, gri düğme neden kapalı söylemiyordu (keşke 22, 23) ve
+    "Rafları düzenle" ile "Rafları otomatik düzenle" adları çakışıyordu
+    (keşke 21). D grubunun kalan keşkeleri aynı faza girdi: onay kutusu
+    neden soruluyor (keşke 25), önizlemede hangi kitap taşınıyor (keşke
+    26), "1 kitap taşınacak" korkusu (keşke 27) ve planın kelimeleri
+    (keşke 28). Keşke 24 ("birim" dili) 1.19.0'daki cm modeliyle çoktan
+    kapanmıştı; bu fazda kullanıcıya bakan hiçbir metinde "birim" kalmadığı
+    doğrulandı.
+    - **Keşke 21 — iki iş, iki ad:** raf TANIMLARINI açan yol artık her
+      yerde "Raf tanımları" (Raflar sekmesi çubuğu, asistan kurulum
+      kartındaki düğme, sayfa başlığı); asistan ise her yerde "Rafları
+      otomatik düzenle" (kart, sayfa başlığı, boş plan daveti). İki ad
+      artık kelime kelime ayrışıyor; bir yerin adı her yerde aynıdır.
+    - **Keşke 22 — düğme nedenini söyler:** "Hedef düzeni oluştur"
+      kapalıyken altında eksik adımlar sayılır: "Düğme kapalı: raf tanımı
+      yok (…), dağıtım kriteri seçilmedi, "Kitaplarımın tamamını girdim"
+      kutusu işaretlenmedi." Eksikler tamamlanınca satır kaybolur.
+    - **Keşke 23 — numaralı adımlar:** kurulum kartlarının üstünde "1.
+      adım — Rafların hazırlığı", "2. adım — Kitaplar neye göre
+      dağıtılsın?" başlıkları durur; tamamlanan adım onay işareti taşır.
+      Favoriler "3. adım — Favoriler (isteğe bağlı)"dır, yalnız "Yazara
+      göre" kriterinde görünür ve numaralama ona göre kayar (onay o
+      zaman 4. adımdır). Tek ekran korunur; hızlı kurulum yoluna
+      dokunulmaz ("dokunmayın" listesi).
+    - **Keşke 25 — onay neden soruluyor:** kutunun açıklaması
+      "Neden soruluyor? Plan kitaplığın BUGÜNKÜ hâliyle hesaplanır;
+      işaretlemezsen düğme açılmaz. Sonra ekleyeceğin kitaplar "Yeniden
+      planla" ile yerleşir." yazar.
+    - **Keşke 26 — taşınanlar işaretli:** önizleme listesinde başka
+      raftan gelen kitabın satırında "Başka raftan taşınıyor" ok rozeti
+      durur; her raf kartında "Bu rafa N kitap taşınıyor, M kitap zaten
+      burada." özeti okunur. Yerinde kalanlar rozetsizdir; boş raf
+      kartında özet yoktur. Sayfa HİÇBİR ŞEY YAZMAZ sözü aynen durur.
+    - **Keşke 27 — az taşınma normaldir:** kurulumda düğmenin üstünde
+      "Not: kitapların çoğu zaten hedef düzenindeyse plan az kitap taşır;
+      "1 kitap taşınacak" bir hata işareti değildir." yazar (önizleme
+      özetindeki açıklamanın Hasan'ın istediği ikinci yeri).
+    - **Keşke 28 — geziler günlük dilde:** plan sayfası artık "gezi"
+      konuşur: "1. Alt kat gezisi", "0/2 gezi tamam", "Bu gezideki N
+      kitabın raf ataması…", "Tüm geziler bitti". "Tur" kelimesini Hasan
+      yarış turu sanıyordu; kendi önerdiği kelimeyi aldık. El sınırının
+      nedeni kartta yazar ("Tek elde en fazla 10 kitap — kolun
+      yorulmasın diye") ve aynı yerin 10 kitabı aşan işi başlığında
+      "(devam)" gezisi olarak görünür. Model alanları (MoveTurModel,
+      turs) ve 'plan-tur-*' test anahtarları iç isimdir, DEĞİŞMEZ;
+      ana sayfa hatırlatma kartı ile Raflar sekmesi kartı aynı "gezi"
+      dilini taşır.
+
 ## Sürüm notları
+
+**1.24.0:** `pubspec.yaml` sürümü `1.24.0+32`'e yükseltildi. Keşke
+notlarının FAZ 5'i — "asistanı adım adım soru soran bir eşe çevir"
+(belge kapanışının üçüncü adımı; keşke 21, 22, 23, 25, 26, 27, 28; keşke
+24 1.19.0'la kapanmıştı). Yedi değişiklik:
+
+- **Keşke 21 — iki iş, iki ad:** raf tanımları yolu "Raf tanımları"
+  oldu: [ShelvesPage] çubuğunun tooltip'i, asistan kurulum kartındaki
+  yazılı düğme ('organize-open-editor', tooltip dahil) ve
+  [ShelfEditorPage] başlığı aynı adı taşır; asistan "Rafları otomatik
+  düzenle" adını her yerde tek başına kullanır (kurulum sayfa başlığı,
+  Raflar sekmesi kartı, boş plan sayfasının daveti artık tam adı yazar).
+- **Keşke 22 — kapalı düğme nedenini söyler:** kurulumun
+  'organize-create-arrangement' düğmesi kapalıyken altında
+  'organize-create-reason' satırı çıkar ve eksikleri sayar: raf tanımı
+  yok / dağıtım kriteri seçilmedi / onay kutusu işaretlenmedi. Üçü
+  tamamlanınca satır kurulmaz; düğme eski davranışıyla açılır.
+- **Keşke 23 — numaralı adımlar:** her kurulum kartının üstünde adım
+  başlığı durur (_stepHeader): numara + ad + tamamlanma onay işareti;
+  favoriler "isteğe bağlı" yazar ve yalnız "Yazara göre"de görünür —
+  numaralama dinamiktir (favoriler yokken onay 3. adımdır). Hızlı
+  kurulum, kriter radyoları, çipler ve bütün anahtarlar aynen durur.
+- **Keşke 25 — onayın nedeni:** "Kitaplarımın tamamını girdim"
+  kutusunun alt yazısı "Neden soruluyor? …" ile günlük yanıt verir.
+- **Keşke 26 — taşınan kitap işaretli:** önizlemede her kitap satırı
+  'preview-row-<kitap kimliği>' anahtarı taşır; hedefi mevcut rafından
+  farklıysa satırın ucunda "Başka raftan taşınıyor" oku durur. Raf
+  kartında taşınma sayısı "Bu rafa N kitap taşınıyor, M kitap zaten
+  burada." satırıyla ('planned-moved-line-<raf adı>') görünür; taşınan
+  kitap yoksa satır kurulmaz. Karar karşılaştırması ad bazlıdır — raf
+  atamasının kendisi gibi (kitabın mevcut raf adı ≠ hedef raf adı).
+- **Keşke 27 — kurulumda dürüst not:** "Hedef düzeni oluştur"
+  düğmesinin üstünde 'organize-few-moves-note' satırı: kitapların çoğu
+  zaten hedef düzenindeyse az taşınma DOĞRU sonuçtur.
+- **Keşke 28 — gezi dili:** plan sayfasının kullanıcıya bakan bütün
+  metinleri "tur" yerine "gezi" der: gezi kartı başlığı
+  "<sıra>. <yer> gezisi" (aynı yerin el-sınırı taşkını "(devam)"
+  gezisidir), ilerleme "N/M gezi tamam", onay diyaloğu "… gezisi
+  tamamlandı mı?", bitirme balonu "Tüm geziler bitti; kitaplar hedef
+  düzende."; ipucu kartı el sınırının nedenini yazar. Ana sayfa
+  hatırlatma kartı (1.22.0) ve Raflar sekmesi kartı aynı dili konuşur:
+  "2/5 gezi tamam — devam etmek için dokun."
+
+Uzun basma yolları, "Yaptım" onay akışı, tembel kurulum eşiği,
+planı-iptal diyaloğu ve "dokunmayın" listesi aynen korunur; model
+alanları (MoveTurModel, turs, completedTurIndexes) ve test anahtarları
+('plan-tur-*', 'tur-done-*') iç isim olarak değişmez. Veri anahtarları
+ve saklanan veriler değişmedi (`books_v1`, `shelves_v1`,
+`organize_plan_v1`, `loans_v1`, `borrowed_v1`, `wishlist_v1`,
+`settings_*`). Yeni testler: düğme nedeni (eksik adımlar, tamamlanınca
+kaybolma, raf silinince tazelenme), adım başlıkları ve dinamik
+numaralama + onay işareti sayısı, onayın "Neden soruluyor?" metni, az
+taşınma notu, önizlemede taşınma rozeti + raf özeti + boş raf kuralı,
+plan sayfasının gezi dili + "(devam)" gezisi + diyaloğun aynı dili
+kullanması + boş plan davetinin tam adı, Raflar sekmesinde iki adın
+çakışmaması ve tanım sayfası başlığı; güncellenen üç test: "Raf
+tanımları" düğme/tooltip adı, plan sayfası "gezisi" metni, ana sayfa
+kartında "2/5 gezi tamam" (toplamda 762 test yeşil, `flutter analyze`:
+No issues found!).
+
+**1.23.0:** `pubspec.yaml` sürümü `1.23.0+31`'e yükseltildi. Keşke
+notlarının FAZ 4'ü — "verini koru, dürüst anlat" ("en çok can yakan on"
+listesinde veri riski taşıyan ve ekranın yalan söylediği yerler: keşke 31,
+8, 12, 3, 4, 41). Altı değişiklik:
+
+- **Keşke 31 — silmeyi geri al:** detay sayfasındaki silme akışı
+  `deleteBook(id, allowUndo: true)` çağırır; başarılı silmeden sonra
+  snackbar "Kitap silindi — \<kitap adı\> kitaplıktan silindi." başlıkla
+  altı saniye "Geri Al" düğmesiyle durur. [LibraryController] silinen
+  kitabı bellekte tutar ([restoreLastDeleted]); geri alma kitabı AYNI
+  kimlikle depoya yeniden yazar (deriveLog kapalı — günlük aynen korunur,
+  raf/okuma durumu/sayfa/favori hiçbir alan dokunulmaz). Kapak fotoğrafı
+  dosyası geri alma süresi (7 sn; snackbar 6 sn + 1 sn pay) dolmadan
+  silinmez; süre dolunca [discardLastDeleted] temizliği yapar ve geri
+  koymak `false` döner. Denetleyici kapanırken bekleyen silme varsa
+  onClose gerçek silme sonunu tamamlar. Silme onay diyaloğu, eski silme
+  yolları ve `allowUndo: false` davranışı (diğer çağrılar) aynen korunur.
+- **Keşke 8 — formda Rafsız:** kitap formunun raf alanının zorunlu
+  doğrulaması ('Raf bilgisi gerekli') kaldırıldı; etiket 'Raf' oldu ve
+  yardımcı yazı nedeni söyler ("Rafı belli değilse boş bırak: kitap
+  Rafsız olur"). Tanımlı raf çiplerinden önce her koşulda duran 'Rafsız'
+  çipi alanı tek dokunuşla boşaltır. Boş raf, kitabı taşıma ve Rafsız
+  kartındaki davranışla aynıdır (1.19.3'teki uydurma raf adı sorununun
+  doğduğu yer budur).
+- **Keşke 12 — basım yılı yalnız sayı:** alan `TextInputType.number` +
+  `FilteringTextInputFormatter.digitsOnly` + dört hane sınırıyla sayfa
+  sayısıyla aynı tutuma geçti. Boş geçilebilir; mevcut kayıtlardaki
+  harfli değerler görüntülenir ama klavyeden harf girilemez.
+- **Keşke 3 — boş durum dürüst olsun:** [HomeEmptyState] metni
+  `SettingsController.scanActionsVisible`'ı izler: ayar kapalı ya da
+  platform desteklemiyorsa "İlk kitabını elle ekleyebilirsin" yazar.
+  Denetleyici kayıtlıyken Obx ile abonelidir; Ayarlar'da anahtar
+  kapatılıp dönüldüğünde metin taze yazılır (IndexedStack'te sayfa
+  yeniden kurulmasa bile).
+- **Keşke 4 — yönlendirme düğmedir:** boş kitaplıkta FAB'la aynı işi ve
+  adı taşıyan "Kitap ekle" yazılı düğmesi durur ('empty-add-book' — ekle
+  menüsünü açar; barkod kullanılabilirken menünün ilk satırı "Barkod
+  tara"dır, yani yazının vaadi artık bir düğmeyle destekleniyor).
+  [HomeSectionEmptyHint] isteğe bağlı yazılı aksiyon aldı; "Raflar sekmesindeki düzen
+  asistanında favori yazarlarını seçebilirsin" ipucu kartı "Raflar
+  sekmesine git" düğmesi taşır (kabuk dışında null — gizlenir;
+  'Rafların' bölümünün ulaşılamaz ipucu da aynı aksiyonu taşır).
+- **Keşke 41 — yedek açıklaması gerçeği söyler:** "Yedeği paylaş"
+  alt yazısı "Tüm kitaplar ve raf tanımları" yerine "Kitaplar, raf
+  tanımları, ödünç kayıtları ve satın alma listesi tek dosyada" yazar
+  (1.18.0'dan beri zarf formatVersion 2'dir; içe aktarım özeti bunu
+  çoktan sayıyordu).
+
+Veri anahtarları ve saklanan veriler değişmedi (`books_v1`,
+`shelves_v1`, `organize_plan_v1`, `loans_v1`, `borrowed_v1`,
+`wishlist_v1`, `settings_*`); geri alma, kitabı aynı kimlikle
+`books_v1`'e yeniden yazmaktan başka bir şey yapmaz. Yeni testler: geri
+alma akışı (aynı kimlik/raf/durum/günlük, pencere süresi içinde fotoğraf
+korunması, pencere bitince gerçek silme, kayıtsız geri almanın reddi,
+detay sayfası snackbar + Geri Al dokunuşu), formun Rafsız çipi ve boş
+rafla kayıt, tanımlı raf çipinin eski davranışı, basım yılı
+biçimlendiricileri (harf elenir, beşinci hane düşer, boş yıl kaydedilir),
+boş durumun ayar/platform yollarıyla "elle ekle" yazısı ve düğme
+aksiyonu, ipucu kartı aksiyonu, yedek açıklaması; güncellenen iki test:
+"Kitap ekle" artık FAB + boş durum düğmesiyle iki yerde görünür, form
+zorunlu-alan testi raf zorunluluğunun kalkışını doğrular (toplamda 748
+test yeşil, `flutter analyze`: No issues found!).
 
 **1.22.0:** `pubspec.yaml` sürümü `1.22.0+30`'a yükseltildi. Keşke
 notlarının FAZ 3'ü — "saklı sayfaları görünür kıl" ("en çok can yakan

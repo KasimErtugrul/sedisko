@@ -97,6 +97,15 @@ class BookFormPage extends GetView<BookFormController> {
                     Expanded(
                       child: TextFormField(
                         controller: c.publishDateCtrl,
+                        // Keşke 12 (1.23.0): basım yılı yalnız sayı kabul
+                        // eder — "Yanlışlıkla harf yazdım; uygulama
+                        // sessizce kabul etti". Sayfa sayısıyla aynı tutum:
+                        // sayı klavyesi + yalnız rakam, dört hane.
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(4),
+                        ],
                         decoration: const InputDecoration(
                           labelText: 'Basım yılı',
                           hintText: 'örn. 2021',
@@ -120,33 +129,40 @@ class BookFormPage extends GetView<BookFormController> {
                 const SizedBox(height: 24),
                 Text('Konum', style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 8),
+                // Keşke 8 (1.23.0): raf zorunlu değildir — "Zorunlu alana
+                // ne yazacağımı bilemedim, bir şey uydurdum; sonra raflarımda
+                // uydurma bir isim çıktı". Rafı belli olmayan kitap
+                // boş bırakılır: Rafsız kartında görünür.
                 TextFormField(
                   controller: c.shelfCtrl,
                   textCapitalization: TextCapitalization.sentences,
                   decoration: const InputDecoration(
-                    labelText: 'Raf *',
+                    labelText: 'Raf',
                     hintText: 'örn. Salon - 2. raf',
+                    helperText: 'Rafı belli değilse boş bırak: kitap Rafsız olur',
+                    helperMaxLines: 2,
                     prefixIcon: Icon(Icons.shelves),
                     border: _border,
                   ),
-                  validator: (v) => (v == null || v.trim().isEmpty)
-                      ? 'Raf bilgisi gerekli'
-                      : null,
                 ),
-                if (c.shelves.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 4,
-                    children: [
-                      for (final s in c.shelves)
-                        ActionChip(
-                          label: Text(s),
-                          onPressed: () => c.shelfCtrl.text = s,
-                        ),
-                    ],
-                  ),
-                ],
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  children: [
+                    // Rafsız seçeneği tanımlı raf olmasa da hep durur.
+                    ActionChip(
+                      key: const ValueKey('form-chip-rafsiz'),
+                      label: const Text('Rafsız'),
+                      onPressed: () => c.shelfCtrl.text = '',
+                    ),
+                    for (final s in c.shelves)
+                      ActionChip(
+                        label: Text(s),
+                        onPressed: () => c.shelfCtrl.text = s,
+                      ),
+                  ],
+                ),
                 const SizedBox(height: 24),
                 Text('Okuma durumu',
                     style: Theme.of(context).textTheme.titleMedium),

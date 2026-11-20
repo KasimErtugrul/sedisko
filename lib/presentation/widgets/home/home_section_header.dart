@@ -54,18 +54,37 @@ class HomeSectionHeader extends StatelessWidget {
 /// Boş bölümün ipucu kartı: bölüm veri içermese de bölüm gizlenmez,
 /// yerinde kısa bir "Henüz ..." metni gösterilir (ör. favori yokken
 /// Favoriler). [icon], bölümün konusuna uyan bir sembol seçilir.
+///
+/// Keşke 4 (1.23.0): yönlendirme yazı değil basılabilir düğme olabilir —
+/// "Raflar sekmesinden raf ekleyebilirsin" yazısına dokununca Raflar
+/// sekmesi açılır ([actionLabel]/[onAction] verilirse; açıklama dokunuşu
+/// kalır, bölüm her koşulda aynı yerde durur).
 class HomeSectionEmptyHint extends StatelessWidget {
   const HomeSectionEmptyHint({
     super.key,
     required this.message,
     this.icon = Icons.favorite_outline,
-  });
+    this.actionLabel,
+    this.onAction,
+    this.actionKey,
+  }) : assert(
+          (onAction == null) == (actionLabel == null),
+          'Aksiyon etiketi ve aksiyonu birlikte verin ya da hiç vermeyin.',
+        );
 
   final String message;
 
   /// Kart başındaki sembol; bölüm konusuna göre değişir
   /// (okuma için kitap, hedef için bayrak vb.).
   final IconData? icon;
+
+  /// İpucun gösterdiği yerde açılan düğmenin etiketi (ör.
+  /// "Raflar sekmesine git"); [onAction] ile birlikte verilir.
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  /// Aksiyonun test anahtarı.
+  final Key? actionKey;
 
   @override
   Widget build(BuildContext context) {
@@ -84,9 +103,23 @@ class HomeSectionEmptyHint extends StatelessWidget {
               const SizedBox(width: 10),
             ],
             Expanded(
-              child: Text(
-                message,
-                style: Theme.of(context).textTheme.bodySmall,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    message,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  if (onAction != null)
+                    TextButton(
+                      key: actionKey,
+                      onPressed: onAction,
+                      style: const ButtonStyle(
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      child: Text(actionLabel!),
+                    ),
+                ],
               ),
             ),
           ],

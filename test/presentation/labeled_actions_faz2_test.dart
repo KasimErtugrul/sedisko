@@ -191,22 +191,24 @@ void main() {
     });
   });
 
-  group('asistan kurulum kartında yazılı "Rafları düzenle"', () {
+  group('asistan kurulum kartında yazılı "Raf tanımları" (1.24.0 adı)', () {
     testWidgets('hazırlık kartında yazılı düğme vardır ve taşmaz',
         (tester) async {
       await putShelfHarness();
       await pumpPage(tester, const OrganizeSetupPage());
 
       // Yazılı etiket düğmenin içinde (kart içi, çubuk değil).
+      // Keşke 21 (1.24.0): eski ad "Rafları düzenle" asistanla
+      // çakışıyordu; bu yol artık her yerde "Raf tanımları".
       expect(
         find.descendant(
           of: find.byKey(const ValueKey('organize-open-editor')),
-          matching: find.text('Rafları düzenle'),
+          matching: find.text('Raf tanımları'),
         ),
         findsOneWidget,
       );
-      // Tooltip aynen durur (ekran okuyucu yolu).
-      expect(find.byTooltip('Rafları düzenle'), findsOneWidget);
+      // Tooltip aynen durur (ekran okuyucu yolu), adı yeni adla aynı.
+      expect(find.byTooltip('Raf tanımları'), findsOneWidget);
       // 360dp × 1.3 metin ölçeğinde taşma yok (pumpPage zaten denetler).
     });
 
