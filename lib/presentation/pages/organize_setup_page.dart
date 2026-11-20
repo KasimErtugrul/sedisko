@@ -152,6 +152,34 @@ class _OrganizeSetupPageState extends State<OrganizeSetupPage> {
                   'kaplar.',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
+                // 1.19.3: raf ataması ad bazlıdır; tanım adları
+                // kitaplardaki adlarla birebir aynı değilse plan gerçek
+                // raflarına oturmaz. Kurulumda da uyarılır.
+                if (controller.unmatchedBookShelfNames().isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    key: const ValueKey('organize-mismatch-warning'),
+                    children: [
+                      Icon(Icons.warning_amber_rounded,
+                          size: 18, color: scheme.error),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Kitaplar şu raf adlarında kayıtlı ama bu '
+                          'adlarda tanım yok: '
+                          '${controller.unmatchedBookShelfNames().join(', ')} '
+                          '— adlar aynı değilse plan kitapları tanım '
+                          'adlarına dağıtır. Düzenleyicide adları '
+                          'kitaplardakiyle birebir aynı yap.',
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.copyWith(color: scheme.error),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
                 if (controller.needsMoreCapacity) ...[
                   const SizedBox(height: 8),
                   Row(

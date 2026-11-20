@@ -78,6 +78,13 @@ class MovePlanPage extends StatelessWidget {
             if (outsiders.isNotEmpty) ...[
               _OutsidersCard(count: outsiders.length),
               const SizedBox(height: 8),
+            ] else ...[
+              // Kapsama kartı (1.19.2): taşınmayan kitaplar "sonra eklenmiş"
+              // DEĞİL, hedef raftalarındadır. "Toplam 1 kitap taşınacak"
+              // çıktısının kendini açıklaması için (kullanıcı kararı:
+              // dürüst çıktı).
+              const _CoverageCard(),
+              const SizedBox(height: 8),
             ],
             for (var i = 0; i < plan.turs.length; i++)
               _TurCard(index: i, tur: plan.turs[i], done: plan.completedTurIndexes.contains(i)),
@@ -196,6 +203,33 @@ class _OutsidersCard extends StatelessWidget {
               .textTheme
               .bodySmall
               ?.copyWith(color: scheme.onSecondaryContainer),
+        ),
+      ),
+    );
+  }
+}
+
+/// Kapsama kartı (1.19.2): plan kitaplığın tamamını kapsıyor; dışarıda
+/// kitap yok. Taşınmayanlar planın hedefinde zaten kendi raftalarında.
+class _CoverageCard extends StatelessWidget {
+  const _CoverageCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      key: const ValueKey('plan-coverage'),
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Text(
+          'Plan kitaplığın tamamını kapsıyor. Taşınmayan kitaplar '
+          'planın hedefinde zaten kendi raftalarındadır; sonradan '
+          'eklediğin kitaplar olursa "Yeniden planla" onları da '
+          'yerleştirir.',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
         ),
       ),
     );

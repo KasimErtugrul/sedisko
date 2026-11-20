@@ -383,6 +383,33 @@ class ShelfOrganizeController extends GetxController {
     return null;
   }
 
+  /// Kitapların üzerinde durduğu ama hiçbir raf tanımıyla eşleşmeyen
+  /// adlar (Türkçe katlamayla; 'Tv Üzeri' ile 'Tv uzeri' aynı kabul
+  /// edilir). Boş liste = kitaplıktaki her raf adının tanımı var.
+  ///
+  /// Kitabın raf ataması ad bazlıdır ve düzen planı yalnız TANIMLI
+  /// rafları kullanır: tanım adları kitaplardaki adlarla birebir aynı
+  /// değilse doluluklar 0 görünür ve plan kitapları tanım adlarına
+  /// dağıtır — kullanıcı gerçek raflarını tanımada bulamayıp çıktıyı
+  /// bozuk sanır (1.19.3 kullanıcı raporu: 'Koridor 1' tanımına karşı
+  /// kitaplar 'Koridor Raf 1' adındaydı; yalnız 'Tv uzeri' ≡ 'Tv Üzeri'
+  /// katlama eşleştiği için tek kart dolu görünüyordu). Bu liste,
+  /// uyarı kartlarının ve ad önerilerinin tek kaynağıdır.
+  List<String> unmatchedBookShelfNames() {
+    final definedKeys = <String>{
+      for (final shelf in shelves) TextNormalizer.searchKey(shelf.name),
+    };
+    final result = <String>[];
+    final seen = <String>{};
+    // _library.shelves: kitaplardaki benzersiz raf adları, Türkçe sıralı.
+    for (final name in _library.shelves) {
+      final key = TextNormalizer.searchKey(name);
+      if (definedKeys.contains(key) || !seen.add(key)) continue;
+      result.add(name);
+    }
+    return result;
+  }
+
   // ---------- Önizleme ve plan ----------
 
   /// [criterion] için hedef düzeni üretir; HİÇBİR ŞEY yazmaz — kullanıcı
@@ -511,6 +538,10 @@ class ShelfOrganizeController extends GetxController {
       criterion: criterion,
       createdAt: DateTime.now(),
       turs: result.turs,
+      // Kapsama kümesi: plan üretildiğinde kütüphanedeki HER kitap.
+      // Taşınmayanlar da kapsanır — onlar hedef raftalarındadır, "sonra
+      // eklenmiş" sayılmazlar (1.19.2 düzeltmesi).
+      coveredBookIds: [for (final book in books) book.id],
     );
     plan.value = newPlan;
     await _shelfStore.savePlan(newPlan);
@@ -583,12 +614,24 @@ class ShelfOrganizeController extends GetxController {
     await _shelfStore.savePlan(null);
   }
 
-  /// Plan yapıldıktan sonra eklenen kitaplar; "Yeniden planla" ile
-  /// yerleşirler.
+  /// Planın KAPSAMADIĞI kitaplar: plan üretildikten sonra kitaplığa
+  /// eklenenler. "Yeniden planla" ile yerleşirler.
+  ///
+  /// Yeni biçem planlarda kapsama kümesi kayıtlıdır (üretim anındaki
+  /// tüm kitaplar); kapsam dışı = gerçekten sonradan eklenenler. 1.19.2
+  /// ÖNCESİ eski planlarda küme yoktur: eklenme tarihi plan tarihinden
+  /// ileri olanlar dışarıda sayılır — taşınmayan kitaplar artık
+  /// yanlışlıkla "sonra eklenmiş" görünmez.
   List<BookModel> get planOutsiders {
     final current = plan.value;
     if (current == null) return const <BookModel>[];
-    final ids = current.bookIds;
-    return books.where((b) => !ids.contains(b.id)).toList();
+    if (current.hasBookCoverage) {
+      final covered = current.coveredBookIds.toSet();
+      return books.where((b) => !covered.contains(b.id)).toList();
+    }
+    // Eski biçem plan: kapsama bilinmiyor; eklenme tarihine göre.
+    return books
+        .where((b) => b.addedAt.isAfter(current.createdAt))
+        .toList();
   }
 }

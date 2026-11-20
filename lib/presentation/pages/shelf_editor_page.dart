@@ -17,6 +17,14 @@ import '../widgets/organize/capacity_bar.dart';
 /// Hızlı kurulum tek uzunlukla tüm rafları açar; tek tek düzenleme
 /// her rafı gerçek kitaplığına göre ayarlar. Sıra, taşıma planının
 /// gezinti düzenidir: plan rafları bu sırayla dizer.
+///
+/// **1.19.3:** raf ataması ad bazlı olduğundan tanım adları
+/// kitaplardaki adlarla birebir aynı olmalıdır. Kitaplarda olup tanımı
+/// olmayan adlar üstteki uyarı kartında listelenir; raf diyaloğu bu
+/// adları tek dokunuşla doldurulabilir öneri çipi olarak sunar
+/// (kullanıcı 'Koridor 1' yazıp kitapların 'Koridor Raf 1' adını
+/// gözden kaçırmıştı; eşleşmeyen tek kart 'Tv uzeri' ≡ 'Tv Üzeri'
+/// katlamasıydı).
 class ShelfEditorPage extends StatelessWidget {
   const ShelfEditorPage({super.key});
 
@@ -42,6 +50,10 @@ class ShelfEditorPage extends StatelessWidget {
         return ListView(
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 88),
           children: [
+            // 1.19.3: kitaplarda olup tanımı olmayan raf adları varsa
+            // en üstte acil uyarı — plan yalnız tanımlı rafları kullanır.
+            if (controller.unmatchedBookShelfNames().isNotEmpty)
+              _MismatchBanner(controller.unmatchedBookShelfNames()),
             Text(
               'Uzunluklar gerçek rafta kitapların dizildiği boşluk olsun: '
               'plan hiçbir rafı uzunluğunun üzerine doldurmaz. Sol '
@@ -136,6 +148,74 @@ class _EmptyEditor extends StatelessWidget {
               onPressed: () => Get.toNamed(Routes.organizeSetup),
               icon: const Icon(Icons.auto_awesome),
               label: const Text('Hızlı kurulumla başla'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 1.19.3: kitapların rafta kayıtlı olduğu ama tanımı olmayan adlar.
+/// Düzen planı yalnız tanımlı rafları kullanır; adlar birebir aynı
+/// değilse doluluklar 0 görünür, plan kitapları tanım adlarına
+/// dağıtır ve çıktı gerçek kitaplıkla tutmaz.
+class _MismatchBanner extends StatelessWidget {
+  const _MismatchBanner(this.names);
+
+  final List<String> names;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      key: const ValueKey('shelf-editor-mismatch-banner'),
+      margin: const EdgeInsets.only(bottom: 8),
+      color: scheme.errorContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.warning_amber_rounded,
+                  size: 18,
+                  color: scheme.onErrorContainer,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Raf adları kitaplarla eşleşmiyor',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleSmall
+                        ?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: scheme.onErrorContainer,
+                        ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Kitaplar şu raf adlarında kayıtlı ama bu adlarda tanım '
+              'yok: ${names.join(', ')}.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: scheme.onErrorContainer,
+                  ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Düzen planı yalnız buradaki tanımları kullanır; adlar '
+              'birebir aynı değilse doluluklar 0 görünür ve plan '
+              'kitapları tanım adlarına dağıtır. Kalem simgesiyle '
+              'tanım adını kitaplardakiyle birebir aynı yap.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: scheme.onErrorContainer,
+                  ),
             ),
           ],
         ),
@@ -250,6 +330,9 @@ Future<void> showShelfEditDialog(
   );
   final locationCtrl = TextEditingController(text: shelf?.location ?? '');
   String? error;
+  // 1.19.3: kitaplarda olup tanımı olmayan adlar — doğru adı yazmak
+  // yerine tek dokunuşla seçebilsin (raf ataması ad bazlıdır).
+  final suggestions = controller.unmatchedBookShelfNames();
 
   await showDialog<void>(
     context: context,
@@ -295,10 +378,34 @@ Future<void> showShelfEditDialog(
                   decoration: InputDecoration(
                     labelText: 'Raf adı',
                     hintText: 'örn. Salon - 2. raf',
+                    helperText:
+                        'Kitapların raf kaydı bu adla yapılır; '
+                        'ad birebir aynı olmalı',
                     errorText: error,
                     border: const OutlineInputBorder(),
                   ),
                 ),
+                if (suggestions.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    'Kitaplardaki raf adları',
+                    style: Theme.of(context).textTheme.labelLarge,
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      for (final name in suggestions)
+                        ActionChip(
+                          key: ValueKey('shelf-name-suggest-$name'),
+                          label: Text(name),
+                          tooltip: 'Raf adını "$name" yap',
+                          onPressed: () => nameCtrl.text = name,
+                        ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: 12),
                 TextField(
                   controller: lengthCtrl,

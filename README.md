@@ -924,6 +924,59 @@ flutter test
 
 ## Sürüm notları
 
+**1.19.3:** `pubspec.yaml` sürümü `1.19.3+27`'e yükseltildi. Kullanıcı
+raporu (iki ekran görüntüsü): "Yazara göre" düzenlemede çıkan sonuç
+güncellemeden sonra da değişmiyordu; kullanıcının teşhisi doğruydu —
+sorun raf adlarının eşleşmemesiydi. Kök neden: "Raflar" sekmesi
+kitaplara YAZILI raf adlarını gösterir ('Koridor Raf 1', 'Tv Üzeri'…);
+"Rafları düzenle" ekranı ise düzen asistanının tanımlarını
+('Koridor 1', 'Tv uzeri'…). Raf ataması ad bazlıdır ve düzen planı
+yalnız TANIMLI rafları kullanır: adlar birebir aynı değilse tanım
+kartlarında doluluk 0 görünür, plan kitapları tanım adlarına dağıtır
+ve çıktı gerçek kitaplıkla tutmaz. Yalnız 'Tv uzeri' ≡ 'Tv Üzeri'
+Türkçe katlaması (aksan/büyük harf duyarsız) eşleştiği için tek kart
+50 kitabıyla dolu görünüyordu; öbür beşi boştu. Güncellemelerin
+sonucu değiştirmemesi de doğrudu: 1.19.1 yalnız ödünç sıralamasını,
+1.19.2 yalnız plan sayfasındaki kapsam uyarısını düzeltmişti. Düzeltme
+iki katmanlı: (1) KULLANICIYA — tanım adlarını kitaplardaki adlarla
+birebir aynı yapmak yeterlidir (kalem simgesi → ad; yeniden adlandırma
+yalnız eski ada bağlı kitapları taşır, kitaplar zaten gerçek
+adlarındayken güvenlidir); (2) UYGULAMAYA — kitaplarda olup tanımı
+olmayan adlar artık görünmez değil: düzenleyicide en üstte uyarı kartı
+listeler, kurulum sayfasının hazırlık kartında hata satırı uyarır,
+raf ekleme/düzenleme diyaloğu bu adları tek dokunuşla doldurulabilir
+öneri çipi olarak sunar ve ad alanı artık "kitapların raf kaydı bu
+adla yapılır" yardımı taşır. Yeni `unmatchedBookShelfNames()` yardımcısı
+uyarı kartlarının ve önerilerin tek kaynağıdır (katlama ile
+aynılaştırır, farklı yazımları tek madde yapar). Veri anahtarları
+(`shelves_v1`, `organize_plan_v1`, `books_v1`) ve saklanan veriler
+değişmedi. Yeni testler: eşleşme yardımcısının beş durumu + düzenleyici
+uyarı kartı/öneri çipi/kapanış akışı + kurulum uyarısı (toplamda 710
+test yeşil, `flutter analyze`: No issues found!).
+
+**1.19.2:** `pubspec.yaml` sürümü `1.19.2+26`'a yükseltildi. Kullanıcı
+raporu (ekran görüntüsü): "Yazara göre" düzenlemede plan 1 kitap
+taşıyordu ve plan sayfasında "268 kitap plan yapıldıktan sonra
+eklendi" uyarısı çıkıyordu — sanki kitaplığın gerisi plan dışı
+kalmıştı. Kök neden: "sonradan eklenen kitaplar" hesabı, planın
+TAŞINAN kitap kimlikleriyle karşılaştırılıyordu; taşınmayan her kitap
+(kütüphanenin tamamına yakın) yanlışlıkla "sonra eklenmiş" sayılıyordu.
+Oysa düzen planı kütüphanenin tamamını kapsar: taşınmayanlar planın
+hedefinde zaten kendi raftalarındadır. Düzeltme: plan modeline kapsama
+kümesi eklendi (`coveredBookIds` — plan üretildiğindeki tüm kitaplar;
+`organize_plan_v1` anahtarı değişmedi, eski kayıtlar aynen okunur),
+"sonradan eklenen" hesabı artık kapsama kümesiyle yapılır; kapsama
+kümesi olmayan eski planlarda eklenme tarihine dönülür (taşınmayanlar
+orada da dışarıda sayılmaz). Plan sayfasında dışarıda kitap yokken
+artık dürüst kapsam kartı çıkar: "Plan kitaplığın tamamını kapsıyor;
+taşınmayan kitaplar planın hedefinde zaten kendi raftalarındadır…" —
+"Toplam 1 kitap taşınacak" çıktısının "düzenleme bozuk" sanılmasının
+önüne geçildi (kütüphane çoğunlukla hedef düzendeysen az taşınma
+DOĞRU sonuçtur). Yeni testler: kapsama kümesi JSON turu + tur
+işaretlemede korunma, eski biçem kayıt okuma, taşınmayanlar-dışarıda-
+değil regresyonu, kapsam/dışarı kartları; toplam 700 test yeşil
+(`flutter analyze`: No issues found!).
+
 **1.19.1:** `pubspec.yaml` sürümü `1.19.1+25`'e yükseltildi. Kullanıcı
 raporu: Windows'ta `loan_controller_test.dart` içindeki "activeBorrowed
 en yeni alımdan başlar" testi `['Eski', 'Yeni']` dönüyordu. Kök neden

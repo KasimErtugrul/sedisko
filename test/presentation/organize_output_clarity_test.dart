@@ -266,4 +266,78 @@ void main() {
     expect(find.textContaining('Küçük tur kitabı'), findsNWidgets(2));
     expect(find.byKey(const ValueKey('tur-done-0')), findsOneWidget);
   });
+
+  testWidgets('kapsama tam olduğunda kapsam kartı çıkar, dışarı kartı çıkmaz',
+      (tester) async {
+    final controller = await bootstrap(tester);
+    // 1.19.2: planın kapsama kümesi tüm kitaplığı içerir; plan yalnız 1
+    // kitap taşır. Taşınmayan 3 kitap "sonra eklenmiş" DEĞİL — kapsam
+    // kartı bunu açıkça yazar, yanlış dışarı uyarısı gösterilmez.
+    controller.plan.value = OrganizePlanModel(
+      criterion: OrganizeCriterion.author,
+      createdAt: DateTime(2026, 1, 1),
+      turs: [
+        MoveTurModel(location: 'Yer belirtilmedi', actions: [
+          MoveActionModel(isPickup: true, shelf: 'Raf 1', moves: [
+            const PlanMove(
+              bookId: 'b1',
+              title: 'Kitap b1',
+              fromShelf: 'Raf 1',
+              toShelf: 'Raf 2',
+            ),
+          ]),
+          MoveActionModel(isPickup: false, shelf: 'Raf 2', moves: [
+            const PlanMove(
+              bookId: 'b1',
+              title: 'Kitap b1',
+              fromShelf: 'Raf 1',
+              toShelf: 'Raf 2',
+            ),
+          ]),
+        ]),
+      ],
+      coveredBookIds: const ['b1', 'b2', 'b3', 'b4'],
+    );
+
+    await pumpPage(tester, const MovePlanPage());
+
+    expect(find.byKey(const ValueKey('plan-coverage')), findsOneWidget);
+    expect(find.byKey(const ValueKey('plan-outsiders')), findsNothing);
+    expect(
+      find.textContaining('kitaplığın tamamını kapsıyor'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('kapsama dışındaki kitaplar dışarı kartıyla bildirilir',
+      (tester) async {
+    final controller = await bootstrap(tester);
+    // Yalnız b1 kapsamda: b2, b3, b4 kapsam dışı → dışarı kartı.
+    controller.plan.value = OrganizePlanModel(
+      criterion: OrganizeCriterion.author,
+      createdAt: DateTime(2026, 1, 1),
+      turs: [
+        MoveTurModel(location: 'Yer belirtilmedi', actions: [
+          MoveActionModel(isPickup: true, shelf: 'Raf 1', moves: [
+            const PlanMove(
+              bookId: 'b1',
+              title: 'Kitap b1',
+              fromShelf: 'Raf 1',
+              toShelf: 'Raf 2',
+            ),
+          ]),
+        ]),
+      ],
+      coveredBookIds: const ['b1'],
+    );
+
+    await pumpPage(tester, const MovePlanPage());
+
+    expect(find.byKey(const ValueKey('plan-outsiders')), findsOneWidget);
+    expect(find.byKey(const ValueKey('plan-coverage')), findsNothing);
+    expect(
+      find.textContaining('3 kitap plan yapıldıktan sonra eklendi'),
+      findsOneWidget,
+    );
+  });
 }

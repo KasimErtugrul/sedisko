@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:kitaplik/data/datasources/shelf_local_datasource.dart';
 import 'package:kitaplik/data/models/book_model.dart';
+import 'package:kitaplik/data/models/organize_plan_model.dart';
 import 'package:kitaplik/data/models/shelf_model.dart';
 import 'package:kitaplik/domain/repositories/book_repository.dart';
 import 'package:kitaplik/domain/services/organize_criterion.dart';
@@ -256,13 +257,69 @@ void main() {
       controller.buildPreview(OrganizeCriterion.author);
       await controller.createPlan();
       expect(controller.plan.value, isNotNull);
+      // Kapsama kümesi kaydedildi: üretim anındaki 4 kitap (1.19.2).
+      expect(controller.plan.value!.hasBookCoverage, isTrue);
+      expect(controller.plan.value!.coveredBookIds, hasLength(4));
 
       // Plandan sonra yeni kitap ekle.
       await Get.find<LibraryController>().saveBook(
         book('yeni1', ''),
         deriveLog: false,
       );
-      expect(controller.planOutsiders.map((b) => b.id), contains('yeni1'));
+      // Dışarıda YALNIZ gerçekten sonradan eklenen vardır; taşınmayan
+      // kitaplar kapsama içindedir (1.19.2 düzeltmesi).
+      expect(controller.planOutsiders.map((b) => b.id).toList(), ['yeni1']);
+    });
+
+    test('taşınmayanlar "sonradan eklenmiş" sayılmaz (1.19.2 regresyonu)',
+        () async {
+      // Kullanıcı ekran görüntüsündeki durum: plan 1 kitap taşır, kalan
+      // herkes yerindedir. Eski hesap taşınmayanların TÜMÜNÜ "plan
+      // yapıldıktan sonra eklendi" ilan ediyordu (268 kitap uyarısı).
+      await controller.quickSetup(5);
+      controller.buildPreview(OrganizeCriterion.author);
+      await controller.createPlan();
+      expect(controller.plan.value, isNotNull);
+
+      // Kütüphaneye dokunulmadı: kapsama dışında kimse yok.
+      expect(controller.planOutsiders, isEmpty);
+    });
+
+    test('eski biçem plan (kapsama yok) eklenme tarihine göre sayar',
+        () async {
+      await controller.quickSetup(5);
+      // 1.19.2 öncesi kayıt: kapsama kümesi yok. Taşınmayanlar artık
+      // dışarıda sayılmaz; yalnız plan tarihinden sonra eklenenler.
+      controller.plan.value = OrganizePlanModel(
+        criterion: OrganizeCriterion.author,
+        createdAt: DateTime(2026, 2, 1),
+        turs: [
+          MoveTurModel(location: 'Yer belirtilmedi', actions: [
+            MoveActionModel(isPickup: true, shelf: 'Raf 1', moves: [
+              const PlanMove(
+                bookId: 'e1',
+                title: 'Kitap e1',
+                fromShelf: 'Salon',
+                toShelf: 'Raf 1',
+              ),
+            ]),
+          ]),
+        ],
+      );
+      // 4 kitap da plandan ÖNCE eklenmiş (addedAt 2026-1-1): dışarıda yok.
+      expect(controller.planOutsiders, isEmpty);
+
+      // Plan tarihinden SONRA eklenen kitap dışarıda sayılır.
+      await Get.find<LibraryController>().saveBook(
+        BookModel(
+          id: 'sonra',
+          title: 'Sonra Eklendi',
+          shelf: '',
+          addedAt: DateTime(2026, 3, 1),
+        ),
+        deriveLog: false,
+      );
+      expect(controller.planOutsiders.map((b) => b.id), ['sonra']);
     });
 
     test('yeniden planla kalan işi mevcut durumdan kurar', () async {
@@ -442,6 +499,62 @@ void main() {
 
       expect(controller.shelfOccupancyText('Raf 1'),
           '1 kitap • 4,9 cm/50 cm');
+    });
+  });
+
+  group('raf adı eşleşmesi (1.19.3)', () {
+    test('tanım yokken kitaplardaki tüm raf adları eşleşmemiş sayılır',
+        () async {
+      // Kitaplar 'Salon' ve 'Mutfak'ta; tanım listesi boş.
+      expect(controller.unmatchedBookShelfNames(), ['Mutfak', 'Salon']);
+    });
+
+    test('kitaplardaki adlarla tanım açılınca uyarı listesi boşalır',
+        () async {
+      await controller.importExistingShelvesIfEmpty();
+      expect(controller.unmatchedBookShelfNames(), isEmpty);
+    });
+
+    test('farklı yazılan tanım eşleşmez; aksan/büyük harf katlaması eşleşir',
+        () async {
+      // 1.19.3 kullanıcı vakası: kitaplar 'Koridor Raf 1' adındayken
+      // kullanıcı 'Koridor 1' tanımı açmıştı — eşleşmez sayılır.
+      await controller.addShelf(name: 'Koridor 1', lengthCm: 113);
+      expect(controller.unmatchedBookShelfNames(), ['Mutfak', 'Salon']);
+
+      // 'Mutfak' kitapları 'mutfak' tanımıyla eşleşir (katlama).
+      await controller.addShelf(name: 'mutfak', lengthCm: 50);
+      expect(controller.unmatchedBookShelfNames(), ['Salon']);
+    });
+
+    test('tanım adı kitaplardaki ada çekilince eşleşme kapanır', () async {
+      // Hızlı kurulum 'Raf 1, Raf 2' açar; kitaplar 'Salon'/'Mutfak'ta.
+      await controller.quickSetup(5);
+      expect(controller.unmatchedBookShelfNames(), ['Mutfak', 'Salon']);
+
+      final raf1 = controller.shelves
+          .firstWhere((shelf) => shelf.name == 'Raf 1');
+      await controller.updateShelf(
+          id: raf1.id, name: 'Salon', lengthCm: 113);
+      final raf2 = controller.shelves
+          .firstWhere((shelf) => shelf.name == 'Raf 2');
+      await controller.updateShelf(
+          id: raf2.id, name: 'Mutfak', lengthCm: 50);
+
+      expect(controller.unmatchedBookShelfNames(), isEmpty);
+      // Yeniden adlandırma yalnız eski ada ('Raf 1/2') bağlı kitapları
+      // taşır; kitaplar gerçek adlarında kalır.
+      expect(controller.books
+          .every((b) => b.shelf != 'Raf 1' && b.shelf != 'Raf 2'), isTrue);
+    });
+
+    test('aynı adın farklı yazımları uyarıda tek madde olur', () async {
+      repository.store.add(book('y1', 'salon'));
+      await Get.find<LibraryController>().loadBooks();
+
+      final unmatched = controller.unmatchedBookShelfNames();
+      expect(unmatched.where((name) => name.toLowerCase() == 'salon'),
+          hasLength(1));
     });
   });
 }

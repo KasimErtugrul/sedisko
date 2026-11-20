@@ -81,8 +81,36 @@ void main() {
       expect(restored!.turs.length, 1); // ikinci tur sağlam
     });
 
-    test('kitap kimlikleri toplar (yeni gelenler için)', () {
+    test('taşınan kitapların kimliklerini toplar', () {
       expect(samplePlan().bookIds, {'b1', 'b2'});
+    });
+
+    test('kapsama kümesi JSON turunu atlatır ve tur işaretlemede korunur', () {
+      // Örnek planda küme verilmedi (eski biçem davranışı).
+      final plain = samplePlan();
+      expect(plain.coveredBookIds, isEmpty);
+      expect(plain.hasBookCoverage, isFalse);
+
+      final covered = OrganizePlanModel(
+        criterion: OrganizeCriterion.author,
+        createdAt: DateTime(2026, 1, 2, 9, 30),
+        turs: samplePlan().turs,
+        completedTurIndexes: const [1],
+        coveredBookIds: const ['b1', 'b2', 'b3'],
+      );
+      final restored = OrganizePlanModel.tryFromJson(covered.toJson());
+      expect(restored!.coveredBookIds, ['b1', 'b2', 'b3']);
+      expect(restored.hasBookCoverage, isTrue);
+      // Tur işaretleme kapsamayı kaybetmez.
+      expect(restored.withCompleted([0, 1]).coveredBookIds,
+          ['b1', 'b2', 'b3']);
+    });
+
+    test('eski biçem kayıtta kapsama kümesi yoktur (boş liste)', () {
+      final json = samplePlan().toJson()..remove('coveredBookIds');
+      final restored = OrganizePlanModel.tryFromJson(json);
+      expect(restored!.coveredBookIds, isEmpty);
+      expect(restored.hasBookCoverage, isFalse);
     });
   });
 

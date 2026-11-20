@@ -128,12 +128,20 @@ class MoveTurModel extends Equatable {
 /// Kalıcı taşıma planı: kriter + turlar + tamamlanan tur indeksleri.
 /// `organize_plan_v1` anahtarında saklanır; tüm turlar tamamlanınca
 /// anahtar silinir.
+///
+/// **1.19.2:** [coveredBookIds] eklendi — planın ÜRETİLDİĞİ andaki tüm
+/// kitap kimlikleri. Öncesinde "plandan sonra eklenen kitaplar" yalnız
+/// hareket kümesiyle (`bookIds`) karşılaştırılıyordu ve taşınmayan
+/// HER kitap yanlışlıkla "sonra eklendi" sayılıyordu (1 hareketlik
+/// planda ~kütüphane boyu uyarı). Eski kayıtlarda bu alan yoktur;
+/// kapsama bilinmiyorsa denetleyici eklenme tarihine döner.
 class OrganizePlanModel extends Equatable {
   const OrganizePlanModel({
     required this.criterion,
     required this.createdAt,
     required this.turs,
     this.completedTurIndexes = const [],
+    this.coveredBookIds = const [],
   });
 
   final OrganizeCriterion criterion;
@@ -143,12 +151,21 @@ class OrganizePlanModel extends Equatable {
   /// Tamamlanan turların indeksleri; artan sırada tutulur.
   final List<int> completedTurIndexes;
 
+  /// Planın kapsadığı kitap kimlikleri: plan üretildiğinde kütüphanede
+  /// olan HER kitap (taşınanlar ve yerinde kalanlar dahil). Boş liste
+  /// "kapsama bilinmiyor" demektir (1.19.2 öncesi eski kayıtlar).
+  final List<String> coveredBookIds;
+
+  /// Kapsama kümesi kayıtlı mı? Eski biçem planlarda false olur.
+  bool get hasBookCoverage => coveredBookIds.isNotEmpty;
+
   int get completedCount => completedTurIndexes.length;
 
   bool get isComplete =>
       turs.isNotEmpty && completedTurIndexes.length >= turs.length;
 
-  /// Plandaki tüm kitap hareketleri (yeni gelen kitapları ayırmak için).
+  /// Plandaki tüm kitap hareketleri (taşınan kitapların kimlikleri;
+  /// toplam taşınma sayısı buradan çıkar).
   Set<String> get bookIds => {
         for (final tur in turs)
           for (final move in tur.moves) move.bookId,
@@ -164,6 +181,7 @@ class OrganizePlanModel extends Equatable {
         createdAt: createdAt,
         turs: turs,
         completedTurIndexes: [...indexes]..sort(),
+        coveredBookIds: coveredBookIds,
       );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -171,6 +189,7 @@ class OrganizePlanModel extends Equatable {
         'createdAt': createdAt.toIso8601String(),
         'turs': [for (final tur in turs) tur.toJson()],
         'completed': completedTurIndexes,
+        'coveredBookIds': coveredBookIds,
       };
 
   /// Bozuk planda `null` döner; kriter bilinmiyorsa plan geçersizdir.
@@ -201,15 +220,23 @@ class OrganizePlanModel extends Equatable {
         ? rawCompleted.whereType<num>().map((e) => e.toInt()).toList()
         : <int>[];
 
+    // Kapsama kümesi (1.19.2): eski kayıtlarda yoktur → boş liste
+    // ("bilinmiyor") döner; çağıran eklenme tarihine döner.
+    final rawCovered = json['coveredBookIds'];
+    final covered = rawCovered is List
+        ? rawCovered.whereType<String>().where((id) => id.isNotEmpty).toList()
+        : <String>[];
+
     return OrganizePlanModel(
       criterion: criterion,
       createdAt: createdAt,
       turs: turs,
       completedTurIndexes: completed,
+      coveredBookIds: covered,
     );
   }
 
   @override
   List<Object?> get props =>
-      [criterion, createdAt, turs, completedTurIndexes];
+      [criterion, createdAt, turs, completedTurIndexes, coveredBookIds];
 }
