@@ -123,13 +123,22 @@ class _OrganizeSetupPageState extends State<OrganizeSetupPage> {
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                   ),
-                  IconButton(
-                    key: const ValueKey('organize-open-editor'),
-                    tooltip: 'Rafları düzenle',
-                    icon: const Icon(Icons.edit_outlined),
-                    onPressed: () => Get.toNamed(Routes.shelfEditor),
-                  ),
                 ],
+              ),
+              // Keşke 9/21 (1.21.0): yazısız kalem ikonu yerine yazılı
+              // düğme. Çubukta değil, kendi satırında: dar ekranda sayfa
+              // başlığını sıkıştırmaz, taşmaz.
+              Align(
+                alignment: Alignment.centerRight,
+                child: Tooltip(
+                  message: 'Rafları düzenle',
+                  child: TextButton.icon(
+                    key: const ValueKey('organize-open-editor'),
+                    onPressed: () => Get.toNamed(Routes.shelfEditor),
+                    icon: const Icon(Icons.edit_outlined),
+                    label: const Text('Rafları düzenle'),
+                  ),
+                ),
               ),
               if (shelvesEmpty) ...[
                 const SizedBox(height: 8),

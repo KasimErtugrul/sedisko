@@ -924,6 +924,42 @@ flutter test
 
 ## Sürüm notları
 
+**1.21.0:** `pubspec.yaml` sürümü `1.21.0+29`'a yükseltildi. Keşke
+notlarının FAZ 2'si — "ikonlara yazıyı giydirmek" ("en çok can yakan
+on" listesinin 2. maddesi: "Yazısız ikonlar: düğmelerin çoğu yalnız
+resimden ibaret"; not 16 ve 30 FAZ 1'de kapanmıştı). Bu fazın kalbi
+keşke 9'dur ve üç değişiklik girdi:
+
+- **Keşke 9:** kitap formundaki yazısız bulut ve barkod ikonları
+  ("Bulut resmine bastım; hiçbir şey olmadı. Önce ISBN yazmam
+  gerekiyormuş") etiketli düğmelere dönüştü: "İnternetten getir" ve
+  "Barkod tara"; ikonlar ISBN alanının altında kendi satırlarında
+  durur. "İnternetten getir", ISBN yazılana kadar kapalıdır ve alanın
+  yardımcı metni ("Bilgileri internetten getirmek için önce ISBN
+  yazın") nedenini söyler — artık "hiçbir şey olmadı" demez, ekranda
+  yazar. Getirme sürerken düğme "Getiriliyor" yazar; barkod düğmesi
+  Ayarlar > Barkod tarama kuralına aynen uyar.
+- Asistan kurulumunun hazırlık kartındaki yazısız kalem ikonu
+  "Rafları düzenle" yazılı düğme oldu — kartın kendi satırında; iki
+  "düzenle" yolu artık aynı dili konuşur (keşke 21'e kısmi hazırlık).
+- Taşıma planının üç nokta menüsüne ekran okuyucu için "Seçenekler"
+  adı verildi.
+
+Öğrenilen kural (ölçümle): yazılı düğmeler uygulama çubuğuna değil,
+sayfa gövdesine girer. "Raflar" sekmesi, raf düzenleyici ve satın
+alma listesi çubuklarında yazılı düğme denendi; 360dp × 1.3 metin
+ölçeğinde başlıkları yok edecek kadar sıkıştırdığı ölçüldü ("Raflar"
+başlığı 7 piksele düştü) — bu üç çubuk aksiyonu tooltip'li ikon olarak
+kaldı ve deneme geri alındı. Kart içindeki sıkışık ikonlar (yazar
+kalemi, kitap kartı taşıma, kayıt silme, raf okları) bilinçli olarak
+ikon kalır: tooltip'leri ve ekran okuyucu adları aynen durur. Anahtarlar
+aynen taşındı (shelves-open-editor, shelf-editor-quick-setup,
+organize-open-editor, plan-menu); uzun basma yolları bozulmadı. Veri
+anahtarları ve saklanan veriler değişmedi. Yeni testler: ISBN
+düğmelerinin kapalı/açık durumu ve etiketleri, hazırlık kartındaki
+yazılı düğme ve 360dp × 1.3 taşma koşusu (toplamda 726 test yeşil,
+`flutter analyze`: No issues found!).
+
 **1.20.0:** `pubspec.yaml` sürümü `1.20.0+28`'e yükseltildi. Keşke
 notlarının FAZ 1'i — "gizli işleri görünür kıl" (kullanıcı raporu:
 Hasan, 45 keşke, "en çok can yakan on"un ilk üçü gizli işler, yazısız

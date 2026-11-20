@@ -35,6 +35,10 @@ class ShelfEditorPage extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Rafları düzenle'),
         actions: [
+          // 1.21.0: yazılı çubuk düğmesi denendi; dar ekranda sayfa
+          // başlığını sıkıştırdığı için tooltip'li ikon korunur. Hızlı
+          // kurulumun yazılı yolu boş durum kartında zaten durur
+          // ("Hızlı kurulumla başla").
           IconButton(
             key: const ValueKey('shelf-editor-quick-setup'),
             tooltip: 'Hızlı kurulum',

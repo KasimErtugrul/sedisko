@@ -24,6 +24,9 @@ class MovePlanPage extends StatelessWidget {
         actions: [
           PopupMenuButton<String>(
             key: const ValueKey('plan-menu'),
+            // Keşke 9 (1.21.0): üç nokta menüsü ekran okuyucuya adını
+            // söylesin; görsel davranış aynen korunur.
+            tooltip: 'Seçenekler',
             itemBuilder: (context) => const [
               PopupMenuItem(
                 value: 'replan',

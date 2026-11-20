@@ -23,6 +23,10 @@ class ShelvesPage extends GetView<LibraryController> {
         title: const Text('Raflar'),
         actions: [
           if (Get.isRegistered<ShelfOrganizeController>())
+            // 1.21.0: yazılı çubuk düğmesi denendi; dar ekranda (360dp,
+            // 1.3 metin ölçeği) "Raflar" başlığını 7 piksele sıkıştırdığı
+            // için çubukta tooltip'li ikon korunur. Yazılı giriş asistan
+            // kurulum kartındadır.
             IconButton(
               key: const ValueKey('shelves-open-editor'),
               tooltip: 'Rafları düzenle',

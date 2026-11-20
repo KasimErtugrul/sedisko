@@ -25,6 +25,9 @@ class WishlistPage extends GetView<WishlistController> {
       appBar: AppBar(
         title: const Text('Satın alınacaklar'),
         actions: [
+          // 1.21.0: yazılı çubuk düğmesi denendi; "Satın alınacaklar"
+          // başlığını dar ekranda sıkıştırdığı için tooltip'li büyüteç
+          // korunur. İki "ara"nın adları ayrı bir fazda ele alınır.
           IconButton(
             icon: const Icon(Icons.search),
             tooltip: "Open Library'de ara",

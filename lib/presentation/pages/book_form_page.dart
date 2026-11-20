@@ -329,50 +329,77 @@ class BookFormPage extends GetView<BookFormController> {
     );
   }
 
+  // Keşke 9 (1.21.0): ISBN'in yanındaki bulut ve barkod ikonları yazısızdı
+  // ("Bulut resmine bastım; hiçbir şey olmadı. Önce ISBN yazmam
+  // gerekiyormuş"). İkisi de artık etiketli düğmedir; 'İnternetten
+  // getir', ISBN yazılana kadar kapalıdır ve bunun nedeni alanın
+  // yardımcı metninde yazar.
   Widget _isbnRow(BookFormController c) {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: TextFormField(
-            controller: c.isbnCtrl,
-            // ISBN-10'un son hanesi 'X' olabildiği için metin klavyesi +
-            // kısıtlı formatter kullanılır; sayısal klavye X yazamaz.
-            keyboardType: TextInputType.text,
-            inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp(r'[0-9xX\- ]')),
-            ],
-            decoration: const InputDecoration(
-              labelText: 'ISBN',
-              hintText: '978-3-16-148410-0',
-              border: _border,
+        TextFormField(
+          controller: c.isbnCtrl,
+          // ISBN-10'un son hanesi 'X' olabildiği için metin klavyesi +
+          // kısıtlı formatter kullanılır; sayısal klavye X yazamaz.
+          keyboardType: TextInputType.text,
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'[0-9xX\- ]')),
+          ],
+          decoration: const InputDecoration(
+            labelText: 'ISBN',
+            hintText: '978-3-16-148410-0',
+            helperText: 'Bilgileri internetten getirmek için önce ISBN yazın',
+            border: _border,
+          ),
+          validator: c.validateIsbn,
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            Obx(
+              () => c.isFetching.value
+                  ? OutlinedButton.icon(
+                      onPressed: null,
+                      icon: const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      label: const Text('Getiriliyor'),
+                    )
+                  : ValueListenableBuilder<TextEditingValue>(
+                      valueListenable: c.isbnCtrl,
+                      builder: (context, value, _) {
+                        final hasIsbn = value.text.trim().isNotEmpty;
+                        return Tooltip(
+                          message: "Open Library'den getir",
+                          child: OutlinedButton.icon(
+                            key: const ValueKey('isbn-fetch'),
+                            onPressed:
+                                hasIsbn ? c.fetchFromOpenLibrary : null,
+                            icon: const Icon(Icons.cloud_download_outlined),
+                            label: const Text('İnternetten getir'),
+                          ),
+                        );
+                      },
+                    ),
             ),
-            validator: c.validateIsbn,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Obx(
-          () => c.isFetching.value
-              ? const Padding(
-                  padding: EdgeInsets.all(12),
-                  child: SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                )
-              : IconButton.filledTonal(
-                  tooltip: "Open Library'den getir",
-                  onPressed: c.fetchFromOpenLibrary,
-                  icon: const Icon(Icons.cloud_download_outlined),
+            // Platform desteği + kullanıcı tercihi (Ayarlar > Barkod tarama).
+            if (SettingsController.scanActionsVisible)
+              Tooltip(
+                message: 'Barkod tara',
+                child: OutlinedButton.icon(
+                  key: const ValueKey('isbn-scan'),
+                  onPressed: c.scanIsbn,
+                  icon: const Icon(Icons.qr_code_scanner),
+                  label: const Text('Barkod tara'),
                 ),
+              ),
+          ],
         ),
-        // Platform desteği + kullanıcı tercihi (Ayarlar > Barkod tarama).
-        if (SettingsController.scanActionsVisible)
-          IconButton.filledTonal(
-            tooltip: 'Barkod tara',
-            onPressed: c.scanIsbn,
-            icon: const Icon(Icons.qr_code_scanner),
-          ),
       ],
     );
   }
