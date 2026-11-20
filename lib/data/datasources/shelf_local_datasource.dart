@@ -7,13 +7,15 @@ import '../models/organize_plan_model.dart';
 import '../models/shelf_model.dart';
 
 /// Raf tanımları (`shelves_v1`), taşıma planı (`organize_plan_v1`) ve
-/// düzen asistanının kişisel tercihleri (favori raf/yazarlar, kalınlık
-/// hesabı) için kalıcı depo.
+/// düzen asistanının kişisel tercihleri (favori raf/yazarlar) için kalıcı
+/// depo.
 ///
 /// `books_v1` buraya DOKUNMAZ: kitapların raf ataması kitap kaydının
 /// içindeki `shelf` alanında yaşamaya devam eder. Bu depo yalnızca
-/// fiziksel raf tanımını, sürüyor olan planı ve asistan tercihlerini
-/// tutar.
+/// fiziksel raf tanımını ve sürüyor olan planı tutar. Kapasite 1.19.0'dan
+/// beri cm cinsindendir; eski 'settings_thickness_aware' tercihi artık
+/// okunmaz/yazılmaz (anahtar, donmuş veri listesinde kalır; kalan değer
+/// yok sayılır).
 ///
 /// Savunmacı ayrıştırma: bozuk *tek* kayıt atlanır, bozuk *blok* boş
 /// liste/plan döner; yazma üzerine sağlıklı veri yazacaktır.
@@ -89,7 +91,7 @@ class ShelfLocalDataSource {
     }
   }
 
-  // ---------- Düzen asistanı tercihleri (1.15.0) ----------
+  // ---------- Düzen asistanı tercihleri (1.15.0; 1.19.0'da yalnız favoriler) ----------
 
   /// Favori raf kimliği; hiç seçilmediyse `null`.
   String? getFavoriteShelfId() => _prefs.getString(SettingsKeys.favoriteShelfId);
@@ -119,15 +121,6 @@ class ShelfLocalDataSource {
     if (!ok) {
       throw const FormatException('Favori yazarlar kaydedilemedi.');
     }
-  }
-
-  /// Kalınlık hesabı açık mı? Anahtar yoksa varsayılan AÇIK gelir:
-  /// kalın kitapların sığmadığı gözlemi varsayılan davranışı değiştirir.
-  bool getThicknessAware() =>
-      _prefs.getBool(SettingsKeys.thicknessAware) ?? true;
-
-  Future<void> saveThicknessAware(bool value) async {
-    await _prefs.setBool(SettingsKeys.thicknessAware, value);
   }
 
   static List<String> _sanitizeAuthors(List<String> raw) {

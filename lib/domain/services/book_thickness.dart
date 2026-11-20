@@ -1,69 +1,56 @@
-/// Sayfa sayısından fiziksel kalınlık tahmini.
+/// Sayfa sayısından fiziksel kalınlık tahminİ — SANTİMETRE MODELİ (1.19.0).
 ///
-/// Kullanıcı geri bildirimi (1.15.0): "40 kitap diyoruz ama çok kalın
-/// kitaplar sığmıyor; 40 kalın kitap, 60 normal kitabın kapladığı yeri
-/// kaplıyor." Kapasite bu yüzden artık yalnız kitap SAYISI değil, kitabın
-/// kapladığı YER (birim) cinsinden de hesaplanabilir.
+/// Kullanıcı ölçümleriyle kalibre edildi: **420 sayfa ≈ 3 cm, 130 sayfa
+/// ≈ 1 cm.** İki nokta arasındaki doğrusal formül:
 ///
-/// Ölçek: **≈ 350 sayfa = 1 birim** (orta boy ciltsiz bir kitabın
-/// raflık genişliği). 0,5 birim duyarlılıkla yuvarlanır; daha ince
-/// hesaplar planlamada huzursuzluk yaratır, daha kaba olan alanı boşa
-/// çıkarır. Sayfa sayısı bilinmeyen kitaplar (0) 1 birim sayılır:
-/// eksik bilgi kitabı cezalandırmaz.
+///     kalınlık(mm) = (300 + 20 × sayfa) / 290
 ///
-/// Planlama tam sayılarla yapılır: her değer **yarım birim** olarak
-/// tutulur (1 = 0,5 birim, 2 = 1 birim, 3 = 1,5 birim …). Böylece
-/// 0,5'lik adımlar kayan nokta hatası olmadan, kararlı biçimde
+/// Eski "≈350 sayfa = 1 birim" yer tutusu bırakıldı; raf kapasitesi artık
+/// kullanıcının cm cinsinden girdiği raf uzunluğudur ve kitaplar mm
+/// cinsinden yer kaplar. Sayfa sayısı bilinmeyen kitaplar (0) normal bir
+/// kitap sayılır (≈ 2,5 cm): eksik bilgi kitabı cezalandırmaz.
+///
+/// Planlama tam sayılarla yapılır: her değer **milimetre** olarak tutulur.
+/// Raf bütçesi `lengthCm × 10` mm'dir; 1 mm'lik adım planlamada yeterlidir
+/// (kullanıcı zaten cm ile düşünür) ve kayan nokta hatası olmadan
 /// karşılaştırılır.
 abstract final class BookThickness {
-  /// 1 birimin karşılık geldiği sayfa sayısı.
-  static const double referencePages = 350;
+  /// Sayfa sayısı bilinmeyen kitabın kapladığı yer: 2,5 cm (normal kitap).
+  static const int unknownMm = 25;
 
-  /// Bilinmeyen (0) sayfa sayısının kapladığı yer: 1 birim.
-  static const int unknownHalfUnits = 2;
+  /// En küçük yer: 1 mm (aşırı ince broşür için taban).
+  static const int minMm = 1;
 
-  /// En küçük yer: 0,5 birim (çok ince kitaplar için taban).
-  static const int minHalfUnits = 1;
-
-  /// Kalınlık hesabı KAPALIYKEN her kitabın kapladığı sabit yer
-  /// (1 birim) — 1.13.0/1.14.0'daki kitap sayısı davranışı.
-  static const int flatHalfUnits = 2;
-
-  /// Kitabın kapladığı yer, yarım birim cinsinden.
+  /// Kitabın tahmini kalınlığı, milimetre cinsinden.
   ///
-  /// [pageCount] <= 0 → bilinmeyen → 1 birim. Değerler örnek:
-  /// 40 sayfa → 0,5 · 175 → 0,5 · 300 → 1,0 · 525 → 1,5 · 700 → 2,0 ·
-  /// 1050 → 3,0 (kullanıcının "40 kalın = 60 normal" gözlemiyle uyumlu:
-  /// ~525 sayfalık kitaplar 1,5 birim yer kaplar).
-  static int halfUnitsOf(int pageCount) {
-    if (pageCount <= 0) return unknownHalfUnits;
-    final half = (pageCount / referencePages * 2).round();
-    return half < minHalfUnits ? minHalfUnits : half;
+  /// [pageCount] <= 0 → bilinmeyen → 25 mm (2,5 cm). Örnekler:
+  /// 130 sayfa → 10 mm (1 cm) · 350 sayfa → 25 mm (2,5 cm) ·
+  /// 420 sayfa → 30 mm (3 cm) · 700 sayfa → 50 mm (5 cm).
+  static int mmOf(int pageCount) {
+    if (pageCount <= 0) return unknownMm;
+    // round((300 + 20 × p) / 290): (2a + b) ~/ (2b) tam sayı yuvarlaması.
+    final a = 300 + 20 * pageCount;
+    final mm = (2 * a + 290) ~/ (2 * 290);
+    return mm < minMm ? minMm : mm;
   }
 
-  /// Planlamanın kullandığı maliyet: kalınlık hesabı açıksa sayfa
-  /// sayısından, kapalıysa her kitaba sabit 1 birim.
-  static int costHalfUnits(int pageCount, {required bool thicknessAware}) =>
-      thicknessAware ? halfUnitsOf(pageCount) : flatHalfUnits;
-
-  /// Yarım birimi okunur birime çevirir (4 → 2.0).
-  static double unitsOf(int halfUnits) => halfUnits / 2;
-
-  /// Yarım birimi Türkçe gösterimle yazar: 2 → '1', 3 → '1,5', 7 → '3,5'.
-  static String formatHalf(int halfUnits) {
-    final units = unitsOf(halfUnits);
-    if (units == units.roundToDouble()) {
-      return units.toInt().toString();
+  /// Milimetreyi Türkçe gösterimle santimetreye çevirir:
+  /// 30 → '3 cm' · 964 → '96,4 cm' · 1250 → '125 cm'.
+  static String formatMm(int mm) {
+    final cm = mm / 10;
+    if (cm == cm.roundToDouble()) {
+      return '${cm.toInt()} cm';
     }
-    return units.toStringAsFixed(1).replaceAll('.', ',');
+    return '${cm.toStringAsFixed(1).replaceAll('.', ',')} cm';
   }
 
   /// Kalınlık etiketi; kitap kartlarında ve açıklamalarda kullanılır.
-  /// 0,5 → 'İnce', 1 → 'Normal', 1,5 → 'Kalın', 2 ve üzeri → 'Çok kalın'.
-  static String labelOf(int halfUnits) {
-    if (halfUnits <= minHalfUnits) return 'İnce';
-    if (halfUnits <= 2) return 'Normal';
-    if (halfUnits <= 3) return 'Kalın';
+  /// ≤1 cm → 'İnce', ≤2,5 cm → 'Normal' (≈350 sayfa), ≤3,5 cm → 'Kalın'
+  /// (420 sayfa 'Kalın'), 3,5 cm üzeri → 'Çok kalın' (≈525 sayfa ve üstü).
+  static String labelOf(int mm) {
+    if (mm <= 10) return 'İnce';
+    if (mm <= 25) return 'Normal';
+    if (mm <= 35) return 'Kalın';
     return 'Çok kalın';
   }
 }

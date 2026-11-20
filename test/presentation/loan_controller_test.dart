@@ -150,6 +150,75 @@ void main() {
 
       expect(controller.returnedLoans.map((l) => l.id).toList(), ['r2', 'r1']);
     });
+
+    test('activeBorrowed en yeni alımdan başlar (depodan yüklerken)', () async {
+      await store.upsertBorrowed(BorrowedBookModel(
+        id: 'eski',
+        title: 'Eski',
+        owner: 'Can',
+        borrowedAt: DateTime(2026, 1, 15),
+      ));
+      await store.upsertBorrowed(BorrowedBookModel(
+        id: 'yeni',
+        title: 'Yeni',
+        owner: 'Veli',
+        borrowedAt: DateTime(2026, 2, 20),
+      ));
+
+      final controller = buildController();
+      await controller.load();
+
+      expect(controller.activeBorrowed.map((b) => b.title).toList(),
+          ['Yeni', 'Eski']);
+    });
+
+    test('aynı alım tarihinde son eklenen önce gösterilir', () async {
+      // Windows flake regresyonu (1.19.1): DateTime.now() iki çağrıda
+      // aynı değeri döndüğünde bile sıra deterministiktir — listedeki
+      // konumu büyük (son eklenen) kayıt önce gösterilir.
+      final at = DateTime(2026, 3, 10, 14, 30);
+      await store.upsertBorrowed(BorrowedBookModel(
+        id: 'bir',
+        title: 'Bir',
+        owner: 'Can',
+        borrowedAt: at,
+      ));
+      await store.upsertBorrowed(BorrowedBookModel(
+        id: 'iki',
+        title: 'İki',
+        owner: 'Veli',
+        borrowedAt: at,
+      ));
+
+      final controller = buildController();
+      await controller.load();
+
+      expect(controller.activeBorrowed.map((b) => b.title).toList(),
+          ['İki', 'Bir']);
+    });
+
+    test('aynı verilme tarihinde son eklenen ödünç önce gösterilir', () async {
+      final at = DateTime(2026, 4, 1, 9, 0);
+      await store.upsertLoan(LoanModel(
+        id: 'bir',
+        bookId: 'b1',
+        bookTitle: 'A',
+        person: 'Ali',
+        lentAt: at,
+      ));
+      await store.upsertLoan(LoanModel(
+        id: 'iki',
+        bookId: 'b2',
+        bookTitle: 'B',
+        person: 'Veli',
+        lentAt: at,
+      ));
+
+      final controller = buildController();
+      await controller.load();
+
+      expect(controller.activeLoans.map((l) => l.id).toList(), ['iki', 'bir']);
+    });
   });
 
   group('markReturned', () {
@@ -243,9 +312,11 @@ void main() {
     test('activeBorrowed en yeni alımdan başlar', () async {
       final controller = buildController();
       await controller.addBorrowed(title: 'Eski', owner: 'Can');
-      // newId ile farklı kayıt; tarihi DateTime.now() zaten ilerler.
       await controller.addBorrowed(title: 'Yeni', owner: 'Veli');
 
+      // Windows'ta saat çözünürlüğü kaba (~15 ms) olduğundan iki çağrı
+      // aynı ana düşebilir; denetleyici eşitlikte son ekleneni önce
+      // gösterir. Sonuç platformdan bağımsızdır (1.19.1 düzeltmesi).
       expect(controller.activeBorrowed.map((b) => b.title).toList(),
           ['Yeni', 'Eski']);
     });

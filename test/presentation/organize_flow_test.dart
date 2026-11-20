@@ -80,9 +80,10 @@ void main() {
       permanent: true,
     );
     controller = Get.find<ShelfOrganizeController>();
-    // İki raf, kapasite 2. Gruplar eşit (2+2): alfabe kırıcısı Ahmet'i
-    // önce koyar → Ahmet Raf 1'de kalır, Ece Raf 2'ye taşınır.
-    await controller.quickSetup(2);
+    // İki raf, raf başına 2 kitap ≈ 5 cm. Gruplar eşit (2+2): alfabe
+    // kırıcısı Ahmet'i önce koyar → Ahmet Raf 1'de kalır, Ece Raf 2'ye
+    // taşınır.
+    await controller.quickSetup(5);
   });
 
   tearDown(() {
@@ -160,9 +161,9 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      // Raf başlıkları ve doluluklar görünür.
-      expect(find.text('Raf 1'), findsWidgets);
-      expect(find.text('Raf 2'), findsWidgets);
+      // Raf başlıkları (düzen sırası numaralı) ve doluluklar görünür.
+      expect(find.text('1. Raf 1'), findsWidgets);
+      expect(find.text('2. Raf 2'), findsWidgets);
       // Kitap başlıkları listelenir.
       expect(find.text('Kitap b3'), findsOneWidget);
       expect(find.text('Kitap b4'), findsOneWidget);
@@ -264,11 +265,11 @@ void main() {
 
       await tester.tap(find.byKey(const ValueKey('shelf-editor-quick-setup')));
       await tester.pumpAndSettle();
-      // Varsayılan 50 ile aç: 'Rafları aç' düğmesine bas.
+      // Varsayılan 100 cm ile aç: 'Rafları aç' düğmesine bas.
       await tester.tap(find.byKey(const ValueKey('quick-setup-submit')));
       await tester.pumpAndSettle();
 
-      expect(controller.shelves.length, 1); // 4 kitap / 50 = 1 raf
+      expect(controller.shelves.length, 1); // 4 kitap (100 mm) / 100 cm = 1 raf
       expect(controller.shelves.single.name, 'Raf 1');
     });
 
@@ -289,7 +290,7 @@ void main() {
         'Balkon',
       );
       await tester.enterText(
-        find.widgetWithText(TextField, 'Kapasite (kitap sayısı)'),
+        find.widgetWithText(TextField, 'Uzunluk (cm)'),
         '12',
       );
       await tester.enterText(
@@ -302,7 +303,7 @@ void main() {
       expect(controller.shelves.length, 3); // 2 quick setup + Balkon
       final balkon = controller.shelves
           .firstWhere((s) => s.name == 'Balkon');
-      expect(balkon.capacity, 12);
+      expect(balkon.lengthCm, 12);
       expect(balkon.location, 'Üst kat');
     });
   });

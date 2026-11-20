@@ -82,8 +82,9 @@ class BookFormPage extends GetView<BookFormController> {
                         ),
                         validator: (v) {
                           final value = (v ?? '').trim();
-                          if (value.isEmpty)
+                          if (value.isEmpty) {
                             return null; // bilinmiyorsa boş kalabilir
+                          }
                           final pages = int.tryParse(value);
                           if (pages == null || pages <= 0) {
                             return 'Geçerli bir sayı gir';

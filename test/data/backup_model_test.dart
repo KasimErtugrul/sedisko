@@ -21,7 +21,7 @@ BackupEnvelope sampleEnvelope() => BackupEnvelope(
         ShelfModel(
           id: 's1',
           name: 'Roman',
-          capacity: 50,
+          lengthCm: 125,
           location: 'Alt kat',
           order: 0,
         ),
@@ -45,7 +45,7 @@ void main() {
       expect(parsed.books.first.authors, ['Frank Herbert']);
       expect(parsed.shelves.length, 1);
       expect(parsed.shelves.first.name, 'Roman');
-      expect(parsed.shelves.first.capacity, 50);
+      expect(parsed.shelves.first.lengthCm, 125);
       expect(parsed.shelves.first.location, 'Alt kat');
       expect(parsed.exportedAt, DateTime(2026, 11, 19, 14, 30));
       expect(parsed.appVersion, '1.14.0');

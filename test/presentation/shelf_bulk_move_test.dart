@@ -17,7 +17,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// aktarabiliyormuyum... yoksa da bu özellik çok iyi olurdu."
 ///
 /// Kapasite denetimi 1.15.0 kalınlık modeliyle uyumludur: kalınlık hesabı
-/// açıksa sayfa sayısından yer hesaplanır (bilinmeyen sayfa = 1 birim),
+/// sayfa sayısından yer hesaplanır (bilinmeyen sayfa = 2,5 cm),
 /// taşan plan taşarsa kullanıcıya hesabıyla sorulur.
 class FakeBookRepository implements BookRepository {
   FakeBookRepository({List<BookModel>? initial}) : store = [...?initial];
@@ -78,8 +78,8 @@ void main() {
       ShelfOrganizeController(shelfStore: ShelfLocalDataSource(prefs)),
       permanent: true,
     );
-    await organize.addShelf(name: 'A', capacity: 10);
-    await organize.addShelf(name: 'B', capacity: 5);
+    await organize.addShelf(name: 'A', lengthCm: 25); // 10 kitap ≈ 25 cm
+    await organize.addShelf(name: 'B', lengthCm: 13); // 5 kitap ≈ 13 cm
   });
 
   tearDown(() {
@@ -133,7 +133,7 @@ void main() {
     await organize.updateShelf(
       id: organize.shelves.firstWhere((s) => s.name == 'B').id,
       name: 'B',
-      capacity: 2, // 1 mevcut kitap var: kalan yer 1 birim; gelen 3 birim
+      lengthCm: 5, // 1 mevcut kitap var: kalan 2,5 cm; gelen 7,5 cm
     );
 
     await pumpShelfPage(tester, 'A');
@@ -144,7 +144,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Hedef raf taşacak'), findsOneWidget);
-    expect(find.textContaining('birim yer'), findsOneWidget);
+    expect(find.textContaining('yer kaplıyor'), findsOneWidget);
 
     // Vazgeç: hiçbir kitap taşınmaz.
     await tester.tap(find.byKey(const ValueKey('bulk-move-cancel')));
@@ -162,7 +162,7 @@ void main() {
     await organize.updateShelf(
       id: organize.shelves.firstWhere((s) => s.name == 'B').id,
       name: 'B',
-      capacity: 2,
+      lengthCm: 5,
     );
 
     await pumpShelfPage(tester, 'A');

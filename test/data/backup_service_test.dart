@@ -26,11 +26,13 @@ BookModel book(
       addedAt: DateTime(2026, 1, 1),
     );
 
-ShelfModel shelf(String id, String name, {int capacity = 50, int order = 0}) =>
+ShelfModel shelf(String id, String name,
+        {int bookCapacity = 50, int order = 0}) =>
     ShelfModel(
       id: id,
       name: name,
-      capacity: capacity,
+      // Kitap-sayısı kalibrasyonu korunur: N normal kitap ≈ N × 2,5 cm.
+      lengthCm: (bookCapacity * ShelfModel.legacyBookCm).ceil(),
       location: order.isEven ? 'Alt kat' : 'Üst kat',
       order: order,
     );
@@ -273,7 +275,7 @@ void main() {
           book('w1', title: 'Eşimin kitabı 1'),
           book('w2', title: 'Eşimin kitabı 2'),
         ],
-        shelves: [shelf('ws1', 'Eşimin rafı', capacity: 70)],
+        shelves: [shelf('ws1', 'Eşimin rafı', bookCapacity: 70)],
       );
 
       final summary =
@@ -285,7 +287,7 @@ void main() {
       expect(books.map((b) => b.id), ['w1', 'w2']);
       final shelves = shelfStore.getShelves();
       expect(shelves.single.name, 'Eşimin rafı');
-      expect(shelves.single.capacity, 70);
+      expect(shelves.single.lengthCm, 175); // 70 kitap ≈ 175 cm
     });
 
     test('eski taşıma planı temizlenir', () async {

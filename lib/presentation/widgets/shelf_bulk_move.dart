@@ -19,9 +19,9 @@ import 'shelf_picker_sheet.dart';
 /// sayfa ve günlük dokunulmaz) → kaynak raf tamamen boşaldıysa sayfadan
 /// Raflar sekmesine dönülür.
 ///
-/// Kapasite hesabı 1.15.0'daki kalınlık modeline uyar: kalınlık hesabı
-/// açıksa her kitabın kapladığı yer sayfa sayısından (yarım birim) toplanır,
-/// kapalıysa kitap sayısıdır.
+/// Kapasite hesabı 1.19.0 cm modeline uyar: her kitabın kapladığı yer
+/// sayfa sayısından hesaplanan kalınlıktır (420 sayfa ≈ 3 cm, 130 sayfa
+/// ≈ 1 cm), rafın bütçesi kullanıcının girdiği cm uzunluktur.
 Future<void> moveWholeShelf(BuildContext context, String sourceShelf) async {
   final library = Get.find<LibraryController>();
   final targets =
@@ -76,39 +76,26 @@ Future<bool> _confirmCapacity(
   final definition = organize.shelfByName(targetShelf);
   if (definition == null) return true; // Tanımsız raf / Rafsız: denetim yok
 
-  final thickness = organize.thicknessAware.value;
+  // Kapasite 1.19.0 cm modeli: kitapların toplam kalınlığı (mm), rafın
+  // uzunluk bütçesine (cm × 10) karşı kontrol edilir.
   final incoming = targets.fold<int>(
     0,
-    (sum, book) =>
-        sum +
-        BookThickness.costHalfUnits(
-          book.pageCount,
-          thicknessAware: thickness,
-        ),
+    (sum, book) => sum + BookThickness.mmOf(book.pageCount),
   );
-  final capacity = thickness ? definition.capacity * 2 : definition.capacity;
-  final used = thickness
-      ? organize.shelfHalfUnits(targetShelf)
-      : organize.shelfCount(targetShelf);
-  final remaining = capacity - used;
+  final used = organize.shelfMm(targetShelf);
+  final remaining = definition.lengthMm - used;
   if (incoming <= remaining) return true; // Sığıyor
 
   final name = definition.name;
   final String detail;
-  if (thickness) {
-    detail = remaining > 0
-        ? '"$name" rafında ${BookThickness.formatHalf(remaining)} birim yer '
-            'var. Taşınacak kitaplar ${BookThickness.formatHalf(incoming)} '
-            'birim yer kaplıyor — ${BookThickness.formatHalf(incoming - remaining)} '
-            'birim taşar.'
-        : '"$name" rafı dolu '
-            '(${organize.shelfOccupancyText(targetShelf, definition.capacity)}).';
+  if (remaining > 0) {
+    detail = '"$name" rafında ${BookThickness.formatMm(remaining)} boş '
+        'yer var. Taşınacak kitaplar ${BookThickness.formatMm(incoming)} '
+        'yer kaplıyor — ${BookThickness.formatMm(incoming - remaining)} '
+        'taşar.';
   } else {
-    detail = remaining > 0
-        ? '"$name" rafında $remaining kitaplık yer var. '
-            '${targets.length} kitap taşınacak — '
-            '${targets.length - remaining} kitap taşar.'
-        : '"$name" rafı dolu ($used/${definition.capacity}).';
+    detail = '"$name" rafı dolu '
+        '(${organize.shelfOccupancyText(targetShelf)}).';
   }
 
   final result = await Get.dialog<bool>(

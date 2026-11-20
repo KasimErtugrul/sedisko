@@ -26,11 +26,15 @@ BookModel book(
   );
 }
 
-ShelfModel shelf(String name, int capacity, {String location = '', int order = 0}) {
+ShelfModel shelf(String name, int bookCapacity,
+    {String location = '', int order = 0}) {
+  // Eski kitap-sayısı kalibrasyonu korunur: N normal kitap ≈ N × 2,5 cm
+  // (BookThickness ölçeği; bilinmeyen sayfalı kitap 2,5 cm yer kaplar).
+  // Böylece test senaryoları 1.19.0 öncesi davranışla aynı kalır.
   return ShelfModel(
     id: 'shelf-$name',
     name: name,
-    capacity: capacity,
+    lengthCm: (bookCapacity * ShelfModel.legacyBookCm).ceil(),
     location: location,
     order: order,
   );
@@ -141,9 +145,9 @@ void main() {
           everyElement('Ece Temelkuran'));
       // Uyarı metni bölünmeme kuralını anlatır.
       expect(arrangement.warnings.join(' '), contains('bölünmedi'));
-      // Hiçbir raf kapasitesini aşmıyor.
+      // Hiçbir raf cm bütçesini aşmıyor.
       for (final planned in arrangement.shelves) {
-        expect(planned.count, lessThanOrEqualTo(planned.shelf.capacity));
+        expect(planned.usedMm, lessThanOrEqualTo(planned.capacityMm));
       }
     });
 
@@ -180,9 +184,9 @@ void main() {
           sizes[i],
         );
       }
-      // Hiçbir raf kapasitesini aşmaz; bütün kitaplar planlıdır.
+      // Hiçbir raf cm bütçesini aşmaz; bütün kitaplar planlıdır.
       for (final planned in arrangement.shelves) {
-        expect(planned.count, lessThanOrEqualTo(planned.shelf.capacity));
+        expect(planned.usedMm, lessThanOrEqualTo(planned.capacityMm));
       }
       expect(arrangement.unplaced, isEmpty);
       expect(arrangement.totalPlannedCount, books.length);
@@ -388,12 +392,12 @@ void main() {
     });
   });
 
-  group('kalınlık duyarlı kapasite (birim, 1.15.0)', () {
-    test('kalın yazar grubu yer bütçesine sığmazsa bölünmez, Karışık rafına gider',
+  group('cm kalınlık modeli (1.19.0: 420 sayfa ≈ 3 cm, 130 sayfa ≈ 1 cm)', () {
+    test('kalın yazar grubu cm bütçesine sığmazsa bölünmez, Karışık rafına gider',
         () {
-      // 700 sayfa = 2 birim = 4 yarım birim. Raf kapasitesi 4 kitap
-      // kalibrasyonu → bütçe 4 birim. Kalın Yazar'ın 3 kitabı 6 birim
-      // eder: bütçeyi aşıyor → yazar bölünmez, tamamı Karışık'a.
+      // 700 sayfa = 49 mm (BookThickness.mmOf). Raf 4 kitap kalibrasyonu
+      // → 10 cm = 100 mm. Kalın Yazar'ın 3 kitabı 147 mm eder: bütçeyi
+      // aşıyor → yazar bölünmez, tamamı Karışık'a.
       final books = [
         for (var i = 1; i <= 3; i++)
           book('k$i', authors: ['Kalın Yazar'], pages: 700),
@@ -402,7 +406,6 @@ void main() {
         books,
         [shelf('A', 4)],
         OrganizeCriterion.author,
-        options: const OrganizeOptions(thicknessAware: true),
       );
 
       expect(arrangement.shelves[0].count, 0);
@@ -412,12 +415,12 @@ void main() {
       expect(arrangement.warnings.join(' '), contains('bölünmedi'));
     });
 
-    test('kalınlık modunda yer bütçesi grup yerleştirmeyi belirler', () {
-      // Kalın Yazar: 3 kitap × 700 sayfa = 6 birim; İnce Yazar: 2 kitap
-      // × 100 sayfa = 1 birim; Orta Yazar: 2 kitap × 525 sayfa = 3
-      // birim. Raf A ve B kapasitesi 6 kitap (6 birim). Kalın → A'yı
-      // doldurur; İnce (1 birim) A'ya sığmaz → B; Orta (3 birim) → B.
-      // Kitap SAYISI olarak A'ya İnce+Orta sığardı ama YER sığmaz.
+    test('cm bütçesi grup yerleştirmeyi belirler', () {
+      // Kalın Yazar: 3 kitap × 700 sayfa = 147 mm; İnce Yazar: 2 kitap
+      // × 100 sayfa = 16 mm; Orta Yazar: 2 kitap × 525 sayfa = 74 mm.
+      // Raf A ve B 6 kitap kalibrasyonu (15 cm = 150 mm). Kalın → A'yı
+      // doldurur; İnce (16 mm) A'ya sığmaz → B; Orta (74 mm) → B.
+      // Kitap SAYISI olarak A'ya İnce+Orta sığardı ama cm sığmaz.
       final books = [
         for (var i = 1; i <= 3; i++)
           book('k$i', authors: ['Kalın Yazar'], pages: 700),
@@ -430,22 +433,20 @@ void main() {
         books,
         [shelf('A', 6, order: 0), shelf('B', 6, order: 1)],
         OrganizeCriterion.author,
-        options: const OrganizeOptions(thicknessAware: true),
       );
 
       expect(arrangement.shelves[0].books.map((b) => b.id),
           ['k1', 'k2', 'k3']);
       expect(arrangement.shelves[1].books.map((b) => b.id),
           ['i1', 'i2', 'o1', 'o2']);
-      // Hiçbir raf YER bütçesini aşmaz; hiçbir yazar bölünmedi.
+      // Hiçbir raf cm bütçesini aşmaz; hiçbir yazar bölünmedi.
       for (final planned in arrangement.shelves) {
-        expect(planned.usedHalfUnits,
-            lessThanOrEqualTo(planned.capacityHalfUnits));
+        expect(planned.usedMm, lessThanOrEqualTo(planned.capacityMm));
       }
       expect(arrangement.warnings, isEmpty);
     });
 
-    test('kalınlık kapalıyken de yazar bölünmez (kitap sayısı)', () {
+    test('cm modelinde de yazar bölünmez', () {
       final books = [
         for (var i = 1; i <= 5; i++) book('k$i', authors: ['Yazar'], pages: 700),
       ];
@@ -463,9 +464,9 @@ void main() {
     });
 
     test('akış modunda sıradaki kitap sığmazsa sıradaki rafa geçilir', () {
-      // b1 1000 sayfa (3 birim), b2 525 (1,5), b3 100 (0,5).
-      // Raf A bütçesi 4 birim: b1 sığar (1 kalan), b2 (1,5) sığmaz →
-      // sıra BOZULMAZ, b2 raf B'den başlar.
+      // b1 1000 sayfa (70 mm), b2 525 (37 mm), b3 100 (8 mm).
+      // Raf A bütçesi 10 cm (100 mm): b1 sığar (30 mm kalır), b2 (37 mm)
+      // sığmaz → sıra BOZULMAZ, b2 raf B'den başlar.
       final books = [
         book('b1', title: 'A Kitabı', pages: 1000),
         book('b2', title: 'B Kitabı', pages: 525),
@@ -475,20 +476,18 @@ void main() {
         books,
         [shelf('A', 4, order: 0), shelf('B', 4, order: 1)],
         OrganizeCriterion.title,
-        options: const OrganizeOptions(thicknessAware: true),
       );
 
       expect(arrangement.shelves[0].books.map((b) => b.id), ['b1']);
       expect(arrangement.shelves[1].books.map((b) => b.id), ['b2', 'b3']);
     });
 
-    test('bilinmeyen sayfalı kitaplar 1 birim sayılır', () {
+    test('bilinmeyen sayfalı kitaplar 2,5 cm sayılır', () {
       final books = [for (var i = 1; i <= 5; i++) book('b$i')];
       final arrangement = ShelfPlanner.arrange(
         books,
         [shelf('A', 4)],
         OrganizeCriterion.title,
-        options: const OrganizeOptions(thicknessAware: true),
       );
       expect(arrangement.shelves[0].count, 4);
       final mix = arrangement.shelves
@@ -496,9 +495,9 @@ void main() {
       expect(mix.count, 1);
     });
 
-    test('karışık kitaplar rafı birim bütçesine saygılıdır', () {
-      // Kalın 3 kitap (2 birim), gerçek Karışık rafı kapasitesi 4 kitap
-      // (4 birim): 2 tanesi sığar, 1'i plan dışı kalır.
+    test('karışık kitaplar rafı cm bütçesine saygılıdır', () {
+      // Kalın 3 kitap (3 × 49 mm = 147 mm), gerçek Karışık rafı 4 kitap
+      // kalibrasyonu (10 cm = 100 mm): 2 tanesi sığar, 1'i plan dışı kalır.
       final books = [
         for (var i = 1; i <= 3; i++) book('b$i', pages: 700),
       ];
@@ -506,7 +505,6 @@ void main() {
         books,
         [shelf('Karışık kitaplar', 4)],
         OrganizeCriterion.title,
-        options: const OrganizeOptions(thicknessAware: true),
       );
       expect(arrangement.shelves.single.count, 2);
       expect(arrangement.unplaced.length, 1);
@@ -794,6 +792,48 @@ void main() {
       expect(
         first.shelves.first.books.map((b) => b.id),
         ['e1', 'e2', 'e3'],
+      );
+    });
+
+    test('1.19.0 kuralı: favoriler yayınevi kriterinde tamamen yok sayılır', () {
+      // Favori raf + favori yazar kayıtlı ama kriter yayınevi: favori
+      // raf REZERVE EDİLMEZ, favori yazar kitapları havuzdan çıkarılmaz;
+      // plan yalnız yayınevine göre kurulur (kendi başına çalışır).
+      final books = [
+        book('e1', authors: ['Ece Temelkuran'], publisher: 'Can'),
+        book('e2', authors: ['Ece Temelkuran'], publisher: 'Can'),
+        book('a1', authors: ['Ahmet Ümit'], publisher: 'İletişim'),
+      ];
+      final withFavorites = ShelfPlanner.arrange(
+        books,
+        [shelf('A', 10, order: 0), shelf('B', 10, order: 1)],
+        OrganizeCriterion.publisher,
+        options: const OrganizeOptions(
+          favoriteShelfId: 'shelf-A',
+          favoriteAuthors: ['Ece Temelkuran'],
+        ),
+      );
+      final withoutFavorites = ShelfPlanner.arrange(
+        books,
+        [shelf('A', 10, order: 0), shelf('B', 10, order: 1)],
+        OrganizeCriterion.publisher,
+      );
+
+      String signature(ShelfArrangement a) => [
+            for (final planned in a.shelves)
+              '${planned.shelf.name}:${planned.books.map((b) => b.id).join(",")}',
+          ].join('|');
+      expect(signature(withFavorites), signature(withoutFavorites));
+      // Favori rafa yalnız favori kitaplar konmuş olsaydı Can kitapları
+      // A'da olurdu; yok sayıldığı için Can grubu çoktan aza ilk sığan
+      // rafa gider ve favori uyarısı ÜRETİLMEZ.
+      expect(withFavorites.warnings.join(' '),
+          isNot(contains('favori yazarların')));
+      // Can (2 kitap) ve İletişim (1) sırayla ilk rafa yerleşir; favori
+      // rezervasyonu olmadığı için A rafında Can kitapları NORMAL yerinde.
+      expect(
+        withFavorites.shelves[0].books.map((b) => b.id),
+        withoutFavorites.shelves[0].books.map((b) => b.id),
       );
     });
   });

@@ -109,7 +109,7 @@ void main() {
       await bookStore.upsert(book('b1', 'Dune'));
       await bookStore.upsert(book('b2', 'Simyacı'));
       await shelfStore.saveShelves([
-        const ShelfModel(id: 's1', name: 'Roman', capacity: 50, order: 0),
+        const ShelfModel(id: 's1', name: 'Roman', lengthCm: 125, order: 0),
       ]);
 
       await controller.exportAndShare();

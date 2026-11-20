@@ -161,7 +161,7 @@ void main() {
     await bookStore.upsert(book('b1', 'Dune'));
     await bookStore.upsert(book('b2', 'Simyacı'));
     await shelfStore.saveShelves([
-      const ShelfModel(id: 's1', name: 'Roman', capacity: 50, order: 0),
+      const ShelfModel(id: 's1', name: 'Roman', lengthCm: 125, order: 0),
     ]);
     registerBackup();
     await pumpSettings(tester);
@@ -188,7 +188,7 @@ void main() {
       books: [book('w1', 'Eşiminki')],
       shelves: [
         const ShelfModel(
-            id: 'ws1', name: 'Eşimin rafı', capacity: 70, order: 0),
+            id: 'ws1', name: 'Eşimin rafı', lengthCm: 175, order: 0),
       ],
     );
     registerBackup(picker: FakePicker(envelope.encode()));

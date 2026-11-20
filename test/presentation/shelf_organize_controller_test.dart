@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:kitaplik/data/datasources/shelf_local_datasource.dart';
 import 'package:kitaplik/data/models/book_model.dart';
+import 'package:kitaplik/data/models/shelf_model.dart';
 import 'package:kitaplik/domain/repositories/book_repository.dart';
 import 'package:kitaplik/domain/services/organize_criterion.dart';
 import 'package:kitaplik/presentation/controllers/library_controller.dart';
@@ -89,14 +90,15 @@ void main() {
       final imported = await controller.importExistingShelvesIfEmpty();
       expect(imported, isTrue);
       expect(controller.shelves.length, 2); // Salon + Mutfak
-      expect(controller.shelves.every((s) => s.capacity == 50), isTrue);
+      expect(controller.shelves
+          .every((s) => s.lengthCm == ShelfModel.defaultLengthCm), isTrue);
       // İkinci çağrı no-op.
       expect(await controller.importExistingShelvesIfEmpty(), isFalse);
     });
 
-    test('hızlı kurulum raf sayısını kitap sayısına göre hesaplar', () async {
-      // 4 kitap, raf başına 2 → 2 raf.
-      final created = await controller.quickSetup(2);
+    test('hızlı kurulum raf sayısını kitap yerlerine göre hesaplar', () async {
+      // 4 kitap (4 × 25 mm = 100 mm), raf başına 2 kitap ≈ 5 cm → 2 raf.
+      final created = await controller.quickSetup(5);
       expect(created, 2);
       expect(controller.shelves.map((s) => s.name).toList(),
           ['Raf 1', 'Raf 2']);
@@ -104,20 +106,20 @@ void main() {
     });
 
     test('aynı ad (aksan duyarsız) reddedilir', () async {
-      await controller.quickSetup(2);
+      await controller.quickSetup(5);
       expect(
-        await controller.addShelf(name: 'RAF 1', capacity: 10),
+        await controller.addShelf(name: 'RAF 1', lengthCm: 10),
         isFalse,
       );
       expect(
-        await controller.addShelf(name: '  ', capacity: 10),
+        await controller.addShelf(name: '  ', lengthCm: 10),
         isFalse,
       );
       expect(
-        await controller.addShelf(name: 'Raf 3', capacity: 0),
+        await controller.addShelf(name: 'Raf 3', lengthCm: 0),
         isFalse,
       );
-      expect(await controller.addShelf(name: 'Raf 3', capacity: 10), isTrue);
+      expect(await controller.addShelf(name: 'Raf 3', lengthCm: 10), isTrue);
       expect(controller.shelves.length, 3);
     });
 
@@ -128,7 +130,7 @@ void main() {
       final ok = await controller.updateShelf(
         id: salon.id,
         name: 'Oturma Odası',
-        capacity: 40,
+        lengthCm: 100,
         location: 'Alt kat',
       );
       expect(ok, isTrue);
@@ -141,23 +143,24 @@ void main() {
         repository.store.where((b) => b.shelf == 'Oturma Odası').length,
         3,
       );
-      // Kapasite ve yer güncel.
+      // Uzunluk ve yer güncel.
       final renamed = controller.shelves.firstWhere((s) => s.id == salon.id);
-      expect(renamed.capacity, 40);
+      expect(renamed.lengthCm, 100);
       expect(renamed.location, 'Alt kat');
     });
 
     test('raflar kalıcıya yazılır ve açılışta geri yüklenir', () async {
-      await controller.quickSetup(2);
+      await controller.quickSetup(5);
       expect(shelfStore.getShelves().length, 2);
     });
   });
 
   group('önizleme ve plan', () {
     /// İki katlı senaryo: Raf 1 alt katta, Raf 2 üst katta → taşımalar
-    /// kat değişimi içerir, plan çok turlu olur.
+    /// kat değişimi içerir, plan çok turlu olur. Raf başına 2 kitap
+    /// ≈ 5 cm.
     Future<void> twoFloorSetup() async {
-      await controller.quickSetup(2);
+      await controller.quickSetup(5);
       final raf1 =
           controller.shelves.firstWhere((s) => s.name == 'Raf 1');
       final raf2 =
@@ -165,13 +168,13 @@ void main() {
       await controller.updateShelf(
         id: raf1.id,
         name: 'Raf 1',
-        capacity: 2,
+        lengthCm: 5,
         location: 'Alt kat',
       );
       await controller.updateShelf(
         id: raf2.id,
         name: 'Raf 2',
-        capacity: 2,
+        lengthCm: 5,
         location: 'Üst kat',
       );
     }
@@ -249,7 +252,7 @@ void main() {
     });
 
     test('plan dışı kitaplar (sonradan eklenenler) raporlanır', () async {
-      await controller.quickSetup(2);
+      await controller.quickSetup(5);
       controller.buildPreview(OrganizeCriterion.author);
       await controller.createPlan();
       expect(controller.plan.value, isNotNull);
@@ -291,7 +294,7 @@ void main() {
     });
 
     test('plan iptali kitaplara dokunmaz', () async {
-      await controller.quickSetup(2);
+      await controller.quickSetup(5);
       controller.buildPreview(OrganizeCriterion.author);
       await controller.createPlan();
       await controller.cancelPlan();
@@ -326,20 +329,18 @@ void main() {
     });
   });
 
-  group('favoriler ve kalınlık (1.15.0)', () {
+  group('favoriler (1.15.0; 1.19.0\'da yalnız yazar kriterinde)', () {
     test('favori tercihleri kalıcıya yazılır ve yeni denetleyicide geri yüklenir',
         () async {
       await controller.quickSetup(10);
       final raf1 = controller.shelves.firstWhere((s) => s.name == 'Raf 1');
       await controller.setFavoriteShelf(raf1.id);
       await controller.addFavoriteAuthor('Ece Temelkuran');
-      await controller.setThicknessAware(false);
 
       final reloaded = ShelfOrganizeController(shelfStore: shelfStore);
       reloaded.onInit();
       expect(reloaded.favoriteShelfId.value, raf1.id);
       expect(reloaded.favoriteAuthors.toList(), ['Ece Temelkuran']);
-      expect(reloaded.thicknessAware.value, isFalse);
     });
 
     test('boş/yinelenen yazar adları reddedilir (Türkçe katlamayla)', () async {
@@ -361,7 +362,7 @@ void main() {
 
     test('tanımsız raf favori olarak seçilemez; raf silinince tercih geçersizleşir',
         () async {
-      await controller.quickSetup(2);
+      await controller.quickSetup(5);
       final raf1 = controller.shelves.firstWhere((s) => s.name == 'Raf 1');
       await controller.setFavoriteShelf('olmayan-id');
       expect(controller.favoriteShelfId.value, isNull);
@@ -388,7 +389,7 @@ void main() {
     });
 
     test('önizleme favori rafı ve yazarları plana uygular', () async {
-      await controller.quickSetup(2);
+      await controller.quickSetup(5);
       final raf2 = controller.shelves.firstWhere((s) => s.name == 'Raf 2');
       await controller.setFavoriteShelf(raf2.id);
       await controller.addFavoriteAuthor('Ece Temelkuran');
@@ -405,10 +406,11 @@ void main() {
           containsAll(['a1', 'x1']));
     });
 
-    test('kalınlık hesabı toplam yeri değiştirir; metinler birlimle yazar',
+    test('cm modeli toplam yeri hesaplar; metin kitap sayısı + cm yazar',
         () async {
       await controller.quickSetup(50);
-      // 4 kitap (bilinmeyen sayfa = 1 birim) + 1 kalın kitap (2 birim).
+      // 4 kitap (bilinmeyen sayfa = 25 mm) + 1 kalın kitap (700 sayfa
+      // = 49 mm): toplam 149 mm = 14,9 cm.
       await Get.find<LibraryController>().saveBook(
         BookModel(
           id: 'kalin1',
@@ -419,16 +421,13 @@ void main() {
         deriveLog: false,
       );
 
-      expect(controller.thicknessAware.value, isTrue);
-      expect(controller.totalBookHalfUnits, 12); // 4×2 + 4
-      expect(controller.totalOccupancyText(), '6 / 50 birim');
-
-      await controller.setThicknessAware(false);
-      expect(controller.totalBookHalfUnits, 10); // 5×2 (kitap sayısı)
-      expect(controller.totalOccupancyText(), '5/50');
+      expect(controller.totalBookMm, 149);
+      expect(controller.totalLengthCm, 50); // tek 50 cm'lik raf
+      expect(controller.totalOccupancyText(),
+          '5 kitap • 14,9 cm / 50 cm');
     });
 
-    test('raf doluluk metni kalınlık modunda birim cinsindendir', () async {
+    test('raf doluluk metni kitap sayısı + cm verir', () async {
       await controller.quickSetup(50);
       await Get.find<LibraryController>().saveBook(
         BookModel(
@@ -441,9 +440,8 @@ void main() {
         deriveLog: false,
       );
 
-      expect(controller.shelfOccupancyText('Raf 1', 50), '2/50 birim');
-      await controller.setThicknessAware(false);
-      expect(controller.shelfOccupancyText('Raf 1', 50), '1/50');
+      expect(controller.shelfOccupancyText('Raf 1'),
+          '1 kitap • 4,9 cm/50 cm');
     });
   });
 }

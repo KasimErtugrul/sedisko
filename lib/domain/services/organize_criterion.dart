@@ -5,27 +5,36 @@
 /// Türkçe alfabe). "Akış" kriterleri (kitap adı / sayfa sayısı) kitapları
 /// tek bir sıraya dizer ve raf dolunca sıradaki rafa geçer (gerçek
 /// kütüphane akışı).
+///
+/// **1.19.0:** favori raf ve favori yazarlar YALNIZCA "Yazara göre"
+/// kriterinde devreye girer; öteki üç kriter kendi başlarına, favorilerden
+/// bağımsız çalışır.
 enum OrganizeCriterion {
   author(
     'Yazara göre',
     'Aynı yazarın kitapları tek rafta birleşir; yazarlar kitap sayısı '
         'çoktan aza dizilir. Yazar ASLA ikiye bölünmez: sığmayan yazar '
         'bütün halinde başka bir rafa ya da Karışık kitaplar rafına '
-        'gider.',
+        'gider. Favori raf ve favori yazarlar yalnız bu seçimde çalışır.',
   ),
   publisher(
     'Yayınevine göre',
     'Aynı yayınevinin kitapları tek rafta birleşir; yayınevleri kitap '
-        'sayısı çoktan aza dizilir.',
+        'sayısı çoktan aza dizilir. Tek rafa sığmayan yayınevi, en geniş '
+        'rafa sığan kadarı konup artığı Karışık kitaplar rafına giderek '
+        'yerine yerleştirilir. Favoriler bu seçimde devrede değildir.',
   ),
   title(
     'Kitap adına göre',
-    'Kitaplar A→Z dizilir; raf dolunca sıradaki rafa geçilir.',
+    'Kitaplar A→Z dizilir; raf dolunca sıradaki rafa geçer. '
+        'Favoriler bu seçimde devrede değildir.',
   ),
   pageCount(
     'Sayfa sayısına göre',
-    'Kitaplar inceden kalına dizilir; raf dolunca sıradaki rafa geçilir.',
-  );
+    'Kitaplar inceden kalına dizilir; raf dolunca sıradaki rafa geçer. '
+        'Favoriler bu seçimde devrede değildir.',
+  ),
+  ;
 
   const OrganizeCriterion(this.label, this.description);
 

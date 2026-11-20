@@ -47,32 +47,21 @@ class LoanController extends GetxController {
   }
 
   /// Sürüyor olan ödünçler; verilme tarihi AZALAN (en yeni önce).
-  List<LoanModel> get activeLoans {
-    final list = loans.where((l) => l.isActive).toList()
-      ..sort((a, b) => b.lentAt.compareTo(a.lentAt));
-    return list;
-  }
+  /// Eşit tarihte son eklenen önce gösterilir (bkz. [_sortedNewestFirst]).
+  List<LoanModel> get activeLoans =>
+      _sortedNewestFirst(loans.where((l) => l.isActive), (l) => l.lentAt);
 
   /// Geri alınan ödünçler; dönüş tarihi azalan (en yeni önce).
-  List<LoanModel> get returnedLoans {
-    final list = loans.where((l) => !l.isActive).toList()
-      ..sort((a, b) => _returnedAt(b).compareTo(_returnedAt(a)));
-    return list;
-  }
+  List<LoanModel> get returnedLoans =>
+      _sortedNewestFirst(loans.where((l) => !l.isActive), _returnedAt);
 
   /// Sürüyor olan alıntılar; alım tarihi AZALAN (en yeni önce).
-  List<BorrowedBookModel> get activeBorrowed {
-    final list = borrowed.where((b) => b.isActive).toList()
-      ..sort((a, b) => b.borrowedAt.compareTo(a.borrowedAt));
-    return list;
-  }
+  List<BorrowedBookModel> get activeBorrowed => _sortedNewestFirst(
+      borrowed.where((b) => b.isActive), (b) => b.borrowedAt);
 
   /// Geri verilen alıntılar; dönüş tarihi azalan (en yeni önce).
-  List<BorrowedBookModel> get returnedBorrowed {
-    final list = borrowed.where((b) => !b.isActive).toList()
-      ..sort((a, b) => _borrowedReturnedAt(b).compareTo(_borrowedReturnedAt(a)));
-    return list;
-  }
+  List<BorrowedBookModel> get returnedBorrowed =>
+      _sortedNewestFirst(borrowed.where((b) => !b.isActive), _borrowedReturnedAt);
 
   /// Kitabın sürüyor olan ödünç kaydı; yoksa `null`.
   /// Rx listesi üzerinde çalıştığından Obx içindeki çağrılar (banner,
@@ -231,6 +220,26 @@ class LoanController extends GetxController {
 
   static DateTime _borrowedReturnedAt(BorrowedBookModel item) =>
       item.returnedAt ?? item.borrowedAt;
+
+  /// Tarihe göre AZALAN sıralı kopya döndürür (en yeni önce).
+  ///
+  /// Eşitlik kırıcı: tarihler aynıysa listedeki konumu büyük olan (son
+  /// eklenen) önce gösterilir. Windows gibi kaba saat çözünürlüğüne
+  /// sahip platformlarda art arda eklenen iki kayıt aynı ana denk
+  /// gelebilir (~15 ms tık); kırıcı olmadan kararlı sıralama ekleme
+  /// sırasını korur ve gösterim platformdan platforma değişirdi.
+  static List<T> _sortedNewestFirst<T>(
+    Iterable<T> source,
+    DateTime Function(T) at,
+  ) {
+    final entries = source.toList().asMap().entries.toList()
+      ..sort((a, b) {
+        final byDate = at(b.value).compareTo(at(a.value));
+        if (byDate != 0) return byDate;
+        return b.key - a.key; // eşitlikte son eklenen önce
+      });
+    return [for (final entry in entries) entry.value];
+  }
 
   static String? _cleanNote(String? note) {
     final trimmed = note?.trim();

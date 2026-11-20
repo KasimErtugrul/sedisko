@@ -258,11 +258,11 @@ class BackupParseResult {
 /// Opsiyonel liste bloklarının ([BackupEnvelope._parseList]) ara sonucu:
 /// ya ayrıştırılmış kayıtlar ya dosyayı geçersiz kılan Türkçe hata.
 class _BackupListParse<T> {
-  _BackupListParse.ok(List<T> this.items) : error = null;
+  _BackupListParse.ok(this.items) : error = null;
 
   /// Boş liste sabiti [List<Never>], her [List<T>]'nin alt tipidir; tip
   /// parametresiyle const liste kurulamaz, bu yüzden Never kullanılır.
-  _BackupListParse.fail(String this.error) : items = const <Never>[];
+  _BackupListParse.fail(this.error) : items = const <Never>[];
 
   final List<T> items;
   final String? error;

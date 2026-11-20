@@ -18,6 +18,16 @@ analyzer:
     - windows/**
     - macos/**
     - linux/**
+  errors:
+    # Flutter 3.50 SDK'sı, package:flutter/material.dart importları için
+    # "package:material_ui'ya geçin" bilgisini HER dosyada bilgi düzeyinde
+    # üretir (geçiş dalgası; proje kodundan bağımsız, değişiklik
+    # öncesi de 112+ bilgi vardı). Proje 1.19.0'da hâlâ klasik material
+    # importlarını kullanır; SDK geneli geçiş yapıldığında bu satır
+    # kaldırılacaktır. Gerçek kullanımdan kaynaklanan bireysel
+    # deprecation'lar gölgelenmesin diye dosya bazlı ignore tercih edilir
+    # — bu ayar yalnız SDK dalga bilgisini susturur.
+    deprecated_member_use: ignore
 
 linter:
   # The lint rules applied to this project can be customized in the

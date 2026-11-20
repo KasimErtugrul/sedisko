@@ -1,80 +1,80 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kitaplik/domain/services/book_thickness.dart';
 
-/// Sayfa sayısından kalınlık (yer) tahmini.
+/// Sayfa sayısından kalınlık tahminİ — cm modeli (1.19.0).
 ///
-/// Kullanıcı gözlemi (1.15.0): "40 kitap diyoruz ama çok kalın kitaplarla
-/// sığmıyor; 60 kitabın kapladığı yeri kaplıyor." Ölçek: ≈350 sayfa =
-/// 1 birim; 0,5 birim duyarlılık; bilinmeyen sayfa = 1 birim.
+/// Kullanıcı ölçümleri: **420 sayfa ≈ 3 cm, 130 sayfa ≈ 1 cm.** Doğrusal
+/// formül: mm ≈ (300 + 20 × sayfa) / 290; bilinmeyen sayfa = 2,5 cm
+/// (normal kitap); planlama milimetre tam sayılarıyla yapılır.
 void main() {
-  group('halfUnitsOf: sayfa sayısı → yarım birim', () {
-    test('bilinmeyen ve sıfır sayfa 1 birimdir (ceza yok)', () {
-      expect(BookThickness.halfUnitsOf(0), BookThickness.unknownHalfUnits);
-      expect(BookThickness.halfUnitsOf(-5), BookThickness.unknownHalfUnits);
-      expect(BookThickness.unknownHalfUnits, 2); // 2 yarım = 1 birim
+  group('mmOf: sayfa sayısı → milimetre', () {
+    test('kullanıcının iki ölçümü birebir tutar', () {
+      expect(BookThickness.mmOf(420), 30); // 3,0 cm
+      expect(BookThickness.mmOf(130), 10); // 1,0 cm
     });
 
-    test('ince kitaplar 0,5 birime yuvarlanır (taban 0,5)', () {
-      expect(BookThickness.halfUnitsOf(40), 1); // 0,5 birim
-      expect(BookThickness.halfUnitsOf(175), 1); // 0,5 birim
+    test('bilinmeyen ve sıfır sayfa 2,5 cm sayılır (ceza yok)', () {
+      expect(BookThickness.mmOf(0), BookThickness.unknownMm);
+      expect(BookThickness.mmOf(-5), BookThickness.unknownMm);
+      expect(BookThickness.unknownMm, 25); // 2,5 cm
     });
 
-    test('referans çevresinde normal 1 birim', () {
-      expect(BookThickness.halfUnitsOf(300), 2); // 1,0 birim
-      expect(BookThickness.halfUnitsOf(350), 2); // 1,0 birim
-      expect(BookThickness.halfUnitsOf(437), 2); // 1,25 → 1,0'a yuvarlanır
+    test('orta kalınlıklar formülü izler', () {
+      expect(BookThickness.mmOf(40), 4); // 0,4 cm — broşür
+      expect(BookThickness.mmOf(175), 13); // 1,3 cm
+      expect(BookThickness.mmOf(300), 22); // 2,2 cm
+      expect(BookThickness.mmOf(437), 31); // 3,1 cm
+      expect(BookThickness.mmOf(525), 37); // 3,7 cm
+      expect(BookThickness.mmOf(700), 49); // 4,9 cm
+      expect(BookThickness.mmOf(1050), 73); // 7,3 cm
     });
 
-    test('kalın kitaplar 1,5 ve 2 birim yer kaplar', () {
-      expect(BookThickness.halfUnitsOf(438), 3); // 1,25+ → 1,5
-      expect(BookThickness.halfUnitsOf(525), 3); // 1,5 birim
-      expect(BookThickness.halfUnitsOf(612), 3); // 1,75'e ulaşıp yuvarlanmadı
-      expect(BookThickness.halfUnitsOf(620), 4); // 1,75+ → 2,0
-      expect(BookThickness.halfUnitsOf(700), 4); // 2,0 birim
+    test('eski referans kitap ≈ 2,5 cm kalır (≈350 sayfa)', () {
+      expect(BookThickness.mmOf(350), 25);
     });
 
-    test('çok kalın kitaplar 2 birimi aşar', () {
-      expect(BookThickness.halfUnitsOf(875), 5); // 2,5 birim
-      expect(BookThickness.halfUnitsOf(1050), 6); // 3,0 birim
+    test('artan sayfa kalınlığı hiç azaltmaz (monoton)', () {
+      var previous = 0;
+      for (final pages in [10, 50, 100, 130, 200, 300, 350, 420, 500, 700,
+        1050]) {
+        final mm = BookThickness.mmOf(pages);
+        expect(mm, greaterThanOrEqualTo(previous),
+            reason: '$pages sayfa $previous mm\'den küçük olamaz');
+        previous = mm;
+      }
     });
 
-    test('kullanıcı gözlemi: ~525 sayfalık kitaplar 1,5 birimdir', () {
-      // 40 kalin kitap = 60 normal kitabin yeri: 40 x 1,5 = 60 birim.
-      final thickUnits = BookThickness.unitsOf(BookThickness.halfUnitsOf(525));
-      expect(thickUnits, 1.5);
-    });
-  });
-
-  group('costHalfUnits: planlama maliyeti', () {
-    test('kalınlık kapalıyken her kitap 1 birimdir', () {
-      expect(
-        BookThickness.costHalfUnits(1050, thicknessAware: false),
-        BookThickness.flatHalfUnits,
-      );
-      expect(BookThickness.costHalfUnits(0, thicknessAware: false), 2);
-    });
-
-    test('kalınlık açıkken maliyet sayfa sayısından gelir', () {
-      expect(BookThickness.costHalfUnits(525, thicknessAware: true), 3);
-      expect(BookThickness.costHalfUnits(0, thicknessAware: true), 2);
+    test('taban 1 mm\'dir', () {
+      expect(BookThickness.mmOf(1), 1);
+      expect(BookThickness.minMm, 1);
     });
   });
 
   group('gösterim', () {
-    test('formatHalf Türkçe ondalık virgülüyle yazar', () {
-      expect(BookThickness.formatHalf(2), '1');
-      expect(BookThickness.formatHalf(3), '1,5');
-      expect(BookThickness.formatHalf(4), '2');
-      expect(BookThickness.formatHalf(7), '3,5');
-      expect(BookThickness.formatHalf(1), '0,5');
+    test('formatMm tam santimetreyi sade yazar', () {
+      expect(BookThickness.formatMm(30), '3 cm');
+      expect(BookThickness.formatMm(10), '1 cm');
+      expect(BookThickness.formatMm(250), '25 cm');
+      expect(BookThickness.formatMm(1250), '125 cm');
+      expect(BookThickness.formatMm(1000), '100 cm');
+    });
+
+    test('formatMm kesirli santimetrede Türkçe virgül kullanır', () {
+      expect(BookThickness.formatMm(964), '96,4 cm');
+      expect(BookThickness.formatMm(25), '2,5 cm');
+      expect(BookThickness.formatMm(5), '0,5 cm');
+      expect(BookThickness.formatMm(22), '2,2 cm');
     });
 
     test('labelOf kalınlık sınıfını adlandırır', () {
-      expect(BookThickness.labelOf(1), 'İnce');
-      expect(BookThickness.labelOf(2), 'Normal');
-      expect(BookThickness.labelOf(3), 'Kalın');
-      expect(BookThickness.labelOf(4), 'Çok kalın');
-      expect(BookThickness.labelOf(6), 'Çok kalın');
+      expect(BookThickness.labelOf(4), 'İnce');
+      expect(BookThickness.labelOf(10), 'İnce'); // 1 cm
+      expect(BookThickness.labelOf(13), 'Normal');
+      expect(BookThickness.labelOf(25), 'Normal'); // ≈350 sayfa
+      expect(BookThickness.labelOf(30), 'Kalın'); // 420 sayfa
+      expect(BookThickness.labelOf(35), 'Kalın');
+      expect(BookThickness.labelOf(37), 'Çok kalın'); // ≈525 sayfa
+      expect(BookThickness.labelOf(49), 'Çok kalın');
     });
   });
 }

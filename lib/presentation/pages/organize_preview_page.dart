@@ -13,10 +13,15 @@ import '../widgets/organize/capacity_bar.dart';
 ///
 /// Bu sayfa HİÇBİR ŞEY YAZMAZ; kullanıcı "Taşıma planını oluştur" düğmesine
 /// basana kadar kitapların raf ataması değişmez. Uyarılar (taşan grup,
-/// kapasite yetersizliği) en üstte turuncu bandla gösterilir.
-/// Favori raf (1.15.0) yıldız rozetiyle işaretlenir: kullanıcının
-/// "favori rafıma favori yazarlarımı görebilsem" isteği burada karşılık
-/// bulur — favori yazarların kitapları işaretli rafta listelenir.
+/// alan yetersizliği) en üstte turuncu bandla gösterilir.
+///
+/// **1.19.0:** her raf kartının başında düzen sıra numarası vardır
+/// (plan 1. raftan başlar); doluluk cm cinsindendir. Özet kartı ve alt
+/// açıklama, planın RAF İÇİ dizilişi kapsamadığını açıkça söyler —
+/// kullanıcının "yalnız 1 kitap taşınacak" çıktısını bozuk sanmasını
+/// önler (kullanıcı kararı: rehber değil, net açıklama).
+/// Favori raf yıldız rozetiyle işaretlenir: favori yazarların kitapları
+/// işaretli rafta listelenir (yalnız "Yazara göre" düzeninde).
 class OrganizePreviewPage extends StatelessWidget {
   const OrganizePreviewPage({super.key});
 
@@ -43,22 +48,26 @@ class OrganizePreviewPage extends StatelessWidget {
                 children: [
                   _SummaryCard(summary: controller.previewMoveSummary()),
                   const SizedBox(height: 8),
-                  for (final planned in arrangement.shelves)
+                  // Raf kartları fiziksel sıradadır; başındaki numara
+                  // düzenin 1. raftan başladığını gösterir.
+                  for (var i = 0; i < arrangement.shelves.length; i++)
                     _PlannedShelfCard(
-                      key: ValueKey('planned-${planned.shelf.name}'),
-                      planned: planned,
-                      isFavorite: planned.shelf.id == favoriteShelfId,
+                      key: ValueKey(
+                        'planned-${arrangement.shelves[i].shelf.name}',
+                      ),
+                      orderNumber: i + 1,
+                      planned: arrangement.shelves[i],
+                      isFavorite:
+                          arrangement.shelves[i].shelf.id == favoriteShelfId,
                     ),
                   if (arrangement.unplaced.isNotEmpty)
                     _UnplacedCard(books: arrangement.unplaced),
                   Text(
-                    controller.previewOptions.value?.thicknessAware ?? false
-                        ? 'Kitap sırası, rafta fiziksel diziliş sırasıdır. '
-                            'Doluluk birim cinsindendir: ≈350 sayfa = 1 '
-                            'birim; kalın kitaplar daha çok yer kaplar. '
-                            'Beğenmediysen geri dönüp kriteri değiştirebilirsin.'
-                        : 'Kitap sırası, rafta fiziksel diziliş sırasıdır. '
-                            'Beğenmediysen geri dönüp kriteri değiştirebilirsin.',
+                    'Listedeki sıra, kitapların hedef raftaki plan '
+                    'sırasıdır. Plan yalnız kitapların HANGİ rafta '
+                    'olacağını kapsar; rafta A→Z gibi dizilme emri '
+                    'üretmez. Beğenmediysen geri dönüp kriteri '
+                    'değiştirebilirsin.',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
@@ -101,7 +110,8 @@ class OrganizePreviewPage extends StatelessWidget {
 
 /// Plan özeti (1.18.1): çıktıyı sayılarla açıklar. Kitaplık çoğunlukla
 /// hedef düzendeysen plan DOĞRU olarak yalnız 1-2 kitap taşır; bu kart
-/// o çıktının "hata değil" olduğunu tek bakışta gösterir.
+/// o çıktının "hata değil" olduğunu tek bakışta gösterir ve planın
+/// kapsamını açıkça yazar (1.19.0).
 class _SummaryCard extends StatelessWidget {
   const _SummaryCard({required this.summary});
 
@@ -114,10 +124,10 @@ class _SummaryCard extends StatelessWidget {
     if (summary == null) return const SizedBox.shrink();
     final text = summary.moved == 0
         ? 'Taşınacak kitap yok: ${summary.untouched} kitap zaten hedef '
-            'düzeninde. Plan üretmek yerine kurulumdan kriteri '
+            'rafta. Plan üretmek yerine kurulumdan kriteri '
             'değiştirebilirsin.'
         : '${summary.moved} kitap taşınacak, ${summary.untouched} kitap '
-            'zaten hedef düzeninde.';
+            'zaten hedef rafta.';
     return Card(
       key: const ValueKey('preview-summary'),
       margin: EdgeInsets.zero,
@@ -134,7 +144,8 @@ class _SummaryCard extends StatelessWidget {
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                text,
+                '$text Raf içi diziliş (A→Z gibi) bu planın kapsamı '
+                'dışıdır; plan yalnız raf atamalarını taşır.',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: scheme.onSecondaryContainer,
                     ),
@@ -186,14 +197,18 @@ class _WarningsBanner extends StatelessWidget {
   }
 }
 
-/// Tek rafın planı: başlık (ad + yer + doluluk) ve kitap listesi.
+/// Tek rafın planı: sıra numarası + ad + yer + doluluk + kitap listesi.
 /// Favori rafsa yıldız rozeti taşır.
 class _PlannedShelfCard extends StatelessWidget {
   const _PlannedShelfCard({
     super.key,
+    required this.orderNumber,
     required this.planned,
     this.isFavorite = false,
   });
+
+  /// Bu rafın düzen sırası (1'den başlar).
+  final int orderNumber;
 
   final PlannedShelf planned;
 
@@ -228,9 +243,9 @@ class _PlannedShelfCard extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    _isMix
+                    '$orderNumber. ${_isMix
                         ? '${planned.shelf.name} (plan üretti)'
-                        : planned.shelf.name,
+                        : planned.shelf.name}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.titleMedium,
@@ -256,21 +271,15 @@ class _PlannedShelfCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            if (planned.thicknessAware)
-              CapacityBar(
-                count: planned.usedHalfUnits,
-                capacity: planned.capacityHalfUnits,
-                dense: true,
-                valueText:
-                    '${BookThickness.formatHalf(planned.usedHalfUnits)}/'
-                    '${BookThickness.formatHalf(planned.capacityHalfUnits)} birim',
-              )
-            else
-              CapacityBar(
-                count: planned.count,
-                capacity: planned.shelf.capacity,
-                dense: true,
-              ),
+            CapacityBar(
+              count: planned.usedMm,
+              capacity: planned.capacityMm,
+              dense: true,
+              valueText:
+                  '${planned.count} kitap • '
+                  '${BookThickness.formatMm(planned.usedMm)}/'
+                  '${BookThickness.formatMm(planned.capacityMm)}',
+            ),
             const Divider(height: 16),
             if (planned.books.isEmpty)
               Text(

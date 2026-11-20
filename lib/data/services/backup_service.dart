@@ -196,7 +196,7 @@ class BackupService {
       final mergedShelf = ShelfModel(
         id: id,
         name: incoming.name,
-        capacity: incoming.capacity,
+        lengthCm: incoming.lengthCm,
         location: incoming.location,
         order: incoming.order,
       );

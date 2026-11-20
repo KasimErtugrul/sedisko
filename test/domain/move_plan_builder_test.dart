@@ -19,7 +19,9 @@ ShelfModel shelf(String name, String location, int order) {
   return ShelfModel(
     id: 'shelf-$name',
     name: name,
-    capacity: 50,
+    // Taşıma planı uzunluğu kullanmaz; 50 kitap kalibrasyonu (125 cm)
+    // yalnız gerçekçi bir tanım olsun diye verilir.
+    lengthCm: 125,
     location: location,
     order: order,
   );
@@ -38,7 +40,8 @@ ShelfArrangement arrangementOf(List<BookModel> books, Map<String, String> target
         shelf: ShelfModel(
           id: 'plan-${entry.key.isEmpty ? "rafsiz" : entry.key}',
           name: entry.key.isEmpty ? 'Rafsız' : entry.key,
-          capacity: entry.value.length,
+          lengthCm:
+              (entry.value.length * ShelfModel.legacyBookCm).ceil(),
           location: '',
           order: 0,
         ),

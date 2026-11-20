@@ -14,9 +14,11 @@ import 'package:kitaplik/presentation/pages/organize_preview_page.dart';
 import 'package:kitaplik/presentation/pages/organize_setup_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// 1.18.1 çıktı-netliği ekran testleri:
-/// - önizleme özet kartı ("N kitap taşınacak, M kitap zaten hedefte"),
-/// - kurulumda yetim favori raf ipucu,
+/// 1.18.1/1.19.0 çıktı-netliği ekran testleri:
+/// - önizleme özet kartı ("N kitap taşınacak, M kitap zaten hedef rafta"
+///   + planın raf içi dizilişi kapsamadığı notu),
+/// - kurulumda yetim favori raf ipucu (favoriler kartı yalnız yazara
+///   göre kriterinde görünür),
 /// - büyük turun tembel (kaydırılabilir) kurulumu — arayüz donmasını
 ///   önleyen davranış.
 class FakeBookRepository implements BookRepository {
@@ -76,8 +78,8 @@ Future<ShelfOrganizeController> bootstrap(WidgetTester tester) async {
     ShelfOrganizeController(shelfStore: ShelfLocalDataSource(prefs)),
     permanent: true,
   );
-  await controller.quickSetup(50);
-  await controller.addShelf(name: 'Raf 2', capacity: 50);
+  await controller.quickSetup(125);
+  await controller.addShelf(name: 'Raf 2', lengthCm: 125);
   return controller;
 }
 
@@ -109,9 +111,9 @@ void main() {
 
     final summary = controller.previewMoveSummary()!;
     final expected = '${summary.moved} kitap taşınacak, '
-        '${summary.untouched} kitap zaten hedef düzeninde.';
+        '${summary.untouched} kitap zaten hedef rafta.';
     expect(find.byKey(const ValueKey('preview-summary')), findsOneWidget);
-    expect(find.textContaining('kitap zaten hedef düzeninde'),
+    expect(find.textContaining('kitap zaten hedef rafta'),
         findsOneWidget);
     expect(find.textContaining(expected), findsOneWidget);
   });
@@ -127,7 +129,7 @@ void main() {
       find.textContaining('Taşınacak kitap yok'),
       findsOneWidget,
     );
-    expect(find.textContaining('4 kitap zaten hedef düzeninde'),
+    expect(find.textContaining('4 kitap zaten hedef rafta'),
         findsOneWidget);
   });
 
@@ -139,6 +141,9 @@ void main() {
     await controller.addFavoriteAuthor('Ahmet Ümit');
 
     await pumpPage(tester, const OrganizeSetupPage());
+    // Favoriler kartı yalnız "Yazara göre" kriterinde görünür (1.19.0).
+    await tester.tap(find.byKey(const ValueKey('criterion-author')));
+    await tester.pumpAndSettle();
 
     expect(
       find.textContaining('Kayıtlı favori raf bulunamadı'),
@@ -154,6 +159,8 @@ void main() {
     await controller.setFavoriteShelf(controller.shelves.first.id);
 
     await pumpPage(tester, const OrganizeSetupPage());
+    await tester.tap(find.byKey(const ValueKey('criterion-author')));
+    await tester.pumpAndSettle();
 
     expect(
       find.textContaining('Kayıtlı favori raf bulunamadı'),

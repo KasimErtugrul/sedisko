@@ -15,11 +15,14 @@ import 'library_controller.dart';
 /// Raf düzeni asistanının denetleyicisi.
 ///
 /// Üç iş yapar:
-/// 1. **Raf tanımları** (ad + kapasite + yer + sıra): `shelves_v1`'de
+/// 1. **Raf tanımları** (ad + cm uzunluk + yer + sıra): `shelves_v1`'de
 ///    kalıcı. Kitapların raf ataması hâlâ kitap kaydındadır; raf adı
-///    değişirse kitaplara da sirayet eder.
+///    değişirse kitaplara da sirayet eder. Kapasite 1.19.0'dan beri cm
+///    cinsindendir: rafın uzunluğu bütçe, kitabın yeri kalınlıktır
+///    (420 sayfa ≈ 3 cm, 130 sayfa ≈ 1 cm).
 /// 2. **Hedef düzen önizlemesi**: [ShelfPlanner] saf servisiyle üretilir,
-///    kullanıcı onaylamadan hiçbir şey yazılmaz.
+///    kullanıcı onaylamadan hiçbir şey yazılmaz. Favori raf/favori yazar
+///    tercihi YALNIZ "Yazara göre" kriterinde devreye girer.
 /// 3. **Taşıma planı**: [MovePlanBuilder] turları üretir, `organize_plan_v1`
 ///    anahtarında kalıcıdır; her tur "Yaptım" ile işaretlendiğinde o turda
 ///    KONAN kitapların rafı anında güncellenir (uygulama fiziksel gerçekle
@@ -40,22 +43,21 @@ class ShelfOrganizeController extends GetxController {
   final preview = Rxn<ShelfArrangement>();
   final previewCriterion = Rxn<OrganizeCriterion>();
 
-  /// Önizlemenin üretildiği opsiyonlar (favoriler + kalınlık); önizleme
-  /// sayfası favori rozetini ve birim gösterimini buradan bilir.
+  /// Önizlemenin üretildiği opsiyonlar (favoriler); önizleme sayfası
+  /// favori rozetini buradan bilir.
   final previewOptions = Rxn<OrganizeOptions>();
 
   /// Favori raf kimliği ('Yok' seçiminde null). Düzen asistanı favori
-  /// yazarların kitaplarını bu rafa yerleştirir.
+  /// yazarların kitaplarını bu rafa YALNIZ "Yazara göre" kriterinde
+  /// yerleştirir.
   final favoriteShelfId = Rxn<String>();
 
   /// Favori yazarlar (kullanıcının sıraladığı liste).
   final favoriteAuthors = <String>[].obs;
 
-  /// Kapasite yer (birim) cinsinden hesaplansın mı? Varsayılan açık:
-  /// kalın kitapların sığmadığı gözlemi varsayılan davranışı değiştirdi.
-  final thicknessAware = true.obs;
-
-  static const int defaultCapacity = 50;
+  /// Yeni raf için varsayılan cm uzunluk (hızlı kurulum ve raf ekleme
+  /// diyaloğunun ön dolu değeri).
+  static const int defaultShelfLengthCm = ShelfModel.defaultLengthCm;
   static const int carryLimit = MovePlanBuilder.defaultCarryLimit;
 
   LibraryController get _library => Get.find<LibraryController>();
@@ -64,37 +66,31 @@ class ShelfOrganizeController extends GetxController {
 
   int get bookCount => books.length;
 
-  int get totalCapacity =>
-      shelves.fold(0, (sum, shelf) => sum + shelf.capacity);
+  /// Rafların toplam cm uzunluğu.
+  int get totalLengthCm =>
+      shelves.fold(0, (sum, shelf) => sum + shelf.lengthCm);
 
-  /// Kitapların toplam kapladığı yer (yarım birim): kalınlık hesabı
-  /// açıksa sayfa sayısından, kapalıysa her kitaba 1 birim.
-  int get totalBookHalfUnits => books.fold(
+  /// Rafların toplam yer bütçesi (milimetre).
+  int get totalLengthMm => totalLengthCm * 10;
+
+  /// Kitapların toplam kapladığı yer (milimetre): sayfa sayısından
+  /// hesaplanan kalınlık (420 sayfa ≈ 3 cm, 130 sayfa ≈ 1 cm).
+  int get totalBookMm => books.fold(
         0,
-        (sum, book) => sum + BookThickness.costHalfUnits(
-              book.pageCount,
-              thicknessAware: thicknessAware.value,
-            ),
+        (sum, book) => sum + BookThickness.mmOf(book.pageCount),
       );
-
-  /// Rafların toplam yer bütçesi (yarım birim).
-  int get totalCapacityHalfUnits => totalCapacity * 2;
 
   /// Yer toplamı kitapların toplam yerinin altındaysa plan taşan kitapları
   /// Karışık rafına itecektir; kurulum ekranında uyarı olarak gösterilir.
-  bool get needsMoreCapacity =>
-      totalBookHalfUnits > totalCapacityHalfUnits;
+  bool get needsMoreCapacity => totalBookMm > totalLengthMm;
 
-  /// Taşan yer (yarım birim); taşma yoksa 0.
-  int get overflowHalfUnits =>
-      needsMoreCapacity ? totalBookHalfUnits - totalCapacityHalfUnits : 0;
+  /// Taşan yer (milimetre); taşma yoksa 0.
+  int get overflowMm => needsMoreCapacity ? totalBookMm - totalLengthMm : 0;
 
-  /// Kapasite metni: kalınlık modunda birim cinsinden ('38,5/100 birim'),
-  /// kapalıyken kitap sayısı ('38/100').
-  String totalOccupancyText() => thicknessAware.value
-      ? '${BookThickness.formatHalf(totalBookHalfUnits)} / '
-          '${BookThickness.formatHalf(totalCapacityHalfUnits)} birim'
-      : '$bookCount/$totalCapacity';
+  /// Doluluk metni: kitap sayısı + cm. ('38 kitap • 96,4/125 cm')
+  String totalOccupancyText() =>
+      '$bookCount kitap • ${BookThickness.formatMm(totalBookMm)} / '
+      '${BookThickness.formatMm(totalLengthMm)}';
 
   @override
   void onInit() {
@@ -103,7 +99,6 @@ class ShelfOrganizeController extends GetxController {
     plan.value = _shelfStore.getPlan();
     favoriteShelfId.value = _shelfStore.getFavoriteShelfId();
     favoriteAuthors.assignAll(_shelfStore.getFavoriteAuthors());
-    thicknessAware.value = _shelfStore.getThicknessAware();
   }
 
   /// Depodan rafları ve planı yeniden okur; yedek içe aktarması depoya
@@ -117,7 +112,7 @@ class ShelfOrganizeController extends GetxController {
   // ---------- Raf tanımları ----------
 
   /// Raflar tanımlanmamışsa kitaplardaki mevcut raf adlarını varsayılan
-  /// kapasiteyle içe aktarır; kullanıcı sonra kapasiteleri düzenler.
+  /// uzunlukla içe aktarır; kullanıcı sonra cm'leri düzenler.
   /// İçe aktarma yapıldıysa `true` döner.
   Future<bool> importExistingShelvesIfEmpty() async {
     if (shelves.isNotEmpty) return false;
@@ -139,7 +134,7 @@ class ShelfOrganizeController extends GetxController {
         ShelfModel(
           id: BookModel.newId(),
           name: unique[i],
-          capacity: defaultCapacity,
+          lengthCm: ShelfModel.defaultLengthCm,
           location: '',
           order: i,
         ),
@@ -148,18 +143,21 @@ class ShelfOrganizeController extends GetxController {
     return true;
   }
 
-  /// Hızlı kurulum: her raf [capacityPerShelf] kitap alacak şekilde
-  /// 'Raf 1..N' rafları açılır; N = ceil(kitap sayısı / kapasite).
-  /// Mevcut tanımların yerine geçer (UI onay sorar).
-  Future<int> quickSetup(int capacityPerShelf) async {
-    final capacity = capacityPerShelf < 1 ? 1 : capacityPerShelf;
-    final shelfCount = maxOf(1, (bookCount / capacity).ceil());
+  /// Hızlı kurulum: her raf [lengthCmPerShelf] cm olacak şekilde
+  /// 'Raf 1..N' rafları açılır; N = kitapların toplam kalınlığının raf
+  /// uzunluğuna bölümünün üst tamsayısı. Mevcut tanımların yerine geçer
+  /// (UI onay sorar).
+  Future<int> quickSetup(int lengthCmPerShelf) async {
+    final lengthCm = lengthCmPerShelf < 1 ? 1 : lengthCmPerShelf;
+    final lengthMm = lengthCm * 10;
+    final needed = bookCount == 0 ? 1 : (totalBookMm + lengthMm - 1) ~/ lengthMm;
+    final shelfCount = needed < 1 ? 1 : needed;
     shelves.assignAll([
       for (var i = 0; i < shelfCount; i++)
         ShelfModel(
           id: BookModel.newId(),
           name: 'Raf ${i + 1}',
-          capacity: capacity,
+          lengthCm: lengthCm,
           location: '',
           order: i,
         ),
@@ -180,14 +178,14 @@ class ShelfOrganizeController extends GetxController {
 
   Future<bool> addShelf({
     required String name,
-    required int capacity,
+    required int lengthCm,
     String location = '',
   }) async {
-    if (!isNameUsable(name) || capacity < 1) return false;
+    if (!isNameUsable(name) || lengthCm < 1) return false;
     shelves.add(ShelfModel(
       id: BookModel.newId(),
       name: name.trim(),
-      capacity: capacity,
+      lengthCm: lengthCm,
       location: location.trim(),
       order: _nextOrder(),
     ));
@@ -200,18 +198,18 @@ class ShelfOrganizeController extends GetxController {
   Future<bool> updateShelf({
     required String id,
     required String name,
-    required int capacity,
+    required int lengthCm,
     String location = '',
   }) async {
     final index = shelves.indexWhere((shelf) => shelf.id == id);
     if (index < 0) return false;
-    if (!isNameUsable(name, exceptId: id) || capacity < 1) return false;
+    if (!isNameUsable(name, exceptId: id) || lengthCm < 1) return false;
 
     final old = shelves[index];
     final newName = name.trim();
     shelves[index] = old.copyWith(
       name: newName,
-      capacity: capacity,
+      lengthCm: lengthCm,
       location: location.trim(),
     );
 
@@ -277,7 +275,7 @@ class ShelfOrganizeController extends GetxController {
     }
   }
 
-  // ---------- Favoriler ve kalınlık (1.15.0) ----------
+  // ---------- Favoriler (1.15.0; 1.19.0'da yalnız yazar kriterinde) ----------
 
   /// Favori raf; tanım silinmişse (id raflarda yok) `null` döner —
   /// yarım tercih planı etkilemez.
@@ -348,12 +346,6 @@ class ShelfOrganizeController extends GetxController {
     ];
   }
 
-  /// Kalınlık hesabını açar/kapatır.
-  Future<void> setThicknessAware(bool value) async {
-    thicknessAware.value = value;
-    await _shelfStore.saveThicknessAware(value);
-  }
-
   // ---------- Sorgular ----------
 
   /// [shelfName] rafındaki (kitap kayıtlarındaki) kitap sayısı.
@@ -362,26 +354,25 @@ class ShelfOrganizeController extends GetxController {
           TextNormalizer.searchKey(shelfName.trim()))
       .length;
 
-  /// [shelfName] rafındaki kitapların kapladığı yer (yarım birim):
-  /// kalınlık hesabı açıksa sayfa sayısından, kapalıysa kitap sayısıdır.
-  int shelfHalfUnits(String shelfName) => books
+  /// [shelfName] rafındaki kitapların kapladığı yer (milimetre):
+  /// sayfa sayısından hesaplanan kalınlık.
+  int shelfMm(String shelfName) => books
       .where((b) => TextNormalizer.searchKey(b.shelf.trim()) ==
           TextNormalizer.searchKey(shelfName.trim()))
       .fold(
         0,
-        (sum, book) => sum + BookThickness.costHalfUnits(
-              book.pageCount,
-              thicknessAware: thicknessAware.value,
-            ),
+        (sum, book) => sum + BookThickness.mmOf(book.pageCount),
       );
 
-  /// Raf kartlarındaki canlı doluluk metni: kalınlık modunda birim
-  /// ('18/40 birim'), kapalıyken kitap sayısı ('18/40').
-  String shelfOccupancyText(String shelfName, int capacity) =>
-      thicknessAware.value
-          ? '${BookThickness.formatHalf(shelfHalfUnits(shelfName))}/'
-              '${BookThickness.formatHalf(capacity * 2)} birim'
-          : '${shelfCount(shelfName)}/$capacity';
+  /// Raf kartlarındaki canlı doluluk metni: kitap sayısı + cm.
+  /// ('18 kitap • 46,2/125 cm') Tanımsız rafta yalnız kitap sayısı.
+  String shelfOccupancyText(String shelfName) {
+    final count = shelfCount(shelfName);
+    final definition = shelfByName(shelfName);
+    if (definition == null) return '$count kitap';
+    return '$count kitap • ${BookThickness.formatMm(shelfMm(shelfName))}/'
+        '${BookThickness.formatMm(definition.lengthMm)}';
+  }
 
   /// [shelfName] için tanımlı raf; yoksa `null` (tanımsız raf).
   ShelfModel? shelfByName(String shelfName) {
@@ -395,8 +386,8 @@ class ShelfOrganizeController extends GetxController {
   // ---------- Önizleme ve plan ----------
 
   /// [criterion] için hedef düzeni üretir; HİÇBİR ŞEY yazmaz — kullanıcı
-  /// önizleme sayfasında onaylayana kadar bekler. Favoriler ve kalınlık
-  /// tercihi kurulumdaki anlık duruma göre uygulanır.
+  /// önizleme sayfasında onaylayana kadar bekler. Favori tercihi yalnız
+  /// "Yazara göre" kriterinde uygulanır.
   void buildPreview(OrganizeCriterion criterion) {
     final options = _currentOptions();
     previewCriterion.value = criterion;
@@ -407,20 +398,23 @@ class ShelfOrganizeController extends GetxController {
       criterion,
       options: options,
     );
-    _explainFavorites(arrangement.warnings);
+    _explainFavorites(arrangement.warnings, criterion);
     preview.value = arrangement;
   }
 
   /// Favori tercihlerinin plana yansımadığı durumları AÇIKÇA uyarıya
   /// yazar (1.18.1). Sessiz devre dışı kalma, kullanıcının plan çıktısını
-  /// bozuk sanmasının bilinen kaynaklarından biriydi:
+  /// bozuk sanmasının bilinen kaynaklarından biriydi. Tanılar YALNIZ
+  /// "Yazara göre" kriterinde üretilir (1.19.0): öteki kriterlerde
+  /// favoriler zaten hiç devrede değildir.
   ///
   /// - Favori raf tercihi kayıtlı ama raf artık yok (raflar hızlı
   ///   kurulumla yeniden açılmışsa kimlikler yenilenir): favori
   ///   yerleştirme hiç çalışmadan geçer ve kullanıcı fark etmez.
   /// - Favori yazar adları kitaplık verisiyle eşleşmez (yazım farkı):
   ///   planlayıcı boş grupları sessizce atlar.
-  void _explainFavorites(List<String> warnings) {
+  void _explainFavorites(List<String> warnings, OrganizeCriterion criterion) {
+    if (criterion != OrganizeCriterion.author) return;
     if (favoriteAuthors.isEmpty) return;
 
     final favorite = effectiveFavoriteShelf;
@@ -482,11 +476,11 @@ class ShelfOrganizeController extends GetxController {
     previewOptions.value = null;
   }
 
-  /// Kurulumun anlık tercihlerinden planlama opsiyonu üretir.
+  /// Kurulumun anlık favori tercihlerinden planlama opsiyonu üretir.
+  /// (Kriter "Yazara göre" değilse planlayıcı favorileri zaten yok sayar.)
   OrganizeOptions _currentOptions() => OrganizeOptions(
         favoriteShelfId: effectiveFavoriteShelf?.id,
         favoriteAuthors: favoriteAuthors.toList(),
-        thicknessAware: thicknessAware.value,
       );
 
   /// Önizlemeden taşıma planı üretir ve kalıcıya yazar. Taşınacak kitap
@@ -568,7 +562,8 @@ class ShelfOrganizeController extends GetxController {
   }
 
   /// Kalan işi MEVCUT gerçek durumdan yeniden hesaplar (kullanıcı arada
-  /// elle oynadıysa ya da yarım kaldıysa). Kriter ve opsiyonlar korunur.
+  /// elle oynadıysa ya da yarım kaldıysa). Kriter ve favori tercihleri
+  /// kurulumun bugünkü durumuyla alınır.
   Future<void> replan() async {
     final criterion = plan.value?.criterion ?? previewCriterion.value;
     if (criterion == null) return;
@@ -597,7 +592,3 @@ class ShelfOrganizeController extends GetxController {
     return books.where((b) => !ids.contains(b.id)).toList();
   }
 }
-
-/// Küçük yerel yardımcı: iki int'in büyüğü (dart:math'e bağımlılık
-/// istemeyen tek çağrı için).
-int maxOf(int a, int b) => a >= b ? a : b;

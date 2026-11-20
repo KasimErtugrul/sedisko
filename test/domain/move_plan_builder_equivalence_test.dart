@@ -6,18 +6,22 @@
 //
 // Referans gövde, 1.18.0'daki move_plan_builder.dart'ın birebir
 // kopyasıdır (yalnız sınıf adı ReferenceMovePlanBuilder'dır).
-// ---------- REFERANS (1.18.0) UYGULAMA ----------
-
-import 'package:equatable/equatable.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kitaplik/core/utils/text_normalizer.dart';
+
 import 'package:kitaplik/data/models/book_model.dart';
-import 'package:kitaplik/data/models/organize_plan_model.dart';
 import 'package:kitaplik/data/models/shelf_model.dart';
 import 'package:kitaplik/domain/services/move_plan_builder.dart';
 import 'package:kitaplik/domain/services/organize_criterion.dart';
 import 'package:kitaplik/domain/services/organize_options.dart';
 import 'package:kitaplik/domain/services/shelf_planner.dart';
+
+// ---------- REFERANS (1.18.0) UYGULAMA ----------
+// (book_model/shelf_model/shelf_planner importları üsttekinden ortaktır.)
+
+import 'package:equatable/equatable.dart';
+
+import 'package:kitaplik/core/utils/text_normalizer.dart';
+import 'package:kitaplik/data/models/organize_plan_model.dart';
 
 /// Taşıma planı sonucu: sıralı turlar + özet.
 class RefMovePlanResult extends Equatable {
@@ -239,12 +243,11 @@ abstract final class ReferenceMovePlanBuilder {
     for (final entry in counts.entries) {
       final count = entry.value;
       if (count > bestCount ||
-          (count == bestCount &&
-              TextNormalizer.compareTr(
-                    entry.key,
-                    best,
-                  ) <
-                  0)) {
+          (count == bestCount && TextNormalizer.compareTr(
+                entry.key,
+                best,
+              ) <
+              0)) {
         best = entry.key;
         bestCount = count;
       }
@@ -351,18 +354,15 @@ void main() {
   test('tek yer: elde 10 kitap sınırı ve devam turları', () {
     final shelves = [
       for (var i = 0; i < 3; i++)
-        ShelfModel(id: 's$i', name: 'Raf ${i + 1}', capacity: 50, order: i),
+        ShelfModel(id: 's$i', name: 'Raf ${i + 1}', lengthCm: 125, order: i),
     ];
     final books = <BookModel>[];
     for (var i = 0; i < 60; i++) {
-      books.add(
-          kitap('b$i', 'Kitap $i', ['Yazar ${i % 10}'], 'Raf ${i % 2 + 1}'));
+      books.add(kitap('b$i', 'Kitap $i', ['Yazar ${i % 10}'],
+          'Raf ${i % 2 + 1}'));
     }
     final arrangement = ShelfPlanner.arrange(
-      books,
-      shelves,
-      OrganizeCriterion.author,
-      options: const OrganizeOptions(thicknessAware: true),
+      books, shelves, OrganizeCriterion.author,
     );
     final planShelves = [for (final p in arrangement.shelves) p.shelf];
     final oldR = ReferenceMovePlanBuilder.build(
@@ -376,25 +376,21 @@ void main() {
   test('çok yer (kat): turlar yer değiştirdikçe bölünür', () {
     final shelves = [
       const ShelfModel(
-          id: 's0', name: 'Raf 1', capacity: 40, location: 'Alt kat', order: 0),
+          id: 's0', name: 'Raf 1', lengthCm: 100, location: 'Alt kat', order: 0),
       const ShelfModel(
-          id: 's1', name: 'Raf 2', capacity: 40, location: 'Alt kat', order: 1),
+          id: 's1', name: 'Raf 2', lengthCm: 100, location: 'Alt kat', order: 1),
       const ShelfModel(
-          id: 's2', name: 'Raf 3', capacity: 40, location: 'Üst kat', order: 2),
+          id: 's2', name: 'Raf 3', lengthCm: 100, location: 'Üst kat', order: 2),
       const ShelfModel(
-          id: 's3', name: 'Raf 4', capacity: 40, location: 'Üst kat', order: 3),
+          id: 's3', name: 'Raf 4', lengthCm: 100, location: 'Üst kat', order: 3),
     ];
     final books = <BookModel>[];
     for (var i = 0; i < 80; i++) {
-      books.add(kitap(
-          'b$i', 'Kitap $i', ['Yazar ${i % 16}'], 'Raf ${i % 4 + 1}',
-          pages: 150 + (i * 13) % 400));
+      books.add(kitap('b$i', 'Kitap $i', ['Yazar ${i % 16}'],
+          'Raf ${i % 4 + 1}', pages: 150 + (i * 13) % 400));
     }
     final arrangement = ShelfPlanner.arrange(
-      books,
-      shelves,
-      OrganizeCriterion.author,
-      options: const OrganizeOptions(thicknessAware: true),
+      books, shelves, OrganizeCriterion.author,
     );
     final planShelves = [for (final p in arrangement.shelves) p.shelf];
     final oldR = ReferenceMovePlanBuilder.build(
@@ -408,21 +404,17 @@ void main() {
   test('rafsız kitaplar ve tanımsız hedef adları', () {
     final shelves = [
       const ShelfModel(
-          id: 's0', name: 'Kitaplık', capacity: 30, location: '', order: 0),
+          id: 's0', name: 'Kitaplık', lengthCm: 75, location: '', order: 0),
       const ShelfModel(
-          id: 's1', name: 'Balkon', capacity: 30, location: 'Balkon', order: 1),
+          id: 's1', name: 'Balkon', lengthCm: 75, location: 'Balkon', order: 1),
     ];
     final books = <BookModel>[];
     for (var i = 0; i < 50; i++) {
-      books.add(kitap(
-          'b$i', 'Kitap $i', ['Yazar ${i % 12}'], i % 3 == 0 ? '' : 'Kitaplık',
-          pages: 200 + (i * 7) % 300));
+      books.add(kitap('b$i', 'Kitap $i', ['Yazar ${i % 12}'],
+          i % 3 == 0 ? '' : 'Kitaplık', pages: 200 + (i * 7) % 300));
     }
     final arrangement = ShelfPlanner.arrange(
-      books,
-      shelves,
-      OrganizeCriterion.author,
-      options: const OrganizeOptions(thicknessAware: false),
+      books, shelves, OrganizeCriterion.author,
     );
     final planShelves = [for (final p in arrangement.shelves) p.shelf];
     final oldR = ReferenceMovePlanBuilder.build(
@@ -432,25 +424,23 @@ void main() {
     expectSame(oldR, newR, 'rafsız');
   });
 
-  test('yer etiketinde büyük/küçük harf varyantları (eşitlik kırıcı)', () {
+  test('yer etiketinde büyük/küçük harf varyantları (eşitlik kırıcı)',
+      () {
     final shelves = [
       const ShelfModel(
-          id: 's0', name: 'Raf 1', capacity: 20, location: 'Salon', order: 0),
+          id: 's0', name: 'Raf 1', lengthCm: 50, location: 'Salon', order: 0),
       const ShelfModel(
-          id: 's1', name: 'Raf 2', capacity: 20, location: 'salon', order: 1),
+          id: 's1', name: 'Raf 2', lengthCm: 50, location: 'salon', order: 1),
       const ShelfModel(
-          id: 's2', name: 'Raf 3', capacity: 20, location: 'Salon', order: 2),
+          id: 's2', name: 'Raf 3', lengthCm: 50, location: 'Salon', order: 2),
     ];
     final books = <BookModel>[];
     for (var i = 0; i < 45; i++) {
-      books.add(
-          kitap('b$i', 'Kitap $i', ['Yazar ${i % 9}'], 'Raf ${i % 3 + 1}'));
+      books.add(kitap('b$i', 'Kitap $i', ['Yazar ${i % 9}'],
+          'Raf ${i % 3 + 1}'));
     }
     final arrangement = ShelfPlanner.arrange(
-      books,
-      shelves,
-      OrganizeCriterion.title,
-      options: const OrganizeOptions(thicknessAware: true),
+      books, shelves, OrganizeCriterion.title,
     );
     final planShelves = [for (final p in arrangement.shelves) p.shelf];
     final oldR = ReferenceMovePlanBuilder.build(
@@ -463,9 +453,9 @@ void main() {
   test('aynı kitaba ait eşit görünen çift kayıt (bozuk veri)', () {
     final shelves = [
       const ShelfModel(
-          id: 's0', name: 'Raf 1', capacity: 10, location: '', order: 0),
+          id: 's0', name: 'Raf 1', lengthCm: 25, location: '', order: 0),
       const ShelfModel(
-          id: 's1', name: 'Raf 2', capacity: 10, location: '', order: 1),
+          id: 's1', name: 'Raf 2', lengthCm: 25, location: '', order: 1),
     ];
     final books = <BookModel>[
       kitap('x1', 'Aynı Kitap', ['Yazar'], 'Raf 1'),
@@ -474,10 +464,7 @@ void main() {
       kitap('x3', 'Üçüncü', ['Yazar 3'], ''),
     ];
     final arrangement = ShelfPlanner.arrange(
-      books,
-      shelves,
-      OrganizeCriterion.author,
-      options: const OrganizeOptions(thicknessAware: false),
+      books, shelves, OrganizeCriterion.author,
     );
     final planShelves = [for (final p in arrangement.shelves) p.shelf];
     final oldR = ReferenceMovePlanBuilder.build(
@@ -490,18 +477,15 @@ void main() {
   test('deterministik büyük karışık senaryo (120 hareket)', () {
     final shelves = [
       const ShelfModel(
-          id: 's0', name: 'Raf 1', capacity: 25, location: 'Giriş', order: 0),
+          id: 's0', name: 'Raf 1', lengthCm: 62, location: 'Giriş', order: 0),
       const ShelfModel(
-          id: 's1', name: 'Raf 2', capacity: 25, location: 'Giriş', order: 1),
+          id: 's1', name: 'Raf 2', lengthCm: 62, location: 'Giriş', order: 1),
       const ShelfModel(
-          id: 's2', name: 'Raf 3', capacity: 25, location: 'Koridor', order: 2),
+          id: 's2', name: 'Raf 3', lengthCm: 62, location: 'Koridor', order: 2),
       const ShelfModel(
-          id: 's3', name: 'Raf 4', capacity: 25, location: '', order: 3),
+          id: 's3', name: 'Raf 4', lengthCm: 62, location: '', order: 3),
       const ShelfModel(
-          id: 's4',
-          name: 'Karışık kitaplar',
-          capacity: 25,
-          location: 'Koridor',
+          id: 's4', name: 'Karışık kitaplar', lengthCm: 62, location: 'Koridor',
           order: 4),
     ];
     final books = <BookModel>[];
@@ -516,13 +500,10 @@ void main() {
       ));
     }
     final arrangement = ShelfPlanner.arrange(
-      books,
-      shelves,
-      OrganizeCriterion.author,
+      books, shelves, OrganizeCriterion.author,
       options: const OrganizeOptions(
         favoriteShelfId: 's0',
         favoriteAuthors: ['Yazar 3', 'Yazar 7'],
-        thicknessAware: true,
       ),
     );
     final planShelves = [for (final p in arrangement.shelves) p.shelf];
@@ -533,12 +514,14 @@ void main() {
     expectSame(oldR, newR, 'karışık 120');
   });
 
-  test('BAŞARIM: 3000 kitap planı artık saniyeler değil milisaniyeler', () {
+  test('BAŞARIM: 3000 kitap planı artık saniyeler değil milisaniyeler',
+      () {
     final shelfCount = 31;
     final shelves = [
       for (var i = 0; i < shelfCount; i++)
         ShelfModel(
-            id: 's$i', name: 'Raf $i', capacity: 120, location: '', order: i),
+            id: 's$i', name: 'Raf $i', lengthCm: 300, location: '',
+            order: i),
     ];
     final books = [
       for (var i = 0; i < 3000; i++)
@@ -551,10 +534,7 @@ void main() {
         ),
     ];
     final arrangement = ShelfPlanner.arrange(
-      books,
-      shelves,
-      OrganizeCriterion.author,
-      options: const OrganizeOptions(thicknessAware: true),
+      books, shelves, OrganizeCriterion.author,
     );
     final planShelves = [for (final p in arrangement.shelves) p.shelf];
     final sw = Stopwatch()..start();
@@ -575,16 +555,11 @@ void main() {
   test('taşınacak kitap yoksa boş sonuç', () {
     final shelves = [
       const ShelfModel(
-          id: 's0', name: 'Raf 1', capacity: 10, location: '', order: 0),
+          id: 's0', name: 'Raf 1', lengthCm: 25, location: '', order: 0),
     ];
-    final books = [
-      kitap('b1', 'Kitap', ['Yazar'], 'Raf 1')
-    ];
+    final books = [kitap('b1', 'Kitap', ['Yazar'], 'Raf 1')];
     final arrangement = ShelfPlanner.arrange(
-      books,
-      shelves,
-      OrganizeCriterion.author,
-      options: const OrganizeOptions(thicknessAware: false),
+      books, shelves, OrganizeCriterion.author,
     );
     final planShelves = [for (final p in arrangement.shelves) p.shelf];
     final newR = MovePlanBuilder.build(

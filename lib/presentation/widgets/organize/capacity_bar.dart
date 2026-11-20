@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 
-/// Doluluk çubuğu: '12/50' göstergesi + lineer ilerleme.
+/// Doluluk çubuğu: göstergesi + lineer ilerleme.
 ///
 /// Raf kartları, hedef düzen önizlemesi ve taşıma planı bu tek widget'ı
 /// paylaşır; taşan (count > capacity) durumlarda çubuk kırmızıya döner ki
 /// kullanıcı kapasite aşımını tek bakışta görsün.
 ///
-/// Kalınlık modunda (1.15.0) göstergenin yerine birim metni konur:
-/// arayan taraf `valueText` ile '26,5/40 birim' gibi bir metin verir ve
-/// count/capacity'ye yarım-birim değerlerini geçirir (oran değişmez).
+/// 1.19.0 cm modelinde count/capacity milimetre cinsinden geçirilir ve
+/// `valueText` hazır metin gelir (ör. '38 kitap • 96,4/125 cm'); oran
+/// değişmez. valueText null ise 'count/capacity' yazılır.
 class CapacityBar extends StatelessWidget {
   const CapacityBar({
     super.key,
@@ -25,7 +25,7 @@ class CapacityBar extends StatelessWidget {
   final bool dense;
 
   /// Göstergede count/capacity yerine gösterilecek hazır metin
-  /// (ör. '26,5/40 birim'); null ise 'count/capacity' yazılır.
+  /// (ör. '38 kitap • 96,4/125 cm'); null ise 'count/capacity' yazılır.
   final String? valueText;
 
   @override

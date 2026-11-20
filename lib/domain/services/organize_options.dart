@@ -1,11 +1,16 @@
 import '../../core/utils/text_normalizer.dart';
 
-/// Hedef düzenin isteğe bağlı kuralları (1.15.0).
+/// Hedef düzenin isteğe bağlı kuralları.
 ///
-/// Kullanıcı isteği: "raf düzenleme işleminde keşke öncelikle bana favori
-/// rafımı ve favori yazarlarımı sorsa; favori rafıma favori yazarlarımı
-/// görebilsem" ve "sayfa sayısı da önemliymiş; çok kalın kitaplar
-/// sığmıyor".
+/// Kullanıcı isteği (1.15.0): "raf düzenleme işleminde keşke öncelikle bana
+/// favori rafımı ve favori yazarlarımı sorsa; favori rafıma favori
+/// yazarlarımı görebilsem".
+///
+/// **1.19.0 — favoriler yalnız "Yazara göre"dedir:** kullanıcı kararıyla
+/// favori raf + favori yazarlar tercihi YALNIZCA kriter "Yazara göre"
+/// seçiliyken devreye girer (ShelfPlanner bunu denetler). Yayınevine göre /
+/// kitap adına göre / sayfa sayısına göre düzenlemeleri kendi başlarına,
+/// favorilerden bağımsız çalışır.
 ///
 /// - [favoriteShelfId] + [favoriteAuthors] birlikte anlamlıdır: favori
 ///   yazarların kitapları planın EN BAŞINDA favori rafa BÜTÜN halinde
@@ -13,14 +18,12 @@ import '../../core/utils/text_normalizer.dart';
 ///   favori yazarların kitaplarını tutar, kalan kitaplar seçilen
 ///   kriterle dağıtılır. Yalnız biri seçildiyse favori planlamayı
 ///   etkilemez (yarım tercih, sessizce yok sayılır).
-/// - [thicknessAware] açıksa kapasite kitap sayısı değil YER (birim)
-///   cinsinden hesaplanır: her rafın kitap kapasitesi birim bütçesine
-///   dönüşür, kitabın kapladığı yer sayfa sayısından gelir.
+/// - Kapasite 1.19.0'dan beri cm cinsindendir: raf uzunluğu bütçe, kitabın
+///   yeri kalınlıktır (BookThickness). Birim anahtarı kaldırıldı.
 class OrganizeOptions {
   const OrganizeOptions({
     this.favoriteShelfId,
     this.favoriteAuthors = const [],
-    this.thicknessAware = false,
   });
 
   /// Favori rafın `shelves_v1` kimliği; yoksa ya da raf silinmişse null.
@@ -30,10 +33,8 @@ class OrganizeOptions {
   /// yerleşim sırasını belirler.
   final List<String> favoriteAuthors;
 
-  /// Kapasite birim (yer) cinsinden hesaplansın mı?
-  final bool thicknessAware;
-
-  /// Favori yerleştirme devrede mi?
+  /// Favori yerleştirme tercihi kayıtlı mı? (Planlayıcı bunu yalnız
+  /// "Yazara göre" kriterinde dikkate alır.)
   bool get hasFavorites =>
       favoriteShelfId != null &&
       favoriteShelfId!.isNotEmpty &&
@@ -43,14 +44,12 @@ class OrganizeOptions {
   bool operator ==(Object other) =>
       other is OrganizeOptions &&
       other.favoriteShelfId == favoriteShelfId &&
-      _sameAuthors(other.favoriteAuthors, favoriteAuthors) &&
-      other.thicknessAware == thicknessAware;
+      _sameAuthors(other.favoriteAuthors, favoriteAuthors);
 
   @override
   int get hashCode => Object.hash(
         favoriteShelfId,
         Object.hashAll(favoriteAuthors.map(TextNormalizer.searchKey)),
-        thicknessAware,
       );
 
   static bool _sameAuthors(List<String> a, List<String> b) {

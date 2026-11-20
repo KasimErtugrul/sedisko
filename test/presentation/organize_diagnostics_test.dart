@@ -86,7 +86,7 @@ void main() {
       // Raflar hızlı kurulumla yeniden açıldı: eski kimlik artık yok.
       // Tercih doğrudan kalıcıdan yüklenmiş gibi alan atanır (setter,
       // raflar arasında olmayan kimliği zaten reddeder).
-      await controller.quickSetup(2);
+      await controller.quickSetup(5); // raf başına 2 kitap ≈ 5 cm
       controller.favoriteShelfId.value = 'silinmis-raf-kimligi';
       await controller.addFavoriteAuthor('Ahmet Ümit');
 
@@ -105,7 +105,7 @@ void main() {
     });
 
     test('favori raf hiç seçilmemişse tek uyarı yeter', () async {
-      await controller.quickSetup(2);
+      await controller.quickSetup(5); // raf başına 2 kitap ≈ 5 cm
       await controller.addFavoriteAuthor('Ahmet Ümit');
 
       controller.buildPreview(OrganizeCriterion.author);
@@ -123,7 +123,7 @@ void main() {
     });
 
     test('favori yazar kitaplıkta eşleşmezse uyarı yazar', () async {
-      await controller.quickSetup(2);
+      await controller.quickSetup(5); // raf başına 2 kitap ≈ 5 cm
       final raf1 = controller.shelves.first;
       await controller.setFavoriteShelf(raf1.id);
       await controller.addFavoriteAuthor('Olmayan Yazar');
@@ -140,7 +140,7 @@ void main() {
     });
 
     test('eşleşen favori yazar uyarı üretmez', () async {
-      await controller.quickSetup(2);
+      await controller.quickSetup(5); // raf başına 2 kitap ≈ 5 cm
       final raf1 = controller.shelves.first;
       await controller.setFavoriteShelf(raf1.id);
       await controller.addFavoriteAuthor('Ahmet Ümit');
@@ -158,7 +158,7 @@ void main() {
   group('no-op plan ve özet', () {
     test('kitaplar zaten hedef düzende: plan null, önizleme SİLİNMEZ',
         () async {
-      await controller.quickSetup(50);
+      await controller.quickSetup(125); // 50 kitap ≈ 125 cm
       controller.buildPreview(OrganizeCriterion.author);
       // 4 kitap, 50 kapasiteli tek raf 'Raf 1': her kitap zaten yerinde.
       expect(controller.previewMoveSummary(), isNotNull);
@@ -177,9 +177,9 @@ void main() {
     });
 
     test('taşınacak kitap olduğunda özet doğru sayılır', () async {
-      await controller.quickSetup(50);
+      await controller.quickSetup(125); // 50 kitap ≈ 125 cm
       // İki raf açılsın: kitapları yazar gruplarına bölmek için raf ekle.
-      await controller.addShelf(name: 'Raf 2', capacity: 50);
+      await controller.addShelf(name: 'Raf 2', lengthCm: 125);
       // Ahmet kitaplarını Raf 2 hedefi, Ece Raf 1'de kalır; özet bunu sayar.
       final b3 = repository.store.firstWhere((b) => b.id == 'b3');
       await Get.find<LibraryController>().moveToShelf(b3, 'Raf 2');
@@ -193,7 +193,7 @@ void main() {
     });
 
     test('taşıma sonrası yeniden plan özeti azalır', () async {
-      await controller.quickSetup(2);
+      await controller.quickSetup(5); // raf başına 2 kitap ≈ 5 cm
       controller.buildPreview(OrganizeCriterion.author);
       final first = controller.previewMoveSummary()!;
 

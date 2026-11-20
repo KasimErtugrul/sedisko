@@ -13,9 +13,10 @@ import 'package:kitaplik/presentation/routes/app_pages.dart';
 import 'package:kitaplik/presentation/routes/app_routes.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Favoriler kartı ve kalınlık anahtarının kurulum sayfası akışı
-/// (1.15.0): asistan ÖNCE favori rafı ve favori yazarları sorar; önizleme
-/// favori rafı yıldız rozetiyle gösterir.
+/// Favoriler kartının kurulum sayfası akışı: 1.19.0'da favoriler
+/// YALNIZ "Yazara göre" kriteri seçilince görünür ve devreye girer;
+/// önizleme favori rafı yıldız rozetiyle gösterir. Doluluk cm + kitap
+/// sayısıyla yazılır.
 class FakeBookRepository implements BookRepository {
   FakeBookRepository({List<BookModel>? initial}) : store = [...?initial];
 
@@ -77,7 +78,8 @@ void main() {
       permanent: true,
     );
     controller = Get.find<ShelfOrganizeController>();
-    await controller.quickSetup(2);
+    // 3 kitap × 25 mm = 75 mm; raf başına 2 kitap ≈ 5 cm → 2 raf (10 cm).
+    await controller.quickSetup(5);
   });
 
   tearDown(() {
@@ -94,6 +96,12 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  /// Favoriler kartı yalnız "Yazara göre" kriterinde görünür (1.19.0).
+  Future<void> selectAuthorCriterion(WidgetTester tester) async {
+    await tester.tap(find.byKey(const ValueKey('criterion-author')));
+    await tester.pumpAndSettle();
+  }
+
   Future<void> pumpPreview(WidgetTester tester) async {
     tester.view.physicalSize = const Size(800, 2400);
     tester.view.devicePixelRatio = 1.0;
@@ -105,19 +113,27 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('Favoriler kartı kurulum sayfasının en üstündedir',
+  testWidgets('Favoriler kartı yalnız "Yazara göre" seçilince görünür',
       (tester) async {
     await pumpSetup(tester);
 
-    final favoritesDy = tester.getTopLeft(find.text('Favoriler')).dy;
+    // Kriter seçilmeden önce favoriler kartı HİÇ görünmez (1.19.0
+    // kullanıcı kararı: başlıklar yalnız yazara göre seçiliyken çıkar).
+    expect(find.text('Favoriler'), findsNothing);
+
+    await selectAuthorCriterion(tester);
+
+    expect(find.text('Favoriler'), findsOneWidget);
+    // Kriter kartı favorilerden ÖNCE gelir (düzen önce kriter ister).
     final criterionDy =
         tester.getTopLeft(find.text('Kitaplar nasıl dağıtılsın?')).dy;
-    // Kullanıcı isteği: asistan ÖNCE favorileri sorar.
-    expect(favoritesDy, lessThan(criterionDy));
+    final favoritesDy = tester.getTopLeft(find.text('Favoriler')).dy;
+    expect(criterionDy, lessThan(favoritesDy));
   });
 
   testWidgets('favori raf seçilir ve favori yazar eklenir', (tester) async {
     await pumpSetup(tester);
+    await selectAuthorCriterion(tester);
 
     final raf2 = controller.shelves.firstWhere((s) => s.name == 'Raf 2');
     await tester.tap(find.byKey(ValueKey('favorite-shelf-${raf2.id}')));
@@ -145,6 +161,7 @@ void main() {
   testWidgets('favori yazar çipinden silinebilir', (tester) async {
     await controller.addFavoriteAuthor('Ece Temelkuran');
     await pumpSetup(tester);
+    await selectAuthorCriterion(tester);
 
     await tester.tap(
       find.byKey(const ValueKey('favorite-author-chip-Ece Temelkuran')),
@@ -163,19 +180,16 @@ void main() {
     expect(controller.favoriteAuthors, isEmpty);
   });
 
-  testWidgets('kalınlık anahtarı kapalıyken doluluk kitap sayısıdır',
+  testWidgets('kurulum doluluğu kitap sayısı + cm yazar (kalınlık dahili)',
       (tester) async {
     await pumpSetup(tester);
 
-    // 3 kitap (bilinmeyen sayfa = 1 birim), 2 raf × 2 kapasite = 4 birim.
-    expect(find.text('3 / 4 birim'), findsOneWidget);
-
-    await tester.tap(find.byKey(const ValueKey('organize-thickness-switch')));
-    await tester.pumpAndSettle();
-
-    expect(controller.thicknessAware.value, isFalse);
-    expect(find.text('3/4'), findsOneWidget);
-    expect(find.text('3 / 4 birim'), findsNothing);
+    // 3 kitap (bilinmeyen sayfa = 25 mm) → 7,5 cm; 2 raf × 5 cm = 10 cm.
+    // Anahtar kalktı (1.19.0): hesap daima cm, metin kitap sayısını da
+    // taşır.
+    expect(find.text('3 kitap • 7,5 cm / 10 cm'), findsOneWidget);
+    expect(find.byKey(const ValueKey('organize-thickness-switch')),
+        findsNothing);
   });
 
   testWidgets('önizleme favori rafı yıldız rozetiyle gösterir', (tester) async {

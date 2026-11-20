@@ -891,7 +891,79 @@ flutter test
       alıcısı da manifest'te bildirildi). Tercih anahtarları:
       `settings_reminder_enabled/hour/minute/pages`.
 
+62. **cm tabanlı raf kapasitesi; kriterler bağımsız; düzenleyicide numara
+    (1.19.0)** — kullanıcı kararı: "420 sayfalık kitap kalınlığı 3 cm, 130
+    sayfalık 1 cm; favori raf ve favori yazarlar yalnız yazara göre
+    seçiliyken görünsün ve devreye girsin; yayınevine, kitap adına, sayfa
+    sayısına göre kendi başlarına çalışsın; raf düzenleyicide sol tarafta
+    1 2 3 4 sıralaması olsun; rafların uzunluğunu cm olarak sor".
+    - **cm modeli:** raf kapasitesi artık kullanıcının girdiği
+      **uzunluk (cm)**'dur (`shelves_v1`'e `lengthCm` alanı eklendi;
+      eski `capacity` alanı uyumluluk için yine yazılır, eski veri
+      `kapasite × 2,5 cm` ile otomatik cm'ye taşınır). Kitabın kapladığı
+      yer sayfa sayısından hesaplanır: **420 sayfa ≈ 3 cm, 130 sayfa
+      ≈ 1 cm** (mm ≈ (300 + 20 × sayfa) / 290); sayfası bilinmeyen kitap
+      2,5 cm sayılır. Planlama milimetre tam sayılarıyla yapılır.
+    - **Anahtar kalktı:** 'Kalın kitaplar daha çok yer kaplar' anahtarı
+      kaldırıldı — hesap daima cm'dir; `settings_thickness_aware`
+      anahtarı donmuş listede kalır ama okunmaz/yazılmaz. Doluluk
+      metinleri '38 kitap • 96,4/125 cm' biçimindedir.
+    - **Kriter bağımsızlığı:** favori raf + favori yazarlar YALNIZ
+      "Yazara göre" kriterinde görünür ve devreye girer; kurulum
+      sayfasında kart sırası Raflar → Kriter → (Favoriler) → Onay oldu.
+      Yayınevi / kitap adı / sayfa sayısı düzenlemeleri favorilerden
+      tamamen bağımsızdır (planlayıcı + UI + tanı uyarıları birlikte
+      kapıdan geçer).
+    - **Düzenleyici:** her raf kartının solunda düzen sıra numarası (1,
+      2, 3…) vardır — plan 1. raftan başlar; hızlı kurulum ve raf
+      diyaloğu cm ister ('Her raf kaç cm?' / 'Uzunluk (cm)').
+    - **Dürüst çıktı:** önizleme kartları numaralıdır; özet kartı ve alt
+      açıklama planın RAF İÇİ dizilişi kapsamadığını açıkça yazar
+      ("plan yalnız raf atamalarını taşır") — "yalnız 1 kitap taşınacak"
+      çıktısının ne anlama geldiği tek bakışta bellidir.
+
 ## Sürüm notları
+
+**1.19.1:** `pubspec.yaml` sürümü `1.19.1+25`'e yükseltildi. Kullanıcı
+raporu: Windows'ta `loan_controller_test.dart` içindeki "activeBorrowed
+en yeni alımdan başlar" testi `['Eski', 'Yeni']` dönüyordu. Kök neden
+test hatası değil, platform farkıydı: Windows'ta saat çözünürlüğü kaba
+(~15 ms tık) olduğundan art arda iki `addBorrowed` çağrısı aynı
+`DateTime.now()` değerini alabiliyor; tarihler eşitlenince Dart'ın
+kararlı sıralaması ekleme sırasını koruyor ve liste en eskiden
+başlıyordu (Linux'ta mikrosaniye çözünürlük olduğundan gözden
+kaçmıştı). Düzeltme iki katmanlı: (1) denetleyicideki dört sıralama
+getter'ına (`activeLoans`, `returnedLoans`, `activeBorrowed`,
+`returnedBorrowed`) eşitlik kırıcı eklendi — tarihler aynıysa
+listedeki konumu büyük (son eklenen) kayıt önce gösterilir; gösterim
+sırası artık eşit tarihlerde bile platformdan bağımsız ve
+deterministiktir; (2) ilgili testin saat bağımlılığı belgelenip
+yeniden yazıldı ve üç deterministik regresyon testi eklendi (depodan
+yüklemede ayrık tarihli alıntı sırası, eşit tarihli alıntı sırası,
+eşit verilme tarihli ödünç sırası). Veri anahtarları ve saklanan
+veriler değişmedi; davranış farkı yalnızca eşit tarihli kayıtların
+gösterim sırasındadır. Toplam 694 test yeşil (`flutter analyze`: No
+issues found!).
+
+**1.19.0:** `pubspec.yaml` sürümü `1.19.0+24`'e yükseltildi. Veri
+anahtarları değişmedi; `shelves_v1` içindeki raf kayıtlarına **geriye
+dönük uyumlu** bir alan eklendi (`lengthCm`): eski kayıtlı raflar
+`kapasite × 2,5 cm` ile otomatik cm'ye taşınır, eski JSON
+(`capacity`-only) aynen okunur ve `capacity` alanı yine yazılır.
+`settings_thickness_aware` anahtarı listede kalır ama artık
+okunmaz/yazılmaz (anahtar kalktı). Yeni ölçek kullanıcı ölçümleriyle
+kalibre edildi: 420 sayfa ≈ 3 cm, 130 sayfa ≈ 1 cm; bilinmeyen sayfa
+≈ 2,5 cm. Kullanıcı kararları: (1) favori raf/favori yazarlar yalnız
+"Yazara göre" kriterinde görünür ve devreye girer, öteki üç kriter
+kendi başına çalışır; (2) raf düzenleyicide her rafın solunda düzen
+sıra numarası (1, 2, 3…) gösterilir; (3) "raf içi diziliş rehberi"
+eklenmedi — yerine önizleme özeti ve açıklamalar planın kapsamını
+açıkça yazar. Raf düzenleme hattının tüm testleri yeni modele
+taşındı; yeni testler: eski veri → cm geçişi (50 kitap → 125 cm),
+kalınlık formülü (420→30 mm, 130→10 mm, 0→25 mm), favorilerin
+yayınevi kriterinde yok sayılması, cm doluluk metinleri, koşullu
+favoriler kartı, numaralı düzenleyici/önizleme; toplam 691 test yeşil
+(`flutter analyze`: No issues found!).
 
 **1.18.1:** `pubspec.yaml` sürümü `1.18.1+23`'e yükseltildi. Kullanıcı
 raporu: "rafları düzenle butonuna basıyor ama ya uygulama kilitleniyor

@@ -27,7 +27,9 @@ Future<String?> showShelfPickerSheet(
 /// İptal ya da aynı raf seçiminde hiçbir şey yapmaz.
 ///
 /// Raf tanımı varsa kapasite denetlenir (kullanıcı kararı: uyarılı
-/// taşıma): dolu raf 'Raf doluyor (50/50)' uyarısıyla yine de kabul edilir.
+/// taşıma): dolu raf doluluk metniyle ('Raf doluyor — 20 kitap • 121/125
+/// cm') yine de kabul edilir. Kapasite 1.19.0'dan beri cm cinsindendir
+/// (raf uzunluğu ↔ kitap kalınlığı).
 Future<void> pickShelfAndMove(BuildContext context, BookModel book) async {
   final shelf = await showShelfPickerSheet(context, currentShelf: book.shelf);
   if (shelf == null) return; // İptal
@@ -38,10 +40,9 @@ Future<void> pickShelfAndMove(BuildContext context, BookModel book) async {
     final organize = Get.find<ShelfOrganizeController>();
     final definition = organize.shelfByName(shelf);
     if (definition != null) {
-      final occupancy = organize.shelfOccupancyText(shelf, definition.capacity);
-      final isFull = organize.thicknessAware.value
-          ? organize.shelfHalfUnits(shelf) >= definition.capacity * 2
-          : organize.shelfCount(shelf) >= definition.capacity;
+      final occupancy = organize.shelfOccupancyText(shelf);
+      final isFull =
+          organize.shelfMm(shelf) >= definition.lengthMm;
       final movingBack = TextNormalizer.searchKey(book.shelf.trim()) !=
           TextNormalizer.searchKey(shelf.trim());
       if (isFull && movingBack) {
@@ -137,8 +138,9 @@ class _ShelfPickerSheet extends StatelessWidget {
     );
   }
 
-  /// Satır sonu: tanımlı rafta doluluk göstergesi ('2/50' ya da kalınlık
-  /// modunda '4/50 birim'), tanımsızda ya da mevcut rafta yalnız onay işareti.
+  /// Satır sonu: tanımlı rafta doluluk göstergesi
+  /// ('2 kitap • 5,3/125 cm'), tanımsızda ya da mevcut rafta yalnız onay
+  /// işareti.
   Widget? _trailing(
     BuildContext context,
     ShelfOrganizeController? organize,
@@ -153,7 +155,7 @@ class _ShelfPickerSheet extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          organize.shelfOccupancyText(shelf, definition.capacity),
+          organize.shelfOccupancyText(shelf),
           style: Theme.of(context).textTheme.bodySmall,
         ),
         const SizedBox(width: 8),

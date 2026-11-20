@@ -6,10 +6,15 @@ import '../controllers/shelf_organize_controller.dart';
 import '../routes/app_routes.dart';
 import '../widgets/organize/capacity_bar.dart';
 
-/// Raf tanımlarının düzenlendiği sayfa: ad + kapasite (kitap sayısı) +
-/// serbest yer etiketi ('Alt kat', 'Üst kat', …) + fiziksel sıra.
+/// Raf tanımlarının düzenlendiği sayfa: ad + cm uzunluk + serbest yer
+/// etiketi ('Alt kat', 'Üst kat', …) + fiziksel sıra.
 ///
-/// Hızlı kurulum tek kapasiteyle tüm rafları açar; tek tek düzenleme
+/// **1.19.0:** her raf kartının solunda 1, 2, 3… numarası vardır —
+/// düzen planı 1. raftan başlayıp sırayla dizer; kullanıcı hangi raftan
+/// başlanacağını tek bakışta anlar. Uzunluk cm cinsindendir: kitapların
+/// kalınlığı sayfa sayısından hesaplanır (420 sayfa ≈ 3 cm, 130 sayfa
+/// ≈ 1 cm) ve plan hiçbir rafı uzunluğunun üzerine doldurmaz.
+/// Hızlı kurulum tek uzunlukla tüm rafları açar; tek tek düzenleme
 /// her rafı gerçek kitaplığına göre ayarlar. Sıra, taşıma planının
 /// gezinti düzenidir: plan rafları bu sırayla dizer.
 class ShelfEditorPage extends StatelessWidget {
@@ -34,20 +39,22 @@ class ShelfEditorPage extends StatelessWidget {
         if (controller.shelves.isEmpty) {
           return const _EmptyEditor();
         }
-        // Kalınlık tercihi değişirse kartlar da yenilensin (bağımlılık).
-        final thicknessAware = controller.thicknessAware.value;
         return ListView(
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 88),
           children: [
             Text(
-              'Kapasiteler gerçek kitaplığına göre olsun: plan hiçbir rafı '
-              'kapasitesinin üzerine doldurmaz. "Yer" etiketi kat/oda adıdır; '
-              'aynı etiketli rafların işi taşıma planında tek turda toplanır.',
+              'Uzunluklar gerçek rafta kitapların dizildiği boşluk olsun: '
+              'plan hiçbir rafı uzunluğunun üzerine doldurmaz. Sol '
+              'taraftaki numara düzen sırasıdır; plan 1. raftan başlar. '
+              '"Yer" etiketi kat/oda adıdır; aynı etiketli rafların işi '
+              'taşıma planında tek turda toplanır.',
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 8),
-            for (final shelf in controller.shelves)
-              _ShelfCard(shelf: shelf, thicknessAware: thicknessAware),
+            // Sol taraftaki 1, 2, 3… numarası fiziksel düzen sırasıdır:
+            // plan kitapları 1. raftan itibaren sırayla dizer.
+            for (var i = 0; i < controller.shelves.length; i++)
+              _ShelfCard(shelf: controller.shelves[i], orderNumber: i + 1),
           ],
         );
       }),
@@ -66,9 +73,9 @@ class ShelfEditorPage extends StatelessWidget {
     ShelfOrganizeController controller,
   ) async {
     final input = TextEditingController(
-      text: '${ShelfOrganizeController.defaultCapacity}',
+      text: '${ShelfOrganizeController.defaultShelfLengthCm}',
     );
-    final count = await showDialog<int>(
+    final lengthCm = await showDialog<int>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Hızlı kurulum'),
@@ -77,8 +84,8 @@ class ShelfEditorPage extends StatelessWidget {
           autofocus: true,
           keyboardType: TextInputType.number,
           decoration: const InputDecoration(
-            labelText: 'Her raf kaç kitap alır?',
-            hintText: 'örn. 50',
+            labelText: 'Her raf kaç cm uzunluğunda?',
+            hintText: 'örn. 100',
             border: OutlineInputBorder(),
           ),
         ),
@@ -98,8 +105,8 @@ class ShelfEditorPage extends StatelessWidget {
         ],
       ),
     );
-    if (count != null) {
-      await controller.quickSetup(count);
+    if (lengthCm != null) {
+      await controller.quickSetup(lengthCm);
     }
   }
 }
@@ -119,7 +126,7 @@ class _EmptyEditor extends StatelessWidget {
             const SizedBox(height: 12),
             const Text(
               'Henüz raf tanımı yok.\n'
-              'Hızlı kurulumla tek sayıda kapasite girip tüm rafları '
+              'Hızlı kurulumla tek cm uzunluk girip tüm rafları '
               'açabilir ya da tek tek ekleyebilirsin.',
               textAlign: TextAlign.center,
             ),
@@ -137,14 +144,19 @@ class _EmptyEditor extends StatelessWidget {
   }
 }
 
-/// Tek raf kartı: ad, kapasite, yer, doluluk ve sıra düzenleme.
+/// Tek raf kartı: SOL tarafta düzen sıra numarası, ad, cm uzunluk, yer,
+/// doluluk ve sıra düzenleme.
 class _ShelfCard extends StatelessWidget {
-  const _ShelfCard({required this.shelf, required this.thicknessAware});
+  const _ShelfCard({
+    required this.shelf,
+    required this.orderNumber,
+  });
 
   final ShelfModel shelf;
 
-  /// Kalınlık hesabı açıkken doluluk birim cinsinden gösterilir.
-  final bool thicknessAware;
+  /// Bu rafın fiziksel düzen sırası (1'den başlar); plan kitapları bu
+  /// sırayla dizer.
+  final int orderNumber;
 
   @override
   Widget build(BuildContext context) {
@@ -154,6 +166,14 @@ class _ShelfCard extends StatelessWidget {
       key: ValueKey('shelf-row-${shelf.id}'),
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
+        leading: CircleAvatar(
+          key: ValueKey('shelf-order-${shelf.id}'),
+          radius: 14,
+          child: Text(
+            '$orderNumber',
+            style: Theme.of(context).textTheme.labelLarge,
+          ),
+        ),
         title: Row(
           children: [
             Expanded(
@@ -175,24 +195,17 @@ class _ShelfCard extends StatelessWidget {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Text('${shelf.lengthCm} cm', maxLines: 1),
             if (shelf.location.isNotEmpty)
               Text('Yer: ${shelf.location}', maxLines: 1),
             const SizedBox(height: 6),
-            if (thicknessAware)
-              CapacityBar(
-                key: ValueKey('shelf-bar-${shelf.id}'),
-                count: controller.shelfHalfUnits(shelf.name),
-                capacity: shelf.capacity * 2,
-                dense: true,
-                valueText: controller.shelfOccupancyText(shelf.name, shelf.capacity),
-              )
-            else
-              CapacityBar(
-                key: ValueKey('shelf-bar-${shelf.id}'),
-                count: controller.shelfCount(shelf.name),
-                capacity: shelf.capacity,
-                dense: true,
-              ),
+            CapacityBar(
+              key: ValueKey('shelf-bar-${shelf.id}'),
+              count: controller.shelfMm(shelf.name),
+              capacity: shelf.lengthMm,
+              dense: true,
+              valueText: controller.shelfOccupancyText(shelf.name),
+            ),
           ],
         ),
         trailing: Row(
@@ -222,17 +235,18 @@ class _ShelfCard extends StatelessWidget {
 }
 
 /// Yeni raf / raf düzenleme diyaloğu. [shelf] `null` ise yeni raf açar.
-/// Ad benzersizliği (aksan/büyük harf duyarsız) ve kapasite ≥ 1 denetlenir.
+/// Ad benzersizliği (aksan/büyük harf duyarsız) ve uzunluk ≥ 1 cm
+/// denetlenir.
 Future<void> showShelfEditDialog(
   BuildContext context,
   ShelfOrganizeController controller,
   ShelfModel? shelf,
 ) async {
   final nameCtrl = TextEditingController(text: shelf?.name ?? '');
-  final capacityCtrl = TextEditingController(
+  final lengthCtrl = TextEditingController(
     text: shelf == null
-        ? '${ShelfOrganizeController.defaultCapacity}'
-        : '${shelf.capacity}',
+        ? '${ShelfModel.defaultLengthCm}'
+        : '${shelf.lengthCm}',
   );
   final locationCtrl = TextEditingController(text: shelf?.location ?? '');
   String? error;
@@ -243,26 +257,26 @@ Future<void> showShelfEditDialog(
       builder: (dialogContext, setState) {
         Future<void> submit() async {
           final name = nameCtrl.text.trim();
-          final capacity = int.tryParse(capacityCtrl.text.trim()) ?? 0;
+          final lengthCm = int.tryParse(lengthCtrl.text.trim()) ?? 0;
           if (!controller.isNameUsable(name, exceptId: shelf?.id)) {
             setState(() => error =
                 name.trim().isEmpty ? 'Raf adı gerekli' : 'Bu raf zaten var');
             return;
           }
-          if (capacity < 1) {
-            setState(() => error = 'Kapasite en az 1 olmalı');
+          if (lengthCm < 1) {
+            setState(() => error = 'Uzunluk en az 1 cm olmalı');
             return;
           }
           final ok = shelf == null
               ? await controller.addShelf(
                   name: name,
-                  capacity: capacity,
+                  lengthCm: lengthCm,
                   location: locationCtrl.text,
                 )
               : await controller.updateShelf(
                   id: shelf.id,
                   name: name,
-                  capacity: capacity,
+                  lengthCm: lengthCm,
                   location: locationCtrl.text,
                 );
           if (ok && dialogContext.mounted) Navigator.pop(dialogContext);
@@ -287,11 +301,14 @@ Future<void> showShelfEditDialog(
                 ),
                 const SizedBox(height: 12),
                 TextField(
-                  controller: capacityCtrl,
+                  controller: lengthCtrl,
                   keyboardType: TextInputType.number,
                   decoration: const InputDecoration(
-                    labelText: 'Kapasite (kitap sayısı)',
-                    hintText: 'örn. 50',
+                    labelText: 'Uzunluk (cm)',
+                    hintText: 'örn. 100',
+                    helperText:
+                        'Rafın kitapların dizildiği boşluk; 420 sayfalık '
+                        'kitap ≈ 3 cm yer kaplar',
                     border: OutlineInputBorder(),
                   ),
                 ),

@@ -11,7 +11,7 @@ class ApiConstants {
 class AppInfo {
   const AppInfo._();
 
-  static const String version = '1.18.1';
+  static const String version = '1.19.1';
 }
 
 class StorageKeys {
@@ -69,9 +69,10 @@ class SettingsKeys {
   /// Favori yazarlar (kullanıcının sıraladığı liste).
   static const String favoriteAuthors = 'settings_favorite_authors';
 
-  /// Kapasite kitap sayısı yerine yer (birim) cinsinden hesaplansın mı?
-  /// Kitabın yeri sayfa sayısından tahmin edilir (≈350 sayfa = 1 birim).
-  /// Varsayılan açıktır.
+  /// [KALDIRILDI — 1.19.0] Eski 'kalınlık hesabı' anahtarı. Kapasite artık
+  /// her zaman cm cinsindendir (raf uzunluğu ↔ kitap kalınlığı); bu
+  /// anahtar donmuş veri listesinde kalır, depolarda kalan değer
+  /// yok sayılır. Yeni kod okumaz/yazmaz.
   static const String thicknessAware = 'settings_thickness_aware';
 
   /// Günlük okuma hatırlatıcısı açık mı? Varsayılan kapalı gelir:

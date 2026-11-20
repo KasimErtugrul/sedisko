@@ -84,12 +84,12 @@ void main() {
     controller = Get.find<ShelfOrganizeController>();
     await controller.addShelf(
       name: 'Salonun Uun Rafı',
-      capacity: 2,
+      lengthCm: 5,
       location: _longLocation,
     );
     await controller.addShelf(
       name: 'Mutfaktaki Ara Raf',
-      capacity: 2,
+      lengthCm: 5,
       location: _longLocation,
     );
   });
