@@ -2,12 +2,43 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:kitaplik/data/datasources/loan_local_datasource.dart';
+import 'package:kitaplik/data/models/book_model.dart';
 import 'package:kitaplik/data/models/borrowed_book_model.dart';
 import 'package:kitaplik/data/models/loan_model.dart';
+import 'package:kitaplik/domain/repositories/book_repository.dart';
+import 'package:kitaplik/presentation/controllers/library_controller.dart';
 import 'package:kitaplik/presentation/controllers/loan_controller.dart';
 import 'package:kitaplik/presentation/pages/borrowed_page.dart';
 import 'package:kitaplik/presentation/pages/loans_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+/// Bellek içi sahte repository; FAB'ın kitap seçici tablosu kitaplığı
+/// buradan okur (keşke 38 testleri).
+class FakeBookRepository implements BookRepository {
+  FakeBookRepository({List<BookModel>? initial}) : store = [...?initial];
+
+  final List<BookModel> store;
+
+  @override
+  Future<List<BookModel>> getBooks() async => [...store];
+
+  @override
+  Future<void> saveBook(BookModel book) async {
+    final index = store.indexWhere((b) => b.id == book.id);
+    if (index >= 0) {
+      store[index] = book;
+    } else {
+      store.add(book);
+    }
+  }
+
+  @override
+  Future<void> deleteBook(String id) async =>
+      store.removeWhere((b) => b.id == id);
+
+  @override
+  Future<BookModel?> fetchBookByIsbn(String isbn) async => null;
+}
 
 /// Ödünç sayfaları (1.18.0): LoansPage bölümleri, geri alma ve onaylı
 /// silme; BorrowedPage ekleme, düzenleme, geri verme akışları.
@@ -90,7 +121,8 @@ void main() {
       expect(find.textContaining('geri alındı: 20.12.2025'), findsOneWidget);
       expect(
         find.text(
-          'Kitap detayındaki "Ödünç ver" aksiyonuyla kitap takibi yapılır.',
+          'Sağ alttaki "Ödünç ver" düğmesiyle ya da kitap detayından '
+          'yeni kayıt açılır.',
         ),
         findsOneWidget,
       );
@@ -151,6 +183,102 @@ void main() {
       expect(store.getLoans(), isEmpty);
     });
 
+    testWidgets('keşke 37: görünür sil düğmesi aynı onayı açar',
+        (tester) async {
+      await store.upsertLoan(LoanModel(
+        id: 'eski',
+        bookId: 'b1',
+        bookTitle: 'Dune',
+        person: 'Ali',
+        lentAt: DateTime(2026, 1, 15),
+      ));
+      putController();
+
+      await pumpPage(tester, const LoansPage());
+
+      // Silme artık kartın ucunda görünür bir düğme; basılı tutmayı
+      // keşfetmeyi gerektirmez.
+      await tester.tap(find.byKey(const ValueKey('loan-delete-eski')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Kayıt silinsin mi?'), findsOneWidget);
+      await tester.tap(find.text('Sil'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Dune'), findsNothing);
+      expect(store.getLoans(), isEmpty);
+    });
+
+    testWidgets('keşke 38: Ödünç ver düğmesi kitap seçtirip kişi '
+        'diyaloğunu açar', (tester) async {
+      final library = Get.put<LibraryController>(
+        LibraryController(
+          FakeBookRepository(initial: [
+            BookModel(id: 'b1', title: 'Dune', addedAt: DateTime(2026, 1, 1)),
+          ]),
+          onNotify: (_, __) {},
+        ),
+        permanent: true,
+      );
+      await library.loadBooks();
+      putController();
+
+      await pumpPage(tester, const LoansPage());
+
+      await tester.tap(find.byKey(const Key('loans-add-fab')));
+      await tester.pumpAndSettle();
+
+      // Seçici tablosu kitaplığı listeler.
+      expect(
+        find.text('Kimi ödünç vereceksin? Önce kitabı seç.'),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(const ValueKey('lend-pick-b1')));
+      await tester.pumpAndSettle();
+
+      // Kişi diyaloğu: kişi yazılınca onay aktifleşir; kayıt yazılır.
+      expect(find.byKey(const Key('lend-person-field')), findsOneWidget);
+      await tester.enterText(
+        find.byKey(const Key('lend-person-field')),
+        'Ayşe',
+      );
+      await tester.pump();
+      await tester.tap(find.widgetWithText(FilledButton, 'Ödünç ver'));
+      await tester.pumpAndSettle();
+      await drainSnackbars(tester);
+
+      expect(store.getLoans(), hasLength(1));
+      expect(store.getLoans().single.person, 'Ayşe');
+      // Kart sayfada görünür; sürüyor bölümünde listelenir.
+      expect(find.text('Sürüyor'), findsOneWidget);
+    });
+
+    testWidgets('keşke 38: verilecek kitap kalmadıysa seçici açılmaz',
+        (tester) async {
+      final library = Get.put<LibraryController>(
+        LibraryController(FakeBookRepository(), onNotify: (_, __) {}),
+        permanent: true,
+      );
+      await library.loadBooks();
+      putController();
+
+      await pumpPage(tester, const LoansPage());
+
+      await tester.tap(find.byKey(const Key('loans-add-fab')));
+      await tester.pumpAndSettle();
+
+      // Kitaplık boş: sessiz tablo yerine açıkça söyleyilir.
+      expect(
+        find.textContaining('Ödünç verilecek kitap yok'),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Kimi ödünç vereceksin? Önce kitabı seç.'),
+        findsNothing,
+      );
+      await drainSnackbars(tester);
+    });
+
     testWidgets('kayıt yokken boş durum mesajı gösterilir', (tester) async {
       putController();
 
@@ -159,7 +287,7 @@ void main() {
       expect(
         find.text(
           'Henüz ödünç verilen kitap yok.\n'
-          'Kitap detayındaki "Ödünç ver" aksiyonunu kullanabilirsin.',
+          'Sağ alttaki "Ödünç ver" düğmesini kullanabilirsin.',
         ),
         findsOneWidget,
       );
@@ -285,6 +413,29 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Sefiller'), findsNothing);
+      expect(store.getBorrowed(), isEmpty);
+    });
+
+    testWidgets('keşke 37: görünür sil düğmesi aynı onayı açar',
+        (tester) async {
+      await store.upsertBorrowed(BorrowedBookModel(
+        id: 'bb2',
+        title: 'Şeker Portakalı',
+        owner: 'Veli',
+        borrowedAt: DateTime(2026, 3, 1),
+      ));
+      putController();
+
+      await pumpPage(tester, const BorrowedPage());
+
+      await tester.tap(find.byKey(const ValueKey('borrowed-delete-bb2')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Kayıt silinsin mi?'), findsOneWidget);
+      await tester.tap(find.text('Sil'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Şeker Portakalı'), findsNothing);
       expect(store.getBorrowed(), isEmpty);
     });
 

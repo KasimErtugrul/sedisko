@@ -156,23 +156,71 @@ class _ItemCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 8),
+              // Keşke 36 (1.20.0): "Kitabı aldım, kitaplığa ekledim;
+              // listede durmaya devam etti. 'Aldım' düğmesi olsaydı" —
+              // iki net yol yan yana.
               Padding(
                 padding: const EdgeInsets.only(right: 8),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.tonal(
-                    onPressed: () => Get.toNamed(
-                      Routes.form,
-                      arguments: BookFormArgs(book: item.toBook()),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        key: ValueKey('wishlist-bought-${item.id}'),
+                        onPressed: () => _confirmBought(context),
+                        icon: const Icon(Icons.check),
+                        label: const Text('Aldım'),
+                      ),
                     ),
-                    child: const Text('Kitaplığa ekle'),
-                  ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: FilledButton.tonal(
+                        onPressed: () => Get.toNamed(
+                          Routes.form,
+                          arguments: BookFormArgs(book: item.toBook()),
+                        ),
+                        child: const Text('Kitaplığa ekle'),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  /// 'Aldım': kayıt onayla listeden çıkarılır. Kitabı kitaplığa ekleme
+  /// yoluna dokunulmaz; diyalog yolu da hatırlatır.
+  Future<void> _confirmBought(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('"${item.title}" alındı mı?'),
+        content: const Text(
+          'Aldım işareti kaydı listeden çıkarır. Kitabı kitaplığa da '
+          'eklemek istersen "Kitaplığa ekle" düğmesini kullan.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Vazgeç'),
+          ),
+          FilledButton(
+            key: const ValueKey('wishlist-bought-confirm'),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Evet, aldım'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await Get.find<WishlistController>().remove(item.id);
+    Get.snackbar(
+      'Aldım olarak işaretlendi',
+      '"${item.title}" listeden çıkarıldı.',
+      snackPosition: SnackPosition.BOTTOM,
     );
   }
 

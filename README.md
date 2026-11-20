@@ -924,6 +924,41 @@ flutter test
 
 ## Sürüm notları
 
+**1.20.0:** `pubspec.yaml` sürümü `1.20.0+28`'e yükseltildi. Keşke
+notlarının FAZ 1'i — "gizli işleri görünür kıl" (kullanıcı raporu:
+Hasan, 45 keşke, "en çok can yakan on"un ilk üçü gizli işler, yazısız
+ikonlar ve saklı sayfalardı). Bu faza sekiz keşke girdi:
+
+- **Keşke 15:** kitabı başka rafa taşımak artık uzun basma dışında
+  görünür bir düğmeyle de yapılır (kartın ucundaki "Başka rafa taşı";
+  BookTile, tüm listelerde çalışır). Uzun basma yolu aynen korunur.
+- **Keşke 16:** raf sayfasının yazısız ikonları (sırala, süz, rafı
+  taşı, rafa topla, adı değiştir) yazılı düğmelerle değişti; anahtarlar
+  ve tooltip'ler aynen taşındı (mevcut testler ve ekran okuyucu bozulmaz).
+- **Keşke 19:** yazar adı değiştirme artık kartın köşesindeki kalem
+  simgesiyle görünür; basılı tutma da çalışmaya devam eder.
+- **Keşke 30:** kitap detayının üst çubuğundaki dört yazısız ikon
+  ("'Ödünç ver'in ikonu kitap resmi; kitabı oku sanıyorum") yerini
+  yazılı eylem şeridine bıraktı: Ödünç ver / Favori / Düzenle / Sil.
+- **Keşke 37:** ödünç ve alıntı kayıtlarında silme artık karttaki
+  görünür düğmeyle yapılır; basılı tutma da aynı onayı açar.
+- **Keşke 38:** "Ödünç verilenler" sayfasına sağ alttan "Ödünç ver"
+  düğmesi eklendi (kardeş sayfayla aynı davranış): kitap seçme tablosu
+  + kişi/not diyaloğu; verilecek kitap kalmadıysa açıkça söylenir.
+- **Keşke 36:** satın alma listesinde her kartta "Aldım" düğmesi —
+  onayla kayıt listeden çıkar; "Kitaplığa ekle" yolu ayrı kalır.
+- **Keşke 40:** yedekten "Üzerine yaz" ikinci onay sorar ("Bütün
+  kitaplık değişecek / Evet, hepsini değiştir"); vazgeçilirse kip
+  seçimi diyaloğu açık kalır; Birleştir'e dokunulmaz.
+
+"Dokunmayın" listesindeki davranışlar korundu (form çıkış onayı, elle
+giriş yolu, "Kaçıncı sayfadasın?", dolu raf uyarısı, hızlı kurulum,
+kopya sorusu, kart bilgisi, yedek paylaşımı). Veri anahtarları ve
+saklanan veriler değişmedi. Yeni testler: kart taşıma düğmesi (2),
+ödünç görünür silme (2), FAB kitap seçici (2), yazar düzenle düğmesi,
+detay şeridi genişletmesi, "Aldım" akışı, ikinci onay diyaloğu (3);
+toplamda 721 test yeşil (`flutter analyze`: No issues found!).
+
 **1.19.3:** `pubspec.yaml` sürümü `1.19.3+27`'e yükseltildi. Kullanıcı
 raporu (iki ekran görüntüsü): "Yazara göre" düzenlemede çıkan sonuç
 güncellemeden sonra da değişmiyordu; kullanıcının teşhisi doğruydu —

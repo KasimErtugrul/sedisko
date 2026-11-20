@@ -19,9 +19,14 @@ import '../widgets/status_filter_row.dart';
 /// [authorKey] verilirse yalnız o yazarın kitapları listelenir; detay
 /// sayfasındaki yazar adına dokununca bu görünüm açılır.
 ///
-/// Genel filtreleme: app bar'daki süzgeç ikonu yazar seçimi açar; yazar
-/// filtresi aktifken "Rafa topla" aksiyonu aynı yazarın kitaplarını tek
-/// rafta birleştirir. Durum filtresi çipleri her iki görünümde de çalışır.
+/// Genel filtreleme: eylem satırındaki "Süz" düğmesi yazar seçimi açar;
+/// yazar filtresi aktifken "Rafa topla" aksiyonu aynı yazarın kitaplarını
+/// tek rafta birleştirir. Durum filtresi çipleri her iki görünümde de çalışır.
+///
+/// **1.20.0 (keşke 16):** sırala/süz/taşı işlemleri yazısız ikonlardan
+/// yazılı düğmelere taşındı — kullanıcı "hangisi ne yapıyor belli değil"
+/// notu almıştı. Anahtarlar ve tooltip'ler ("shelf-bulk-move", "Sırala",
+/// Icons.filter_list) eski ikon düğmelerinden aynen taşındı.
 class ShelfPage extends StatefulWidget {
   const ShelfPage({super.key, this.shelf, this.authorKey});
 
@@ -62,68 +67,7 @@ class _ShelfPageState extends State<ShelfPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Obx(() => Text(_title)),
-        actions: [
-          Obx(() {
-            final active = _controller.hasCustomSort;
-            return IconButton(
-              tooltip: 'Sırala',
-              icon: Badge(
-                isLabelVisible: active,
-                child: const Icon(Icons.sort),
-              ),
-              onPressed: () => showBookSortSheet(context),
-            );
-          }),
-          // Kullanıcı isteği (1.16.0): "a rafındaki tüm kitapları b
-          // rafına aktarabiliyormuyum" — somut raf sayfalarında tüm
-          // kitapları toplu taşıma. 'Tüm kitaplar' görünümünde yok: tüm
-          // kitaplığı tek rafa toplamak kaza riski taşır.
-          if (widget.shelf != null)
-            IconButton(
-              key: const ValueKey('shelf-bulk-move'),
-              tooltip: 'Bu raftaki tüm kitapları başka rafa taşı',
-              icon: const Icon(Icons.drive_file_move_outline),
-              onPressed: () => moveWholeShelf(context, widget.shelf!),
-            ),
-          Obx(() {
-            final active = _controller.authorFilter.value != null;
-            return IconButton(
-              tooltip: 'Filtrele',
-              icon: Badge(
-                isLabelVisible: active,
-                child: const Icon(Icons.filter_list),
-              ),
-              onPressed: () => _showAuthorFilterSheet(context),
-            );
-          }),
-          // Yazar filtresi aktifken: aynı yazarın kitaplarını tek raf toplama.
-          Obx(() {
-            if (_controller.authorFilter.value == null) {
-              return const SizedBox.shrink();
-            }
-            return IconButton(
-              tooltip: 'Bu yazarın kitaplarını bir rafa topla',
-              // drive_file_move artık "tüm rafı taşı" aksiyonunun ikonu;
-              // yazar toplama ayrışsın diye klasör ikonu kullanılır.
-              icon: const Icon(Icons.folder_special_outlined),
-              onPressed: () => _collectAuthorToShelf(context),
-            );
-          }),
-          // Yazar filtresi aktifken: yazar adını değiştir (yazım birleştirme).
-          Obx(() {
-            if (_controller.authorFilter.value == null) {
-              return const SizedBox.shrink();
-            }
-            return IconButton(
-              tooltip: 'Yazarı yeniden adlandır',
-              icon: const Icon(Icons.drive_file_rename_outline),
-              onPressed: () => _renameAuthor(context),
-            );
-          }),
-        ],
-      ),
+      appBar: AppBar(title: Obx(() => Text(_title))),
       body: Obx(() {
         if (_controller.isLoading.value) {
           return const Center(child: CircularProgressIndicator());
@@ -131,6 +75,7 @@ class _ShelfPageState extends State<ShelfPage> {
         final items = _controller.filteredBooks(shelf: widget.shelf);
         return Column(
           children: [
+            _actionRow(context),
             const StatusFilterRow(),
             _authorBanner(),
             Expanded(
@@ -158,6 +103,110 @@ class _ShelfPageState extends State<ShelfPage> {
           ],
         );
       }),
+    );
+  }
+
+  /// Keşke 16 (1.20.0): yazılı eylem satırı. Sırala ve süz her görünümde;
+  /// "Rafı taşı" yalnız somut rafta (tüm kitaplığı tek rafa toplamak kaza
+  /// riski taşır — 1.16.0 kararı); "Rafa topla" ve "Adı değiştir" yalnız
+  /// yazar filtresi aktifken.
+  Widget _actionRow(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
+      child: Obx(() {
+        final authorActive = _controller.authorFilter.value != null;
+        return Wrap(
+          spacing: 8,
+          runSpacing: 0,
+          children: [
+            Obx(() {
+              final customSort = _controller.hasCustomSort;
+              return _action(
+                context,
+                tooltip: 'Sırala',
+                label: 'Sırala',
+                highlighted: customSort,
+                icon: Badge(
+                  isLabelVisible: customSort,
+                  child: const Icon(Icons.sort),
+                ),
+                onPressed: () => showBookSortSheet(context),
+              );
+            }),
+            // Kullanıcı isteği (1.16.0): "a rafındaki tüm kitapları b
+            // rafına aktarabiliyormuyum" — somut raf sayfalarında tüm
+            // kitapları toplu taşıma.
+            if (widget.shelf != null)
+              _action(
+                context,
+                tooltip: 'Bu raftaki tüm kitapları başka rafa taşı',
+                label: 'Rafı taşı',
+                buttonKey: const ValueKey('shelf-bulk-move'),
+                icon: const Icon(Icons.drive_file_move_outline),
+                onPressed: () => moveWholeShelf(context, widget.shelf!),
+              ),
+            _action(
+              context,
+              tooltip: 'Filtrele',
+              label: 'Süz',
+              highlighted: authorActive,
+              icon: Badge(
+                isLabelVisible: authorActive,
+                child: const Icon(Icons.filter_list),
+              ),
+              onPressed: () => _showAuthorFilterSheet(context),
+            ),
+            // Yazar filtresi aktifken: aynı yazarın kitaplarını tek raf
+            // toplama (klasör ikonu, "tüm rafı taşı"dan ayrışsın).
+            if (authorActive)
+              _action(
+                context,
+                tooltip: 'Bu yazarın kitaplarını bir rafa topla',
+                label: 'Rafa topla',
+                icon: const Icon(Icons.folder_special_outlined),
+                onPressed: () => _collectAuthorToShelf(context),
+              ),
+            // Yazar filtresi aktifken: yazar adını değiştir (yazım birleştirme).
+            if (authorActive)
+              _action(
+                context,
+                tooltip: 'Yazarı yeniden adlandır',
+                label: 'Adı değiştir',
+                icon: const Icon(Icons.drive_file_rename_outline),
+                onPressed: () => _renameAuthor(context),
+              ),
+          ],
+        );
+      }),
+    );
+  }
+
+  /// Yazılı eylem düğmesi: Tooltip sarmalı — arayüzde yazı, ekran
+  /// okuyucuda ve testlerde tooltip mesajı aynı kalır.
+  Widget _action(
+    BuildContext context, {
+    required String tooltip,
+    required String label,
+    required Widget icon,
+    required VoidCallback onPressed,
+    Key? buttonKey,
+    bool highlighted = false,
+  }) {
+    final color =
+        highlighted ? Theme.of(context).colorScheme.primary : null;
+    return Tooltip(
+      message: tooltip,
+      child: TextButton.icon(
+        key: buttonKey,
+        onPressed: onPressed,
+        icon: icon,
+        label: Text(
+          label,
+          style: color == null
+              ? null
+              : TextStyle(color: color, fontWeight: FontWeight.w600),
+        ),
+      ),
     );
   }
 

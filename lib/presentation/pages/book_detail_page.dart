@@ -52,40 +52,7 @@ class BookDetailPage extends GetView<LibraryController> {
       final theme = Theme.of(context);
 
       return Scaffold(
-        appBar: AppBar(
-          title: const Text('Kitap detayı'),
-          actions: [
-            if (_canLend(book))
-              IconButton(
-                tooltip: 'Ödünç ver',
-                icon: const Icon(Icons.book_outlined),
-                onPressed: () => _lendBook(context, book),
-              ),
-            IconButton(
-              tooltip: book.isFavorite
-                  ? 'Favorilerden çıkar'
-                  : 'Favorilere ekle',
-              icon: Icon(
-                book.isFavorite ? Icons.favorite : Icons.favorite_outline,
-                color: book.isFavorite ? Colors.redAccent : null,
-              ),
-              onPressed: () => controller.toggleFavorite(book),
-            ),
-            IconButton(
-              tooltip: 'Düzenle',
-              icon: const Icon(Icons.edit),
-              onPressed: () => Get.toNamed(
-                Routes.form,
-                arguments: BookFormArgs(book: book, isEdit: true),
-              ),
-            ),
-            IconButton(
-              tooltip: 'Sil',
-              icon: const Icon(Icons.delete_outline),
-              onPressed: () => _confirmDelete(book),
-            ),
-          ],
-        ),
+        appBar: AppBar(title: const Text('Kitap detayı')),
         // Geniş ekranda içerik iki uca dağılmasın: tavan genişlikle ortalanır.
         body: ResponsiveCenter(child: ListView(
           padding: const EdgeInsets.all(16),
@@ -179,6 +146,7 @@ class BookDetailPage extends GetView<LibraryController> {
             // sürüyor bir ödünçteyken çizilir; denetleyicisiz kurulumlarda
             // (testler) sayfa eskisi gibi kalır.
             ..._loanBanner(context, book),
+            _actionStrip(context, book),
             Card(
               child: ListTile(
                 leading: const Icon(Icons.shelves),
@@ -208,6 +176,72 @@ class BookDetailPage extends GetView<LibraryController> {
         )),
       );
     });
+  }
+
+  /// Keşke 30 (1.20.0): üst çubuktaki dört yazısız ikonun yerine yazılı
+  /// eylem şeridi — "'Ödünç ver'in ikonu kitap resmi; 'kitabı oku'
+  /// sanıyorum" notu. Yazı ikonla birlikte durur; işlevler ve
+  /// tooltip'ler eski ikon düğmeleriyle aynıdır.
+  Widget _actionStrip(BuildContext context, BookModel book) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          if (_canLend(book))
+            Tooltip(
+              message: 'Ödünç ver',
+              child: OutlinedButton.icon(
+                key: const ValueKey('detail-action-lend'),
+                onPressed: () => _lendBook(context, book),
+                icon: const Icon(Icons.book_outlined),
+                label: const Text('Ödünç ver'),
+              ),
+            ),
+          Tooltip(
+            message: book.isFavorite
+                ? 'Favorilerden çıkar'
+                : 'Favorilere ekle',
+            child: OutlinedButton.icon(
+              key: const ValueKey('detail-action-favorite'),
+              onPressed: () => controller.toggleFavorite(book),
+              icon: Icon(
+                book.isFavorite ? Icons.favorite : Icons.favorite_outline,
+                color: book.isFavorite ? Colors.redAccent : null,
+              ),
+              label: Text(
+                book.isFavorite ? 'Favorilerden çıkar' : 'Favorilere ekle',
+              ),
+            ),
+          ),
+          Tooltip(
+            message: 'Düzenle',
+            child: OutlinedButton.icon(
+              key: const ValueKey('detail-action-edit'),
+              onPressed: () => Get.toNamed(
+                Routes.form,
+                arguments: BookFormArgs(book: book, isEdit: true),
+              ),
+              icon: const Icon(Icons.edit),
+              label: const Text('Düzenle'),
+            ),
+          ),
+          Tooltip(
+            message: 'Sil',
+            child: OutlinedButton.icon(
+              key: const ValueKey('detail-action-delete'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.error,
+              ),
+              onPressed: () => _confirmDelete(book),
+              icon: const Icon(Icons.delete_outline),
+              label: const Text('Sil'),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   /// Ödünç verme aksiyonu yalnızca LoanController kayıtlıyken ve kitabın

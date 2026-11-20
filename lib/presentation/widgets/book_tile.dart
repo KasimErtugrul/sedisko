@@ -12,6 +12,11 @@ import 'cover_image.dart';
 /// tek bakışta gösterir: kapak, başlık, yazar(lar), raf, yayınevi, basım
 /// yılı, sayfa sayısı, okuma durumu/sayfa/tarihler ve varsa bitirme
 /// hedefi (kalan gün + günlük sayfa planı ya da gecikme uyarısı).
+///
+/// **1.20.0 (keşke 15):** taşıma artık görünür düğmeyle de yapılır —
+/// "taşıma uzun basma ile yapılıyor, kimse söylemedi" şeklindeki
+/// kullanıcı notuna karşılık kartın ucundaki düğme aynı akışı açar;
+/// uzun basma yolu da çalışmaya devam eder.
 class BookTile extends StatelessWidget {
   const BookTile({
     super.key,
@@ -95,6 +100,19 @@ class BookTile extends StatelessWidget {
                   ],
                 ),
               ),
+              // Keşke 15 (1.20.0): "başka rafa taşı" yolu artık görünür.
+              // Uzun basma hâlâ aynı akışı açar; düğme onun keşfedilebilir
+              // ikonu. Sağlarken uzun basmanın davranışı değişmedi.
+              if (onLongPress != null)
+                IconButton(
+                  key: const ValueKey('book-tile-move'),
+                  tooltip: 'Başka rafa taşı',
+                  icon: const Icon(Icons.drive_file_move_outline),
+                  onPressed: () {
+                    AppHaptics.selection();
+                    onLongPress!();
+                  },
+                ),
             ],
           ),
         ),

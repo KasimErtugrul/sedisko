@@ -154,12 +154,26 @@ class _BorrowedCard extends StatelessWidget {
         isThreeLine: item.authors.isNotEmpty || item.note != null,
         // Dokun → düzenle; düzenleme sonucu mevcut kaydın üzerine yazılır.
         onTap: () => _edit(context),
-        trailing: isActive
-            ? TextButton(
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isActive)
+              TextButton(
                 onPressed: _markReturned,
                 child: const Text('Geri verdim'),
               )
-            : const Icon(Icons.check_circle_outline),
+            else
+              const Icon(Icons.check_circle_outline),
+            // Keşke 37 (1.20.0): silme görünür düğmeyle; basılı tutma yolu
+            // da aynı onayı açmaya devam eder.
+            IconButton(
+              key: ValueKey('borrowed-delete-${item.id}'),
+              tooltip: 'Kaydı sil',
+              icon: const Icon(Icons.delete_outline),
+              onPressed: () => _confirmDelete(context),
+            ),
+          ],
+        ),
         onLongPress: () => _confirmDelete(context),
       ),
     );

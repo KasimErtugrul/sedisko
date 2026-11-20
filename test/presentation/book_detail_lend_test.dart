@@ -106,15 +106,21 @@ void main() {
 
     await pumpDetail(tester);
 
-    // Aksiyon görünür; aktif ödünç yokken banner yok.
+    // Aksiyon görünür; aktif ödünç yokken banner yok. Keşke 30 (1.20.0):
+    // eylemler üst çubukta yazısız ikon değil, yazılı şeritte durur.
     expect(find.byTooltip('Ödünç ver'), findsOneWidget);
+    expect(find.byKey(const Key('detail-action-lend')), findsOneWidget);
+    expect(find.text('Favorilere ekle'), findsOneWidget);
+    expect(find.text('Düzenle'), findsOneWidget);
+    expect(find.text('Sil'), findsOneWidget);
     expect(find.byKey(const Key('loan-banner')), findsNothing);
 
     await tester.tap(find.byTooltip('Ödünç ver'));
     await tester.pumpAndSettle();
 
-    // Diyalog: başlık ve onay düğmesi.
-    expect(find.text('Ödünç ver'), findsNWidgets(2));
+    // Diyalog: başlık ve onay düğmesi. Şeritteki etiketle birlikte
+    // "Ödünç ver" yazısı üç yerde görünür (şerit + diyalog başlığı + onay).
+    expect(find.text('Ödünç ver'), findsNWidgets(3));
     // Kişi boşken onay düğmesi pasiftir.
     expect(
       tester.widget<FilledButton>(

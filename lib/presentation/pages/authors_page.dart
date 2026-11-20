@@ -14,8 +14,10 @@ import '../widgets/author_rename_dialog.dart';
 /// görebilsek." Buradan:
 /// - Karta dokununca yazarın kitapları [Routes.shelf] üzerinde açılır
 ///   (authorKey filtresiyle; kitap detayındaki yazar dokunuşuyla aynı sayfa).
-/// - Basılı tutunca yazar adı değiştirme diyaloğu açılır: Open Library'nin
-///   sadeleştirdiği yazımlar ("Kasim" ↔ "Kasım") tek isimde birleştirilir.
+/// - Kartın köşesindeki kalem simgesi (1.20.0 — keşke 19) yazar adı
+///   değiştirme diyaloğu açar: Open Library'nin sadeleştirdiği yazımlar
+///   ("Kasim" ↔ "Kasım") tek isimde birleştirilir. Basılı tutma yolu
+///   da aynı işi yapmaya devam eder.
 ///
 /// Yazarlar, aksan/büyük-küçük farkı katlanarak tek kartta toplanır
 /// ([LibraryController.authors]); kartta kitap sayısı gösterilir.
@@ -79,7 +81,8 @@ class AuthorsPage extends GetView<LibraryController> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
               child: Text(
-                'Kitapları açmak için dokun; adını değiştirmek için basılı tut.',
+                'Kitapları açmak için dokun; adı değiştirmek için kartın '
+                'köşesindeki kalem simgesine dokun.',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
@@ -137,38 +140,56 @@ class _AuthorCard extends StatelessWidget {
 
     return Card(
       clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        onLongPress: onLongPress,
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircleAvatar(
-                radius: 22,
-                backgroundColor: scheme.primaryContainer,
-                foregroundColor: scheme.onPrimaryContainer,
-                child: Text(
-                  initial,
-                  style: theme.textTheme.titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w700),
-                ),
+      child: Stack(
+        children: [
+          InkWell(
+            onTap: onTap,
+            onLongPress: onLongPress,
+            child: Padding(
+              padding: const EdgeInsets.all(10),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircleAvatar(
+                    radius: 22,
+                    backgroundColor: scheme.primaryContainer,
+                    foregroundColor: scheme.onPrimaryContainer,
+                    child: Text(
+                      initial,
+                      style: theme.textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 2),
+                  Text('$bookCount kitap', style: theme.textTheme.bodySmall),
+                ],
               ),
-              const SizedBox(height: 8),
-              Text(
-                name,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium
-                    ?.copyWith(fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 2),
-              Text('$bookCount kitap', style: theme.textTheme.bodySmall),
-            ],
+            ),
           ),
-        ),
+          // Keşke 19 (1.20.0): ad değiştirme artık görünür düğme —
+          // "sayfanın en altındaki minik yazıyı okumadım" notu.
+          // Basılı tutma yolu da aynı diyaloğu açmaya devam eder.
+          Positioned(
+            top: 0,
+            right: 0,
+            child: IconButton(
+              key: ValueKey('author-edit-${TextNormalizer.searchKey(name)}'),
+              tooltip: 'Adını değiştir',
+              icon: const Icon(Icons.edit_outlined, size: 18),
+              visualDensity: VisualDensity.compact,
+              onPressed: onLongPress,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -5,14 +5,17 @@ import '../../core/utils/date_formatter.dart';
 import '../../data/models/loan_model.dart';
 import '../controllers/loan_controller.dart';
 import '../utils/app_navigation.dart';
+import '../widgets/lend_book_picker_sheet.dart';
 
 /// 'Ödünç verilenler' sayfası (1.18.0): kitaplıkta verdiğimiz kitapların
 /// tüm geçmişi.
 ///
 /// İki bölüm: 'Sürüyor' ([LoanController.activeLoans]) ve 'Geri alınanlar'
 /// ([LoanController.returnedLoans]). Aktif kartta 'Geri alındı' düğmesi;
-/// basılı tutunca kayıt silme onayı açılır. Kitap detayındaki
-/// "Ödünç ver" aksiyonuyla yeni kayıt açılır.
+/// her kartta görünür 'Kaydı sil' düğmesi (1.20.0 — keşke 37: basılı
+/// tutma yolu da aynı onayı açmaya devam eder). Sağ alttaki 'Ödünç ver'
+/// düğmesi (keşke 38) kitap detayına gitmeden yeni kayıt açar:
+/// kitap seçilir, kişi/not diyaloğu gelir.
 class LoansPage extends StatelessWidget {
   const LoansPage({super.key});
 
@@ -21,6 +24,14 @@ class LoansPage extends StatelessWidget {
     final controller = Get.find<LoanController>();
     return Scaffold(
       appBar: AppBar(title: const Text('Ödünç verilenler')),
+      // Keşke 38 (1.20.0): "kardeş sayfa ('Ödünç aldıklarım') FAB'lı, bu
+      // boş açılıyor" — aynı davranış: sağ alttan yeni kayıt.
+      floatingActionButton: FloatingActionButton.extended(
+        key: const Key('loans-add-fab'),
+        onPressed: () => showLendBookPickerSheet(context),
+        icon: const Icon(Icons.add),
+        label: const Text('Ödünç ver'),
+      ),
       body: Obx(() {
         final active = controller.activeLoans;
         final returned = controller.returnedLoans;
@@ -28,7 +39,7 @@ class LoansPage extends StatelessWidget {
           return const _EmptyView();
         }
         return ListView(
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 88),
           children: [
             if (active.isNotEmpty) ...[
               _SectionHeader(title: 'Sürüyor', count: active.length),
@@ -42,7 +53,8 @@ class LoansPage extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(4, 4, 4, 12),
               child: Text(
-                'Kitap detayındaki "Ödünç ver" aksiyonuyla kitap takibi yapılır.',
+                'Sağ alttaki "Ödünç ver" düğmesiyle ya da kitap detayından '
+                'yeni kayıt açılır.',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
@@ -140,12 +152,26 @@ class _LoanCard extends StatelessWidget {
           ],
         ),
         isThreeLine: loan.note != null,
-        trailing: isActive
-            ? TextButton(
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isActive)
+              TextButton(
                 onPressed: _markReturned,
                 child: const Text('Geri alındı'),
               )
-            : const Icon(Icons.check_circle_outline),
+            else
+              const Icon(Icons.check_circle_outline),
+            // Keşke 37 (1.20.0): silme görünür düğmeyle; basılı tutma yolu
+            // da aynı onayı açmaya devam eder.
+            IconButton(
+              key: ValueKey('loan-delete-${loan.id}'),
+              tooltip: 'Kaydı sil',
+              icon: const Icon(Icons.delete_outline),
+              onPressed: () => _confirmDelete(context),
+            ),
+          ],
+        ),
         onLongPress: () => _confirmDelete(context),
       ),
     );
@@ -207,7 +233,7 @@ class _EmptyView extends StatelessWidget {
             const SizedBox(height: 12),
             const Text(
               'Henüz ödünç verilen kitap yok.\n'
-              'Kitap detayındaki "Ödünç ver" aksiyonunu kullanabilirsin.',
+              'Sağ alttaki "Ödünç ver" düğmesini kullanabilirsin.',
               textAlign: TextAlign.center,
             ),
           ],

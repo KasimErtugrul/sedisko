@@ -147,4 +147,55 @@ void main() {
     expect(find.textContaining('gün önce bitirdin'), findsOneWidget);
     expect(find.textContaining('Bitti'), findsOneWidget);
   });
+
+  testWidgets('keşke 15: taşıma düğmesi görünür ve taşıma akışını açar',
+      (tester) async {
+    var moved = 0;
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      GetMaterialApp(
+        home: Scaffold(
+          body: ListView(
+            children: [
+              BookTile(
+                book: BookModel(
+                  id: 't6',
+                  title: 'Taşınan kitap',
+                  addedAt: DateTime(2026, 1, 1),
+                ),
+                onTap: () {},
+                onLongPress: () => moved++,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Taşıma artık uzun basmaya ek görünür bir düğmeyle de yapılır;
+    // düğme uzun basmanın açtığı akışın AYNISINI çalıştırır.
+    final button = find.byKey(const ValueKey('book-tile-move'));
+    expect(button, findsOneWidget);
+    expect(find.byTooltip('Başka rafa taşı'), findsOneWidget);
+    await tester.tap(button);
+    expect(moved, 1);
+    // Uzun basma yolu da çalışmaya devam eder.
+    await tester.longPress(find.text('Taşınan kitap'));
+    expect(moved, 2);
+  });
+
+  testWidgets('keşke 15: taşıma yolu yoksa düğme çizilmez', (tester) async {
+    await pumpTile(
+      tester,
+      BookModel(
+        id: 't7',
+        title: 'Yalın kart',
+        addedAt: DateTime(2026, 1, 1),
+      ),
+    );
+    expect(find.byKey(const ValueKey('book-tile-move')), findsNothing);
+  });
 }

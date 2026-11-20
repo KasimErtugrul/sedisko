@@ -56,8 +56,19 @@ class BackupImportModeDialog extends StatelessWidget {
           child: const Text('Vazgeç'),
         ),
         TextButton(
-          onPressed: () =>
-              Navigator.of(context).pop(BackupImportMode.replace),
+          // Keşke 40 (1.20.0): 'Üzerine yaz' artık iki adımlı — ilk
+          // diyalog kipleri anlatır, ikinci diyalog gerçekten bütün
+          // kitaplığın değişeceğini bir kez daha sorar ("basmak hâlâ tek
+          // dokunuştu" notu). Onay verilmezse bu diyalog açık kalır.
+          onPressed: () async {
+            // Navigator'ı beklemeyi yapmadan yakala: ikinci diyalogdan
+            // dönerken context'i async boşluğunun ötesinde kullanma.
+            final navigator = Navigator.of(context);
+            final confirmed = await _confirmOverwrite(context, envelope);
+            if (confirmed) {
+              navigator.pop(BackupImportMode.replace);
+            }
+          },
           child: Text(
             'Üzerine yaz',
             style: TextStyle(color: theme.colorScheme.error),
@@ -70,4 +81,38 @@ class BackupImportModeDialog extends StatelessWidget {
       ],
     );
   }
+}
+
+/// İkinci onay: geri alınamaz adımdan önce "emin misin?" sorusu.
+Future<bool> _confirmOverwrite(
+  BuildContext context,
+  BackupEnvelope envelope,
+) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    barrierDismissible: false,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('Bütün kitaplık değişecek'),
+      content: Text(
+        'Telefondaki mevcut kitaplar ve raf tanımları silinip yedektekiyle '
+        'değiştirilecek. Yedekte ${envelope.books.length} kitap ve '
+        '${envelope.shelves.length} raf var. Bu işlem geri alınamaz.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(false),
+          child: const Text('Vazgeç'),
+        ),
+        FilledButton(
+          key: const ValueKey('overwrite-final-confirm'),
+          style: FilledButton.styleFrom(
+            backgroundColor: Theme.of(dialogContext).colorScheme.error,
+          ),
+          onPressed: () => Navigator.of(dialogContext).pop(true),
+          child: const Text('Evet, hepsini değiştir'),
+        ),
+      ],
+    ),
+  );
+  return confirmed == true;
 }

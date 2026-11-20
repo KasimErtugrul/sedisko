@@ -118,6 +118,27 @@ void main() {
     expect(find.text('Orhan Pamuk').hitTestable(), findsOneWidget);
   });
 
+  testWidgets(
+      'keşke 19: yazar kartındaki kalem simgesi ad değiştirme diyaloğunu açar',
+      (tester) async {
+    await pumpApp(tester);
+
+    // Kartın köşesindeki görünür düğme; basılı tutmayı keşfetmeyi
+    // gerektirmez. (Basılı tutma yolu da aynı diyaloğu açmaya devam eder.)
+    await tester.tap(
+      find.byKey(const ValueKey('author-edit-kasim')).hitTestable(),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Yazar adını değiştir'), findsOneWidget);
+    await tester.tap(find.text('Vazgeç').hitTestable());
+    await tester.pumpAndSettle();
+
+    await tester.longPress(find.text('Kasım').hitTestable());
+    await tester.pumpAndSettle();
+    expect(find.text('Yazar adını değiştir'), findsOneWidget);
+  });
+
   testWidgets('karta dokununca yazarın kitapları açılır', (tester) async {
     await pumpApp(tester);
 

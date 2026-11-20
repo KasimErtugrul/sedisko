@@ -168,4 +168,35 @@ void main() {
     expect(controller.items.single.source, WishlistSource.openlibrary);
     expect(controller.items.single.id, 'w1');
   });
+
+  testWidgets('keşke 36: Aldım işareti onaylı kaydı listeden çıkarır',
+      (tester) async {
+    await controller.add(openLibraryItem());
+    await pumpWishlistPage(tester);
+
+    // Her kartta iki net yol yan yana: Aldım + Kitaplığa ekle.
+    expect(find.text('Aldım'), findsOneWidget);
+    expect(find.text('Kitaplığa ekle'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('wishlist-bought-w1')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('"Dune" alındı mı?'), findsOneWidget);
+
+    // Vazgeç: kayıt listede kalır.
+    await tester.tap(find.text('Vazgeç'));
+    await tester.pumpAndSettle();
+    expect(find.text('Dune'), findsOneWidget);
+
+    // Evet, aldım: kayıt listeden ve depodan düşer.
+    await tester.tap(find.byKey(const ValueKey('wishlist-bought-w1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('wishlist-bought-confirm')));
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Dune'), findsNothing);
+    expect(WishlistLocalDataSource(prefs).getItems(), isEmpty);
+  });
 }
